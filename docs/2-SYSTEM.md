@@ -1,0 +1,33 @@
+# Phase 2: System Design
+
+## Tech Stack
+- Frontend
+- - NuxtJS
+- Reverse Proxy
+- - Nginx
+- CDN
+- - Cloudflare
+- Backend
+- - Laravel
+- Caching
+- - Redis
+- Database
+- - PostgreSQL
+- Asynchronous Events
+- - RabbitMQ (Message Queue)
+- Background Worker
+- - Go Routines
+- Search Engine / Indexing Search
+- - ElasticSearch
+- Payment Gateway
+- - Stripe, Paypal, Bank Cards, Crypto
+- Mailer
+- - SendGrid / AWS SES
+- Storage
+- - AWS S3
+- Logs
+- - FluentBit
+- - Elasticsearch
+- - Kibana
+- Observability
+- - Elastic APM
