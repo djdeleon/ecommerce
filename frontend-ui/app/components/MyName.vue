@@ -1,13 +1,5 @@
 <script setup>
-const config = useRuntimeConfig()
-
-const baseURL = process.server 
-  ? 'http://reverse-proxy/api' 
-  : config.public.apiBase
-
-const { data: apiResponse, error } = await useFetch('/test-connection', {
-  baseURL
-})
+const { data: apiResponse, error } = await useApi('/api/test-connection');
 </script>
 
 <template>

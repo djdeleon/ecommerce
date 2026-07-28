@@ -2,15 +2,15 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: false },
-  
-  // Define runtime variables for the network boundary configuration
+
+  srcDir: "app/",
   runtimeConfig: {
+    apiServer: "http://reverse-proxy", 
     public: {
-      // Used on the client-side (Browser uses standard reverse-proxy mapping)
-      apiBase: '/api' 
+      apiBase: "/api",
     }
   },
-
+  
   vite: {
     server: {
       watch: {
