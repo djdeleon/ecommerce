@@ -31,3 +31,6 @@
 - - Kibana
 - Observability
 - - Elastic APM
+
+## Database Schema ERD
+![ERD 1.0](images/E-Commerce-ERD-1.0.jpg)
