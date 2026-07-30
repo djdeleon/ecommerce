@@ -32,5 +32,5 @@
 - Observability
 - - Elastic APM
 
-## [Database Schema ERD 1.0](https://drive.google.com/file/d/16iVNB2pAwcW6ndI78BE1bRuWoSL2JmGG/view?usp=sharing)
+## Database Schema ERD 1.0
 ![ERD 1.0](images/ERD-1.0.jpg)
