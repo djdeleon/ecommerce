@@ -68,8 +68,6 @@ it('successfully authenticates a user with correct credentials and returns a tok
         'password' => 'secretPassword123'
     ]);
 
-    dd($response->json());
-
     $response->assertStatus(200)
             ->assertjsonStructure([
                 'message',
@@ -78,19 +76,34 @@ it('successfully authenticates a user with correct credentials and returns a tok
             ]);
 });
 
-// it('returns validation errors if credentials are incorrect', function () {
-//     User::factory()->create([
-//         'email' => 'wrong-pass@example.com',
-//         'password' => Hash::make('correctPassword')
-//     ]);
+describe('returns an unauthorized error code if credentials do not match', function () {
+    it('returns an unauthorized error code if password do not match', function () {
+        User::factory()->create([
+            'email' => 'wrong-pass@example.com',
+            'password' => Hash::make('correctPassword')
+        ]);
+    
+        $response = $this->postJson(route('login'), [
+            'email' => 'wrong-pass@example.com',
+            'password' => 'badPassword'
+        ]);
+    
+        $response->assertStatus(401)
+                ->assertJsonPath('message', 'Invalid credentials.');
+    });
 
-//     $response = $this->postJson(route('login'), [
-//         'email' => 'wrong-pass@example.com',
-//         'password' => 'badPassword'
-//     ]);
+    it('returns an unauthorized error code if email do not match', function () {
+        User::factory()->create([
+            'email' => 'wrong-email@example.com',
+            'password' => Hash::make('secretPassword123')
+        ]);
 
-//     $response->assertStatus(401)
-//             ->assertJsonPath('message', 'Invalid credentials.');
+        $response = $this->postJson(route('login'), [
+            'email' => 'correct-email@example.com',
+            'password' => 'secretPassword123'
+        ]);
 
-//     // TODO: add wrong email as well
-// });
+        $response->assertStatus(401)
+                ->assertJsonPath('message', 'Invalid credentials.');
+    });
+});

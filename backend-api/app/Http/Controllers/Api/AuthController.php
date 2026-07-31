@@ -27,7 +27,7 @@ class AuthController extends Controller
         $authData = $authService->attempLogin($request->validated());
 
         if (!$authData) {
-            return response()->json(['message', 'Failed'], 401);
+            return response()->json(['message' => 'Invalid credentials.'], 401);
         }
 
         return response()->json([
