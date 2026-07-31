@@ -2,6 +2,7 @@
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
 uses(RefreshDatabase::class);
 
@@ -55,3 +56,41 @@ it('returns validation errors if login fields are missing', function () {
     $response->assertStatus(422)
             ->assertJsonValidationErrors(['email', 'password']);
 });
+
+it('successfully authenticates a user with correct credentials and returns a token', function () {
+    User::factory()->create([
+        'email' => 'login-test@example.com',
+        'password' => Hash::make('secretPassword123')
+    ]);
+
+    $response = $this->postJson(route('login'), [
+        'email' => 'login-test@example.com',
+        'password' => 'secretPassword123'
+    ]);
+
+    dd($response->json());
+
+    $response->assertStatus(200)
+            ->assertjsonStructure([
+                'message',
+                'token',
+                'user' => ['id', 'email']
+            ]);
+});
+
+// it('returns validation errors if credentials are incorrect', function () {
+//     User::factory()->create([
+//         'email' => 'wrong-pass@example.com',
+//         'password' => Hash::make('correctPassword')
+//     ]);
+
+//     $response = $this->postJson(route('login'), [
+//         'email' => 'wrong-pass@example.com',
+//         'password' => 'badPassword'
+//     ]);
+
+//     $response->assertStatus(401)
+//             ->assertJsonPath('message', 'Invalid credentials.');
+
+//     // TODO: add wrong email as well
+// });
