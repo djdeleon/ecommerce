@@ -10,3 +10,7 @@
 - High Volume Concurrency
 - Financial Ledger
 - Warehouse and Inventory Stock Ledger
+- Logistic and Shipment Legs
+- Vendor and Driver Profiles
+- Payout Escrow
+- Product Price Track Records
