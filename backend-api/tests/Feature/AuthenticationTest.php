@@ -6,7 +6,7 @@ use App\Models\User;
 uses(RefreshDatabase::class);
 
 it('returns validation errors if registration fields are missing', function () {
-    $response = $this->postJson(route('api.register'), []);
+    $response = $this->postJson(route('register'), []);
 
     $response->assertStatus(422)
             ->assertJsonValidationErrors(['name', 'email', 'password']);
@@ -19,7 +19,7 @@ it('saves a user to the database and hashes their password upon successful regis
         'password' => 'securePassword123'
     ];
 
-    $response = $this->postJson(route('api.register'), $user);
+    $response = $this->postJson(route('register'), $user);
 
     $response->assertStatus(201)
             ->assertJsonPath('message', 'Registration Successful.');
@@ -43,8 +43,15 @@ it('returns an error if the given email already exists', function () {
         'password' => 'securePassword123'
     ];
 
-    $response = $this->postJson(route('api.register'), $user);
+    $response = $this->postJson(route('register'), $user);
 
     $response->assertStatus(422)
             ->assertJsonValidationErrors(['email']);
+});
+
+it('returns validation errors if login fields are missing', function () {
+    $response = $this->postJson(route('login'), []);
+
+    $response->assertStatus(422)
+            ->assertJsonValidationErrors(['email', 'password']);
 });
