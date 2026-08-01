@@ -1,7 +1,7 @@
 <?php
 
 test('vendor can access their dashboard data', function () {
-    actingAsRole('Vendor')
+    actingAsRole(Roles::Vendor)
         ->getJson(route('vendor.dashboard'))
         ->assertStatus(200)
         ->assertJsonStructure([
@@ -14,7 +14,7 @@ test('vendor can access their dashboard data', function () {
 });
 
 test('customers are blocked from the customer dashboard', function () {
-    actingAsRole('Customer')
+    actingAsRole(Roles::Customer)
         ->getJson(route('vendor.dashboard'))
         ->assertStatus(403);
 });

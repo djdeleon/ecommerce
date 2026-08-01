@@ -26,7 +26,7 @@ class RegisterRequest extends FormRequest
             'name'  => 'required|string|max:255',
             'email' => 'required|email|unique:users',
             'password' => 'required|min:8',
-            'role' => 'nullable|string|in:Customer,Vendor,Driver,Admin'
+            'role' => 'nullable|string|in:customer,vendor,driver,admin'
         ];
     }
 }

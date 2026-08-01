@@ -1,7 +1,7 @@
 <?php
 
 test('driver can access their dashboard data', function () {
-    actingAsRole('Driver')
+    actingAsRole(Roles::Driver)
         ->getJson(route('driver.dashboard'))
         ->assertStatus(200)
         ->assertJsonStructure([
@@ -14,7 +14,7 @@ test('driver can access their dashboard data', function () {
 });
 
 test('vendors are blocked from the driver dashboard', function () {
-    actingAsRole('Vendor')
+    actingAsRole(Roles::Vendor)
         ->getJson(route('driver.dashboard'))
         ->assertStatus(403);
 });
