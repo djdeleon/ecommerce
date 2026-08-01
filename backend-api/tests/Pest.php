@@ -18,6 +18,13 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    ->beforeEach(function () {
+        foreach (Roles::cases() as $role) {
+            Role::firstOrCreate([
+                'name' => $role->value,
+            ]);
+        }
+    })
     ->in('Feature');
 
 /*
@@ -46,54 +53,32 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function customer(): User
+enum Roles: string
 {
-    Role::create(['name' => 'Customer']);
-
-    test()->postJson(route('register'), [
-        'name'     => 'Customer Joe',
-        'email'    => 'customer@example.com',
-        'password' => 'securePassword123'
-    ]);
-
-    $customer = User::where('email', 'customer@example.com')->first();
-
-    return $customer;
+    case Admin = 'admin';
+    case Customer = 'customer';
+    case Vendor = 'vendor';
+    case Driver = 'driver';
 }
 
-function vendor(): User
+function getUserWithRole(Roles $role)
 {
-    Role::create(['name' => 'Vendor']);
-
-    test()->postJson(route('register'), [
-        'name'     => 'Vendor Joe',
-        'email'    => 'vendor@example.com',
+    $data = [
+        'name'     => "{$role->name} Joe",
+        'email'    => "{$role->value}@example.com",
         'password' => 'securePassword123',
-        'role'     => 'Vendor'
-    ]);
+    ];
 
-    $vendor = User::where('email', 'vendor@example.com')->first();
+    $data = array_merge($data, $role->value !== 'Customer' ? ['role' => $role->value] : []);
 
-    return $vendor;
+    test()->postJson(route('register'), $data);
+
+    $user = User::where('email', "{$role->value}@example.com")->first();
+
+    return $user;
 }
 
-function driver(): User
+function actingAsRole(Roles $role)
 {
-    Role::create(['name' => 'Driver']);
-
-    test()->postJson(route('register'), [
-        'name'     => 'Driver Joe',
-        'email'    => 'driver@example.com',
-        'password' => 'securePassword123',
-        'role'     => 'Driver'
-    ]);
-
-    $driver = User::where('email', 'driver@example.com')->first();
-
-    return $driver;
-}
-
-function actingAsRole(string $role)
-{
-    return test()->actingAs(strtolower($role)(), 'sanctum');
+    return test()->actingAs(getUserWithRole($role), 'sanctum');
 }

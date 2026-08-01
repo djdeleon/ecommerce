@@ -2,15 +2,6 @@
 
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\Models\Role;
-
-beforeEach(function () {
-    Role::create(['name' => 'Customer']);
-    Role::create(['name' => 'Vendor']);
-    Role::create(['name' => 'Driver']);
-    Role::create(['name' => 'Admin']);
-});
-
 
 it('returns validation errors if registration fields are missing', function () {
     $response = $this->postJson(route('register'), []);
@@ -47,7 +38,7 @@ it('assigns a default Customer role if no role is explicitly provided', function
     ]);
 
     $user = User::where('email', 'default@example.com')->first();
-    expect($user->hasRole('Customer'))->toBeTrue();
+    expect($user->hasRole('customer'))->toBeTrue();
 });
 
 it('assigns the explicitly requested role like Vendor or Driver', function () {
@@ -55,11 +46,11 @@ it('assigns the explicitly requested role like Vendor or Driver', function () {
         'name'     => 'Super Merchant',
         'email'    => 'vendor@example.com',
         'password' => 'securePassword123',
-        'role'     => 'Vendor'
+        'role'     => 'vendor'
     ]);
 
     $user = User::where('email', 'vendor@example.com')->first();
-    expect($user->hasRole('Vendor'))->toBeTrue();
+    expect($user->hasRole('vendor'))->toBeTrue();
 });
 
 it('rejects registration attempt with an unauthorized or invalid user role', function () {
