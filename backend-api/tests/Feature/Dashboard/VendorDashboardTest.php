@@ -12,3 +12,9 @@ test('vendor can access their dashboard data', function () {
             ]
         ]);
 });
+
+test('customers are blocked from the customer dashbaord', function () {
+    actingAsRole('Customer')
+        ->getJson(route('vendor.dashboard'))
+        ->assertStatus(403);
+});
