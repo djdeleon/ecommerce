@@ -3,8 +3,17 @@
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
 
 uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    Role::create(['name' => 'Customer']);
+    Role::create(['name' => 'Vendor']);
+    Role::create(['name' => 'Driver']);
+    Role::create(['name' => 'Admin']);
+});
+
 
 it('returns validation errors if registration fields are missing', function () {
     $response = $this->postJson(route('register'), []);
@@ -31,6 +40,41 @@ it('saves a user to the database and hashes their password upon successful regis
 
     $user = User::where('email', $user['email'])->first();
     expect($user->password)->not->toBe($user['email']);
+});
+
+it('assigns a default Customer role if no role is explicitly provided', function () {
+    $this->postJson(route('register'), [
+        'name'     => 'Customer Joe',
+        'email'    => 'default@example.com',
+        'password' => 'securePassword123'
+    ]);
+
+    $user = User::where('email', 'default@example.com')->first();
+    expect($user->hasRole('Customer'))->toBeTrue();
+});
+
+it('assigns the explicitly requested role like Vendor or Driver', function () {
+    $this->postJson(route('register'), [
+        'name'     => 'Super Merchant',
+        'email'    => 'vendor@example.com',
+        'password' => 'securePassword123',
+        'role'     => 'Vendor'
+    ]);
+
+    $user = User::where('email', 'vendor@example.com')->first();
+    expect($user->hasRole('Vendor'))->toBeTrue();
+});
+
+it('rejects registration attempt with an unauthorized or invalid user role', function () {
+    $response = $this->postJson(route('register'), [
+        'name'     => 'Hacker',
+        'email'    => 'hacker@example.com',
+        'password' => 'securePassword123',
+        'role'     => 'Hacker'
+    ]);
+
+    $response->assertStatus(422)
+            ->assertJsonValidationErrors(['role']);
 });
 
 it('returns an error if the given email already exists', function () {
