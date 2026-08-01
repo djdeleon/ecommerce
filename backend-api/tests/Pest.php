@@ -77,6 +77,22 @@ function vendor(): User
     return $vendor;
 }
 
+function driver(): User
+{
+    Role::create(['name' => 'Driver']);
+
+    test()->postJson(route('register'), [
+        'name'     => 'Driver Joe',
+        'email'    => 'driver@example.com',
+        'password' => 'securePassword123',
+        'role'     => 'Driver'
+    ]);
+
+    $driver = User::where('email', 'driver@example.com')->first();
+
+    return $driver;
+}
+
 function actingAsRole(string $role)
 {
     return test()->actingAs(strtolower($role)(), 'sanctum');
