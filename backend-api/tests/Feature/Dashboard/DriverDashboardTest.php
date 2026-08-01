@@ -18,3 +18,8 @@ test('vendors are blocked from the driver dashboard', function () {
         ->getJson(route('driver.dashboard'))
         ->assertStatus(403);
 });
+
+test('unauthenticated users are blocked from the driver dashboard', function () {
+    $this->getJson(route('driver.dashboard'))
+        ->assertStatus(401);
+});

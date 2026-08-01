@@ -18,3 +18,8 @@ test('vendors are blocked from the customer dashbaord', function () {
         ->getJson(route('customer.dashboard'))
         ->assertStatus(403);
 });
+
+test('unauthenticated users are blocked from the customer dashboard', function () {
+    $this->getJson(route('customer.dashboard'))
+        ->assertStatus(401);
+});
