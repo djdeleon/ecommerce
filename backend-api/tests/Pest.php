@@ -46,6 +46,22 @@ expect()->extend('toBeOne', function () {
 |
 */
 
+function admin(): User
+{
+    Role::create(['name' => 'Admin']);
+
+    test()->postJson(route('register'), [
+        'name'     => 'Admin Joe',
+        'email'    => 'admin@example.com',
+        'password' => 'securePassword123',
+        'role'     => 'Admin'
+    ]);
+
+    $admin = User::where('email', 'admin@example.com')->first();
+
+    return $admin;
+}
+
 function customer(): User
 {
     Role::create(['name' => 'Customer']);
