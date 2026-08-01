@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /*
@@ -15,7 +17,7 @@ use Tests\TestCase;
 */
 
 pest()->extend(TestCase::class)
- // ->use(RefreshDatabase::class)
+    ->use(RefreshDatabase::class)
     ->in('Feature');
 
 /*
@@ -44,7 +46,38 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+function customer(): User
 {
-    // ..
+    Role::create(['name' => 'Customer']);
+
+    test()->postJson(route('register'), [
+        'name'     => 'Customer Joe',
+        'email'    => 'customer@example.com',
+        'password' => 'securePassword123'
+    ]);
+
+    $customer = User::where('email', 'customer@example.com')->first();
+
+    return $customer;
+}
+
+function vendor(): User
+{
+    Role::create(['name' => 'Vendor']);
+
+    test()->postJson(route('register'), [
+        'name'     => 'Vendor Joe',
+        'email'    => 'vendor@example.com',
+        'password' => 'securePassword123',
+        'role'     => 'Vendor'
+    ]);
+
+    $vendor = User::where('email', 'vendor@example.com')->first();
+
+    return $vendor;
+}
+
+function actingAsRole(string $role)
+{
+    return test()->actingAs(strtolower($role)(), 'sanctum');
 }
