@@ -131,3 +131,10 @@ test('a category can be fetched with its category slug', function () {
     $response->assertStatus(200)
             ->assertJsonPath('data.slug', $category->slug);
 });
+
+test('category slug automatically provides unique slug for creating category with existing slug', function () {
+    $category1 = createCategory(['name' => 'Men Shoes']);
+    $category2 = createCategory(['name' => 'Men Shoes']);
+
+    expect($category1->slug)->not->toBe($category2->slug);
+});
