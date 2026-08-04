@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CategoryRequest;
+use App\Http\Resources\CategoryResource;
 use App\Models\Category;
 
 class CategoryController extends Controller
@@ -14,7 +15,7 @@ class CategoryController extends Controller
 
         return response()->json([
             'message' => 'Category created.',
-            'data' => $category,
+            'data' => new CategoryResource($category)
         ], 201);
     }
 
@@ -22,7 +23,7 @@ class CategoryController extends Controller
     {
         return response()->json([
             'message' => 'Category is fetched successfully.',
-            'data' => $category
+            'data' => new CategoryResource($category)
         ], 200);
     }
 
@@ -32,7 +33,7 @@ class CategoryController extends Controller
 
         return response()->json([
             'message' => 'Category updated.',
-            'data' => $category
+            'data' => new CategoryResource($category)
         ], 200);
     }
 

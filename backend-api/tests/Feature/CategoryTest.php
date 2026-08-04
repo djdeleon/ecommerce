@@ -165,4 +165,4 @@ test('deleting a parent category deletes its sub categories as well', function (
     $this->assertDatabaseMissing('categories', ['id' => $child2->id]);
 
     $this->assertDatabaseHas('categories', ['id' => $parent1->id]);
-})->only();
+});
