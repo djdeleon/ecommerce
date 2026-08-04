@@ -18,6 +18,14 @@ class ProductCategoryController extends Controller
         ], 201);
     }
 
+    public function show(ProductCategory $productCategory)
+    {
+        return response()->json([
+            'message' => 'Category is fetched successfully.',
+            'data' => $productCategory
+        ], 200);
+    }
+
     public function update(ProductCategoryRequest $request, ProductCategory $productCategory)
     {
         $productCategory->update($request->validated());

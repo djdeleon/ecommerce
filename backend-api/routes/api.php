@@ -18,6 +18,8 @@ Route::middleware(['auth:sanctum', 'role:admin'])
     ->post('/api/product-category', [ProductCategoryController::class, 'store'])->name('category.store');
 Route::middleware(['auth:sanctum', 'role:admin'])
     ->patch('/api/product-category/{productCategory}', [ProductCategoryController::class, 'update'])->name('category.update');
+Route::middleware(['auth:sanctum', 'role:admin'])
+    ->get('/api/product-category/{productCategory}', [ProductCategoryController::class, 'show'])->name('category.show');
 
 Route::middleware(['auth:sanctum', 'role:customer'])
     ->get('/api/customer/dashboard', [CustomerController::class, 'dashboard'])->name('customer.dashboard');

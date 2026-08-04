@@ -18,6 +18,11 @@ class ProductCategory extends Model
         'parent_id'
     ];
 
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
+
     public static function booted(): void
     {
         static::creating(function (ProductCategory $category) {

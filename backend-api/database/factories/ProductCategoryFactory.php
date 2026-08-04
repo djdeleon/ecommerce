@@ -17,8 +17,10 @@ class ProductCategoryFactory extends Factory
      */
     public function definition(): array
     {
+        $name = fake()->unique()->words(2, true);
+        
         return [
-            'name' => fake()->name(),
+            'name' => ucfirst($name),
             'parent_id' => null
         ];
     }

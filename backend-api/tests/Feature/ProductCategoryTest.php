@@ -97,7 +97,7 @@ describe('any product category is not allowed to apply its id to the parent_id c
 
         expect($subCategory->fresh()->parent_id)->not->toBe($subCategory->id);
     });
-})->only();
+});
 
 test('creating a child category with a valid parent_id correctly establishes the relationship', function () {
     $parent = createCategory();
@@ -121,4 +121,13 @@ test('a category slug is generated automatically from the name', function () {
         'name' => 'Men Shoes',
         'slug' => 'men-shoes',
     ]);
+});
+
+test('a category can be fetched with its category slug', function () {
+    $category = createCategory();
+
+    $response = $this->getjson(route('category.show', $category->slug));
+
+    $response->assertStatus(200)
+            ->assertJsonPath('data.slug', $category->slug);
 });
