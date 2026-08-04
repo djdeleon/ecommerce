@@ -138,3 +138,13 @@ test('category slug automatically provides unique slug for creating category wit
 
     expect($category1->slug)->not->toBe($category2->slug);
 });
+
+test('a parent category can have multiple children', function () {
+    $parent = createCategory(['name' => 'Electronics']);
+
+    createCategory(['name' => 'Laptops', 'parent_id' => $parent->id]);
+    createCategory(['name' => 'Smartphones', 'parent_id' => $parent->id]);
+
+    expect($parent->children)->toHaveCount(2);
+    expect($parent->children->pluck('name'))->toContain('Laptops', 'Smartphones');
+});
