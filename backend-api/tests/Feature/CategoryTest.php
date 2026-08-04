@@ -148,3 +148,21 @@ test('a parent category can have multiple children', function () {
     expect($parent->children)->toHaveCount(2);
     expect($parent->children->pluck('name'))->toContain('Laptops', 'Smartphones');
 });
+
+test('deleting a parent category deletes its sub categories as well', function () {
+    $parent1 = createCategory();
+    $parent2 = createCategory();
+    $child1 = createCategory(['parent_id' => $parent2->id]);
+    $child2 = createCategory(['parent_id' => $child1->id]);
+
+    expect(Category::all()->count())->toBe(4);
+
+    $response = $this->deleteJson(route('category.destroy', $parent2->slug));
+    $response->assertStatus(200);
+
+    $this->assertDatabaseMissing('categories', ['id' => $parent2->id]);
+    $this->assertDatabaseMissing('categories', ['id' => $child1->id]);
+    $this->assertDatabaseMissing('categories', ['id' => $child2->id]);
+
+    $this->assertDatabaseHas('categories', ['id' => $parent1->id]);
+})->only();

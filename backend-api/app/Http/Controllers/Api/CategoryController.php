@@ -13,7 +13,7 @@ class CategoryController extends Controller
         $category = Category::create($request->validated());
 
         return response()->json([
-            'message' => 'Product Category created.',
+            'message' => 'Category created.',
             'data' => $category,
         ], 201);
     }
@@ -31,8 +31,17 @@ class CategoryController extends Controller
         $category->update($request->validated());
 
         return response()->json([
-            'message' => 'Products Category updated.',
+            'message' => 'Category updated.',
             'data' => $category
+        ], 200);
+    }
+
+    public function destroy(Category $category)
+    {
+        $category->delete();
+
+        return response()->json([
+            'message' => 'Category deleted.'
         ], 200);
     }
 }

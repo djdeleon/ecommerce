@@ -16,9 +16,13 @@ Route::prefix('auth')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:admin')->group(function () {
         Route::get('admin/dashboard', [AdminController::class, 'dashboard'])->name('admin.dashboard');
-        Route::post('category', [CategoryController::class, 'store'])->name('category.store');
-        Route::patch('category/{category}', [CategoryController::class, 'update'])->name('category.update');
-        Route::get('category/{category}', [CategoryController::class, 'show'])->name('category.show');
+
+        Route::prefix('category')->controller(CategoryController::class)->group(function () {
+            Route::post('', 'store')->name('category.store');
+            Route::get('{category}', 'show')->name('category.show');
+            Route::patch('{category}', 'update')->name('category.update');
+            Route::delete('{category}', 'destroy')->name('category.destroy');
+        });
     });
 
     Route::middleware('role:customer')->group(function () {
