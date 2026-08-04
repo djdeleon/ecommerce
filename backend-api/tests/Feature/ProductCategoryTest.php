@@ -2,21 +2,18 @@
 
 use App\Models\ProductCategory;
 
-function createCategory()
+function createCategory(array $attributes = []): ProductCategory
 {
-    return 'create category...';
+    return ProductCategory::factory()->create($attributes);
 }
 
-function createSubCategory()
-{
-    return 'create sub-category...';
-}
+beforeEach(function () {
+    actingAsRole(Roles::Admin);
+});
 
 test('a category can be created', function () {
-    actingAsRole(Roles::Admin);
-
     $category = [
-        'name' => 'Electronics',
+        'name' => 'Category',
     ];
 
     $response = $this->postJson(route('category.store'), $category);
@@ -30,8 +27,6 @@ test('a category can be created', function () {
 });
 
 test('a category cannot be created with missing fields', function () {
-    actingAsRole(Roles::Admin);
-
     $category = [
         'name' => '',
     ];
@@ -43,10 +38,8 @@ test('a category cannot be created with missing fields', function () {
 });
 
 test('a sub-category can be applied to category', function () {
-    actingAsRole(Roles::Admin);
-
     $categoryPayload = [
-        'name' => 'Electronics',
+        'name' => 'Category',
     ];
 
     $this->postJson(route('category.store'), $categoryPayload);
@@ -67,15 +60,7 @@ test('a sub-category can be applied to category', function () {
 
 describe('any product category is not allowed to apply its id to the parent_id column', function () {
     test('a category is not allowed to apply its id to the parent_id column', function () {
-        actingAsRole(Roles::Admin);
-        
-        $categoryPayload = [
-            'name' => 'Electronics',
-        ];
-
-        $this->postJson(route('category.store'), $categoryPayload);
-
-        $category = ProductCategory::where('name', $categoryPayload['name'])->first();
+        $category = createCategory();
 
         $categoryUpdatePayload = [
             'name' => $category->name,
@@ -92,15 +77,7 @@ describe('any product category is not allowed to apply its id to the parent_id c
     });
     
     test('a sub-category is not allowed to apply its id to the parent_id column', function () {
-        actingAsRole(Roles::Admin);
-        
-        $categoryPayload = [
-            'name' => 'Electronics',
-        ];
-
-        $this->postJson(route('category.store'), $categoryPayload);
-
-        $category = ProductCategory::where('name', $categoryPayload['name'])->first();
+        $category = createCategory();
 
         $subCategoryPayload = [
             'name' => 'Laptop',
@@ -124,4 +101,15 @@ describe('any product category is not allowed to apply its id to the parent_id c
         $subCategory = ProductCategory::where('name', $subCategoryPayload['name'])->first();
         expect($subCategory->parent_id)->not->toBe($subCategory->id);
     });
+});
+
+test('creatubg a child category with a valid parent_id correctly establishes the relationship', function () {
+    $parent = createCategory();
+
+    $child = createCategory([
+        'parent_id' => $parent->id
+    ]);
+
+    expect($child->parent->name)->toBe($parent->name);
+    expect($parent->children->first()->name)->toBe($child->name);
 });
