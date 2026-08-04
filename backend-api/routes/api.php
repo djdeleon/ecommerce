@@ -18,6 +18,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('admin/dashboard', [AdminController::class, 'dashboard'])->name('admin.dashboard');
 
         Route::prefix('category')->controller(CategoryController::class)->group(function () {
+            Route::get('', 'index')->name('category.index');
             Route::post('', 'store')->name('category.store');
             Route::get('{category}', 'show')->name('category.show');
             Route::patch('{category}', 'update')->name('category.update');

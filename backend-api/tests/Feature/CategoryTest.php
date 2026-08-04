@@ -166,3 +166,36 @@ test('deleting a parent category deletes its sub categories as well', function (
 
     $this->assertDatabaseHas('categories', ['id' => $parent1->id]);
 });
+
+test('category list can be displayed with nested children', function () {
+    $parent1 = createCategory(['name' => 'Electronics']);
+    $child1 = createCategory(['name' => 'Laptops', 'parent_id' => $parent1->id]);
+    $parent2 = createCategory(['name' => 'Apparel']);
+
+    $response = $this->getJson(route('category.index'));
+    
+    $response->assertStatus(200)
+            ->assertJsonStructure([
+                'message',
+                'data' => [
+                    '*' => [
+                        'id',
+                        'name',
+                        'slug',
+                        'parent_id',
+                        'children' => [
+                            '*' => [
+                                'id',
+                                'name',
+                                'slug',
+                                'parent_id'
+                            ]
+                        ]
+                    ]
+                ]
+            ]);
+
+    $response->assertJsonCount(2, 'data');
+
+    expect($response->json('data.0.children.0.name'))->toBe('Laptops');
+})->only();

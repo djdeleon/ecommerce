@@ -7,10 +7,21 @@ use App\Http\Requests\CategoryRequest;
 use App\Http\Resources\CategoryResource;
 use App\Models\Category;
 use App\Traits\HttpResponses;
+use Illuminate\Http\JsonResponse;
 
 class CategoryController extends Controller
 {
     use HttpResponses;
+
+    public function index(): JsonResponse
+    {
+        $categories = Category::with('children')->whereNull('parent_id')->get();
+
+        return $this->success(
+            CategoryResource::collection($categories),
+            'Categories retrieved'
+        );
+    }
 
     public function store(CategoryRequest $request)
     {
