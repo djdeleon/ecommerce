@@ -1,10 +1,10 @@
 <?php
 
-use App\Models\ProductCategory;
+use App\Models\Category;
 
-function createCategory(array $attributes = []): ProductCategory
+function createCategory(array $attributes = []): Category
 {
-    return ProductCategory::factory()->create($attributes);
+    return Category::factory()->create($attributes);
 }
 
 beforeEach(function () {
@@ -24,7 +24,7 @@ test('a category can be created', function () {
                 'data' => ['id', 'name', 'slug', 'parent_id']
             ]);
 
-    $this->assertDatabaseHas('product_categories', [
+    $this->assertDatabaseHas('categories', [
         'name' => $category['name']
     ]);
 });
@@ -50,7 +50,7 @@ test('a sub-category can be applied to category', function () {
 
     $this->postJson(route('category.store'), $subCategoryPayload);
 
-    $subCategory = ProductCategory::where('name', $subCategoryPayload['name'])->first();
+    $subCategory = Category::where('name', $subCategoryPayload['name'])->first();
 
     expect($subCategory->parent_id)->toBe($category->id);
 });
@@ -69,7 +69,7 @@ describe('any product category is not allowed to apply its id to the parent_id c
         $response->assertStatus(422)
                 ->assertJsonValidationErrors(['parent_id']);
 
-        $category = ProductCategory::where('name', $categoryUpdatePayload['name'])->first();
+        $category = Category::where('name', $categoryUpdatePayload['name'])->first();
         expect($category->parent_id)->not->toBe($category->id);
     });
     
@@ -83,7 +83,7 @@ describe('any product category is not allowed to apply its id to the parent_id c
 
         $this->postJson(route('category.store'), $subCategoryPayload);
 
-        $subCategory = ProductCategory::where('name', $subCategoryPayload['name'])->first();
+        $subCategory = Category::where('name', $subCategoryPayload['name'])->first();
 
         $subCategoryUpdatePayload = [
             'name' => $subCategory->name,
@@ -117,7 +117,7 @@ test('a category slug is generated automatically from the name', function () {
 
     $response->assertStatus(201);
 
-    $this->assertDatabaseHas('product_categories', [
+    $this->assertDatabaseHas('categories', [
         'name' => 'Men Shoes',
         'slug' => 'men-shoes',
     ]);

@@ -6,7 +6,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class ProductCategoryRequest extends FormRequest
+class CategoryRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -23,13 +23,13 @@ class ProductCategoryRequest extends FormRequest
      */
     public function rules(): array
     {
-        $category = $this->route('productCategory');
+        $category = $this->route('category');
 
         return [
             'name' => 'required|string|max:255',
             'parent_id' => [
                 'nullable',
-                'exists:product_categories,id',
+                'exists:categories,id',
                 Rule::when($category !== null, [
                     Rule::notIn($category?->id)
                 ])

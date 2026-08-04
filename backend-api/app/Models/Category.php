@@ -2,16 +2,16 @@
 
 namespace App\Models;
 
-use Database\Factories\ProductCategoryFactory;
+use Database\Factories\CategoryFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
-class ProductCategory extends Model
+class Category extends Model
 {
     use HasFactory;
 
-    /** @use HasFactory<ProductCategoryFactory> */
+    /** @use HasFactory<CategoryFactory> */
     protected $fillable = [
         'name',
         'slug',
@@ -25,7 +25,7 @@ class ProductCategory extends Model
 
     public static function booted(): void
     {
-        static::creating(function (ProductCategory $category) {
+        static::creating(function (Category $category) {
             if (empty($category->slug)) {
                 $category->slug = static::generateUniqueSlug($category->name);
             }
@@ -35,7 +35,7 @@ class ProductCategory extends Model
             }
         });
 
-        static::updating(function (ProductCategory $category) {
+        static::updating(function (Category $category) {
             if ($category->isDirty('name') && !$category->isDirty('slug')) {
                 $category->slug = static::generateUniqueSlug($category->name, $category->id);
             }
@@ -58,11 +58,11 @@ class ProductCategory extends Model
 
     public function parent()
     {
-        return $this->belongsTo(ProductCategory::class, 'parent_id');
+        return $this->belongsTo(Category::class, 'parent_id');
     }
 
     public function children()
     {
-        return $this->hasMany(ProductCategory::class, 'parent_id');
+        return $this->hasMany(Category::class, 'parent_id');
     }
 }
