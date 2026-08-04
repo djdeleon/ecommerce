@@ -45,6 +45,7 @@ services:
   backend-api:
     build: ./backend-api
     container_name: eco_laravel
+    user: "${UID:-1000}:${GID:-1000}"
     volumes:
       - ./backend-api:/var/www/html
     working_dir: /var/www/html
@@ -52,6 +53,7 @@ services:
   frontend-ui:
     build: ./frontend-ui
     container_name: eco_nuxt
+    user: "${UID:-1000}:${GID:-1000}"
     volumes:
       - ./frontend-ui:/app
       - /app/node_modules
