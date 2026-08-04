@@ -6,43 +6,48 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\CategoryRequest;
 use App\Http\Resources\CategoryResource;
 use App\Models\Category;
+use App\Traits\HttpResponses;
 
 class CategoryController extends Controller
 {
+    use HttpResponses;
+
     public function store(CategoryRequest $request)
     {
         $category = Category::create($request->validated());
 
-        return response()->json([
-            'message' => 'Category created.',
-            'data' => new CategoryResource($category)
-        ], 201);
+        return $this->success(
+            new CategoryResource($category),
+            'Category created',
+            201,
+        );
     }
 
     public function show(Category $category)
     {
-        return response()->json([
-            'message' => 'Category is fetched successfully.',
-            'data' => new CategoryResource($category)
-        ], 200);
+        return $this->success(
+            new CategoryResource($category),
+            'Category retrieved',
+        );
     }
 
     public function update(CategoryRequest $request, Category $category)
     {
         $category->update($request->validated());
 
-        return response()->json([
-            'message' => 'Category updated.',
-            'data' => new CategoryResource($category)
-        ], 200);
+        return $this->success(
+            new CategoryResource($category),
+            'Category updated',
+        );
     }
 
     public function destroy(Category $category)
     {
         $category->delete();
 
-        return response()->json([
-            'message' => 'Category deleted.'
-        ], 200);
+        return $this->success(
+            null,
+            'Category deleted',
+        );
     }
 }
