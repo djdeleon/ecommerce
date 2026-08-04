@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ProductCategoryRequest;
 use Illuminate\Http\Request;
 use App\Models\ProductCategory;
 use Closure;
@@ -10,23 +11,14 @@ use Illuminate\Support\Str;
 
 class ProductCategoryController extends Controller
 {
-    public function store(Request $request)
+    public function store(ProductCategoryRequest $request)
     {
-        $slug = Str::slug($request['name']);
-
-        $request->validate([
-            'name' => 'required'
-        ]);
-
-        ProductCategory::create([
-            'name' => $request['name'],
-            'slug' => $slug,
-            'parent_id' => $request['parent_id']
-        ]);
-
+        $category = ProductCategory::create($request->validated());
+        
         return response()->json([
-            'message' => 'Product Category created.'
-        ]);
+            'message' => 'Product Category created.',
+            'data' => $category,
+        ], 201);
     }
 
     public function update(Request $request, ProductCategory $productCategory)

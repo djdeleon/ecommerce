@@ -18,8 +18,11 @@ test('a category can be created', function () {
 
     $response = $this->postJson(route('category.store'), $category);
 
-    $response->assertStatus(200)
-            ->assertJsonPath('message', 'Product Category created.');
+    $response->assertStatus(201)
+            ->assertjsonStructure([
+                'message',
+                'data' => ['id', 'name', 'slug', 'parent_id']
+            ]);
 
     $this->assertDatabaseHas('product_categories', [
         'name' => $category['name']
@@ -38,13 +41,7 @@ test('a category cannot be created with missing fields', function () {
 });
 
 test('a sub-category can be applied to category', function () {
-    $categoryPayload = [
-        'name' => 'Category',
-    ];
-
-    $this->postJson(route('category.store'), $categoryPayload);
-
-    $category = ProductCategory::where('name', $categoryPayload['name'])->first();
+    $category = createCategory(['name' => 'Category']);
 
     $subCategoryPayload = [
         'name' => 'Laptop',
@@ -98,12 +95,11 @@ describe('any product category is not allowed to apply its id to the parent_id c
         $response->assertStatus(422)
                 ->assertJsonValidationErrors(['parent_id']);
 
-        $subCategory = ProductCategory::where('name', $subCategoryPayload['name'])->first();
-        expect($subCategory->parent_id)->not->toBe($subCategory->id);
+        expect($subCategory->fresh()->parent_id)->not->toBe($subCategory->id);
     });
 });
 
-test('creatubg a child category with a valid parent_id correctly establishes the relationship', function () {
+test('creating a child category with a valid parent_id correctly establishes the relationship', function () {
     $parent = createCategory();
 
     $child = createCategory([
@@ -112,4 +108,17 @@ test('creatubg a child category with a valid parent_id correctly establishes the
 
     expect($child->parent->name)->toBe($parent->name);
     expect($parent->children->first()->name)->toBe($child->name);
+});
+
+test('a category slug is generated automatically from the name', function () {
+    $categoryPayload = ['name' => 'Men Shoes'];
+
+    $response = $this->postJson(route('category.store'), $categoryPayload);
+
+    $response->assertStatus(201);
+
+    $this->assertDatabaseHas('product_categories', [
+        'name' => 'Men Shoes',
+        'slug' => 'men-shoes',
+    ]);
 });
