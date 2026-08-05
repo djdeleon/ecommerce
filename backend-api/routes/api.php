@@ -31,7 +31,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:customer')->group(function () {
         Route::get('customer/dashboard', [CustomerController::class, 'dashboard'])->name('customer.dashboard');
 
-        Route::post('customer/vendor-upgrade', [CustomerController::class, 'upgrade'])->name('customer.vendor-upgrade');
+        Route::post('customer/vendors', [CustomerController::class, 'upgrade'])->name('customer.vendor-upgrade');
     });
 
     Route::middleware('role:vendor')->group(function () {
