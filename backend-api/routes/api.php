@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('auth')->group(function () {
     Route::post('register', [AuthController::class, 'register'])->name('register');
     Route::post('login', [AuthController::class, 'login'])->name('login');
+
+    Route::post('vendor/register', [VendorController::class, 'register'])->name('vendor.register');
 });
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -28,6 +30,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::middleware('role:customer')->group(function () {
         Route::get('customer/dashboard', [CustomerController::class, 'dashboard'])->name('customer.dashboard');
+
+        Route::post('customer/vendor-upgrade', [CustomerController::class, 'upgrade'])->name('customer.vendor-upgrade');
     });
 
     Route::middleware('role:vendor')->group(function () {
