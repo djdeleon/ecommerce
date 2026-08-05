@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\VendorController;
 use App\Http\Controllers\Api\DriverController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\ProductController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -36,6 +37,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::middleware('role:vendor')->group(function () {
         Route::get('vendor/dashboard', [VendorController::class, 'dashboard'])->name('vendor.dashboard');
+
+        Route::prefix('products')->controller(ProductController::class)->group(function () {
+            Route::post('', 'store')->name('products.store');
+            Route::put('{product}', 'update')->name('products.update');
+        });
     });
 
     Route::middleware('role:driver')->group(function () {
