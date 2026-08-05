@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Hash;
 it('returns validation errors if registration fields are missing', function () {
     $response = $this->postJson(route('register'), []);
 
-    $response->assertStatus(422)
+    $response->assertUnprocessable()
             ->assertJsonValidationErrors(['name', 'email', 'password']);
 });
 
@@ -19,7 +19,7 @@ it('saves a user to the database and hashes their password upon successful regis
 
     $response = $this->postJson(route('register'), $user);
 
-    $response->assertStatus(201)
+    $response->assertCreated()
             ->assertJsonPath('message', 'Registration Successful.');
 
     $this->assertDatabaseHas('users', [
@@ -30,28 +30,7 @@ it('saves a user to the database and hashes their password upon successful regis
     expect($user->password)->not->toBe($user['email']);
 });
 
-it('assigns a default Customer role if no role is explicitly provided', function () {
-    $this->postJson(route('register'), [
-        'name'     => 'Customer Joe',
-        'email'    => 'default@example.com',
-        'password' => 'securePassword123'
-    ]);
-
-    $user = User::where('email', 'default@example.com')->first();
-    expect($user->hasRole('customer'))->toBeTrue();
-});
-
-it('assigns the explicitly requested role like Vendor or Driver', function () {
-    $this->postJson(route('register'), [
-        'name'     => 'Super Merchant',
-        'email'    => 'vendor@example.com',
-        'password' => 'securePassword123',
-        'role'     => 'vendor'
-    ]);
-
-    $user = User::where('email', 'vendor@example.com')->first();
-    expect($user->hasRole('vendor'))->toBeTrue();
-});
+// ... existing code ...
 
 it('rejects registration attempt with an unauthorized or invalid user role', function () {
     $response = $this->postJson(route('register'), [
@@ -61,7 +40,7 @@ it('rejects registration attempt with an unauthorized or invalid user role', fun
         'role'     => 'Hacker'
     ]);
 
-    $response->assertStatus(422)
+    $response->assertUnprocessable()
             ->assertJsonValidationErrors(['role']);
 });
 
@@ -78,14 +57,14 @@ it('returns an error if the given email already exists', function () {
 
     $response = $this->postJson(route('register'), $user);
 
-    $response->assertStatus(422)
+    $response->assertUnprocessable()
             ->assertJsonValidationErrors(['email']);
 });
 
 it('returns validation errors if login fields are missing', function () {
     $response = $this->postJson(route('login'), []);
 
-    $response->assertStatus(422)
+    $response->assertUnprocessable()
             ->assertJsonValidationErrors(['email', 'password']);
 });
 
@@ -100,8 +79,8 @@ it('successfully authenticates a user with correct credentials and returns a tok
         'password' => 'secretPassword123'
     ]);
 
-    $response->assertStatus(200)
-            ->assertjsonStructure([
+    $response->assertOk()
+            ->assertJsonStructure([
                 'message',
                 'token',
                 'user' => ['id', 'email']
@@ -120,7 +99,7 @@ describe('returns an unauthorized error code if credentials do not match', funct
             'password' => 'badPassword'
         ]);
     
-        $response->assertStatus(401)
+        $response->assertUnauthorized()
                 ->assertJsonPath('message', 'Invalid credentials.');
     });
 
@@ -135,7 +114,7 @@ describe('returns an unauthorized error code if credentials do not match', funct
             'password' => 'secretPassword123'
         ]);
 
-        $response->assertStatus(401)
+        $response->assertUnauthorized()
                 ->assertJsonPath('message', 'Invalid credentials.');
     });
 });

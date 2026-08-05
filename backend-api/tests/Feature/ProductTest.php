@@ -140,8 +140,6 @@ describe('product updation test', function () {
         expect($product->status)->toBe('draft');
     });
 
-    
-
     test('updating a product name to an existing name generates a unique incremented slug', function () {
         $vendor = Vendor::factory()->create();
         $product1 = Product::factory()->create([
@@ -163,6 +161,23 @@ describe('product updation test', function () {
         
         expect($product2->fresh()->slug)->toBe('existing-product-1');
     });
+
+    test('a vendor cannot update a product belonging to another vendor', function () {
+        $vendorA = Vendor::factory()->create();
+        $vendorB = Vendor::factory()->create();
+
+        $productA = Product::factory()->create([
+            'vendor_id' => $vendorA->id
+        ]);
+
+        $this->actingAs($vendorB->user, 'sanctum')
+            ->putJson(route('products.update', $productA), [
+                'name' => 'Stolen Product Name'
+            ])
+            ->assertStatus(403);
+
+        expect($productA->name)->not->toBe('Stolen Product Name');
+    });
 });
 
 describe('validation test for product updation', function () {
@@ -183,21 +198,4 @@ describe('validation test for product updation', function () {
             ->assertStatus(422)
             ->assertJsonValidationErrors(['name']);
     });
-});
-
-test('a vendor cannot update a product belonging to another vendor', function () {
-    $vendorA = Vendor::factory()->create();
-    $vendorB = Vendor::factory()->create();
-
-    $productA = Product::factory()->create([
-        'vendor_id' => $vendorA->id
-    ]);
-
-    $this->actingAs($vendorB->user, 'sanctum')
-        ->putJson(route('products.update', $productA), [
-            'name' => 'Stolen Product Name'
-        ])
-        ->assertStatus(403);
-
-    expect($productA->name)->not->toBe('Stolen Product Name');
 });
