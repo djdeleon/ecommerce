@@ -198,4 +198,4 @@ test('category list can be displayed with nested children', function () {
     $response->assertJsonCount(2, 'data');
 
     expect($response->json('data.0.children.0.name'))->toBe('Laptops');
-})->only();
+});
