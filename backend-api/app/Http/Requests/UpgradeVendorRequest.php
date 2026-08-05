@@ -23,8 +23,18 @@ class UpgradeVendorRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'shop_name' => 'required|string|max:100',
-            'business_tin' => 'required|string|max:100',
+            'shop_name' => [
+                'required',
+                'string',
+                'max:100',
+                'unique:vendors,shop_name',
+            ],
+            'business_tin' => [
+                'required',
+                'string',
+                'max:100',
+                'unique:vendors,business_tin',
+            ],
         ];
     }
 }
