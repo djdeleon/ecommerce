@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Models\Vendor;
 
 test('an unauthenticated user can register as vendor', function () {
     $vendorPayload = [
@@ -124,4 +125,20 @@ describe('validation tests for vendor registration', function () {
             ->assertStatus(422)
             ->assertJsonValidationErrors(['shop_name', 'business_tin']);
     });
+});
+
+test('relationship data access for user and vendor', function () {
+    $user = User::factory()->create([
+        'name' => 'Vendor',
+    ]);
+    $user->assignRole('customer');
+    $user->vendor()->create([
+        'shop_name' => 'Vendor Shop',
+        'business_tin' => '123'
+    ]);
+
+    $vendor = Vendor::all()->first();
+
+    expect($user->vendor->shop_name)->toBe('Vendor Shop');
+    expect($vendor->user->name)->toBe('Vendor');
 });
