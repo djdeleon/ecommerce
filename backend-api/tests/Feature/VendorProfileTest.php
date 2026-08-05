@@ -70,4 +70,58 @@ test('a registered vendor is unauthorized to access customer vendor upgrade', fu
             'business_tin' => '456'
         ])
         ->assertStatus(403);
-})->only();
+});
+
+describe('validation tests for customer vendor upgrade', function () {
+    it('fails if required vendor fields are missing', function () {
+        actingAsRole(Roles::Customer)
+            ->postJson(route('customer.vendor-upgrade'), [])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['shop_name', 'business_tin']);
+    });
+    
+    it('fails if shop_name or business_tin is already taken', function () {
+        $user = User::factory()->create();
+        $user->assignRole('customer');
+        $user->vendor()->create([
+            'shop_name' => 'Original Shop',
+            'business_tin' => '123'
+        ]);
+    
+        $this->actingAs($user, 'sanctum')
+            ->postJson(route('customer.vendor-upgrade'), [
+                'shop_name' => 'Original Shop',
+                'business_tin' => '123'
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['shop_name', 'business_tin']);
+    });
+});
+
+describe('validation tests for vendor registration', function () {
+    it('fails if required vendor fields are missing', function () {
+        $this->postJson(route('vendor.register'), [])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['name', 'email', 'password', 'shop_name', 'business_tin']);
+    });
+    
+    it('fails if shop_name or business_tin is already taken', function () {
+        $user = User::factory()->create();
+        $user->assignRole('customer');
+        $user->vendor()->create([
+            'shop_name' => 'Vendor Shop',
+            'business_tin' => '123'
+        ]);
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson(route('customer.vendor-upgrade'), [
+                'name' => 'New Vendor',
+                'email' => 'vendor@example.com',
+                'password' => 'secretPassword123',
+                'shop_name' => 'Vendor Shop',
+                'business_tin' => '123'
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['shop_name', 'business_tin']);
+    });
+});
