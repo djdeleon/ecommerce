@@ -8,6 +8,7 @@ test('an unauthenticated user can register as vendor', function () {
         'name' => 'Vendor',
         'email' => 'vendor@example.com',
         'password' => 'secretPassword123',
+        'password_confirmation' => 'secretPassword123',
         'shop_name' => 'Vendor Shop',
         'business_tin' => 'business 123'
     ];
@@ -114,8 +115,7 @@ describe('validation tests for vendor registration', function () {
             'business_tin' => '123'
         ]);
 
-        $this->actingAs($user, 'sanctum')
-            ->postJson(route('customer.vendor-upgrade'), [
+        $this->postJson(route('vendor.register'), [
                 'name' => 'New Vendor',
                 'email' => 'vendor@example.com',
                 'password' => 'secretPassword123',

@@ -4,6 +4,8 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 
 class RegisterVendorRequest extends FormRequest
 {
@@ -23,11 +25,36 @@ class RegisterVendorRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name'  => 'required|string|max:255',
-            'email' => 'required|email|unique:users',
-            'password' => 'required|min:8',
-            'shop_name' => 'required|string|max:100',
-            'business_tin' => 'required|string|max:100',
+            'name' => [
+                'required', 
+                'string', 
+                'max:255'
+            ],
+            'email' => [
+                'required',
+                'string',
+                'email',
+                'max:255',
+                'unique:users,email',
+            ],
+            'password' => [
+                'required',
+                'string',
+                'min:8',
+                'confirmed',
+            ],
+            'shop_name' => [
+                'required',
+                'string',
+                'max:100',
+                'unique:vendors,shop_name',
+            ],
+            'business_tin' => [
+                'required',
+                'string',
+                'max:100',
+                'unique:vendors,business_tin',
+            ],
         ];
     }
 }
