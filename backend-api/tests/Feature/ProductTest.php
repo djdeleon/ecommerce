@@ -28,7 +28,6 @@ describe('product creation test', function () {
                     'slug',
                     'description',
                     'status',
-                    'category_id'
                 ]
             ]);
     });
@@ -122,10 +121,7 @@ describe('validation test for product creation', function () {
 
 describe('product updation test', function () {
     test('a vendor can update its product while others remain unchanged', function () {
-        $vendor = Vendor::factory()->create();
         $product = Product::factory()->create([
-            'vendor_id' => $vendor->id,
-            'name' => 'Original Name',
             'status' => 'draft',
         ]);
 
@@ -133,7 +129,7 @@ describe('product updation test', function () {
             'name' => 'New Product Name',
         ];
         
-        $this->actingAs($vendor->user, 'sanctum')
+        $this->actingAs($product->vendor->user, 'sanctum')
             ->putJson(route('products.update', $product), $payload)
             ->assertStatus(200);
 

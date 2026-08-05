@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateProductRequest;
 use App\Http\Requests\UpdateProductRequest;
+use App\Http\Resources\ProductResource;
 use App\Models\Product;
 use App\Traits\HttpResponses;
 
@@ -17,7 +18,7 @@ class ProductController extends Controller
         $product = $request->user()->vendor->products()->create($request->validated());
 
         return $this->success(
-            $product,
+            new ProductResource($product),
             'Product created',
             201
         );
@@ -28,7 +29,7 @@ class ProductController extends Controller
         $product->update($request->validated());
 
         return $this->success(
-            $product,
+            new ProductResource($product),
             'Product updated',
             200,
         );
