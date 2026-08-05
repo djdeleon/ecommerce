@@ -17,6 +17,8 @@ class ProductController extends Controller
     {
         $product = $request->user()->vendor->products()->create($request->validated());
 
+        $product->load('category');
+
         return $this->success(
             new ProductResource($product),
             'Product created',
@@ -27,6 +29,8 @@ class ProductController extends Controller
     public function update(UpdateProductRequest $request, Product $product)
     {
         $product->update($request->validated());
+        
+        $product->load('category');
 
         return $this->success(
             new ProductResource($product),

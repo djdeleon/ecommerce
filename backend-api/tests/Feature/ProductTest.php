@@ -28,6 +28,7 @@ describe('product creation test', function () {
                     'slug',
                     'description',
                     'status',
+                    'category',
                 ]
             ]);
     });
