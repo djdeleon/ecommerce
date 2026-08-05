@@ -3,9 +3,10 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Services\Contracts\AuthServiceInterface;
 use Illuminate\Support\Facades\Hash;
 
-class AuthService
+class AuthService implements AuthServiceInterface
 {
     public function registerUser(array $data): User
     {
@@ -21,7 +22,7 @@ class AuthService
         return $user;
     }
 
-    public function attempLogin(array $credentials): ?array
+    public function attemptLogin(array $credentials): ?array
     {
         $user = User::where('email', $credentials['email'])->first();
 
