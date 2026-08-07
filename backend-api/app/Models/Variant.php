@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\MoneyCast;
 use Database\Factories\VariantFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,9 +18,12 @@ class Variant extends Model
         'price',
     ];
 
-    protected $casts = [
-        'price' => 'decimal:4',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'price' => MoneyCast::class,
+        ];
+    }
 
     public function product(): BelongsTo
     {

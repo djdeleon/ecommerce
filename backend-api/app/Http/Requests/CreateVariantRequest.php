@@ -30,6 +30,9 @@ class CreateVariantRequest extends FormRequest
             ],
             'price' => [
                 'required',
+                'numeric',
+                'min:0',
+                'decimal:0,4',
             ],
         ];
     }

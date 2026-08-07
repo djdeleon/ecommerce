@@ -14,7 +14,7 @@ test('a product can have variants', function () {
     $this->actingAs($product->vendor->user, 'sanctum')
         ->postJson(route('variants.store', $product), $payload)
         ->assertCreated();
-})->only();
+});
 
 test('creating a producting variant with same SKU is not allowed', function () {
     $variantA = Variant::factory()->create();
@@ -28,11 +28,11 @@ test('creating a producting variant with same SKU is not allowed', function () {
         ->postJson(route('variants.store', $variantA->product), $variantB)
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['sku']);
-})->only();
+});
 
 test('variant price maintains high precision price decimal 4 without rounding errors', function () {
     $product = Product::factory()->create();
-    $highPrecisionPrice = 99.98761123;
+    $highPrecisionPrice = 99.9876;
     
     $payload = [
         'product_id' => $product->id,
@@ -44,5 +44,46 @@ test('variant price maintains high precision price decimal 4 without rounding er
         ->postJson(route('variants.store', $product), $payload)
         ->assertCreated();
 
-    expect($product->variants->first()->price)->toBe('99.9876');
-})->only();
+    $variant = $product->variants->first();
+
+    expect((string) $variant->getRawOriginal('price'))->toBe('99.9876');
+
+    expect($variant->price->getAmount())->toBe('999876');
+});
+
+it('it validates required fields when creating a variant', function () {
+    $product = Product::factory()->create();
+
+    $this->actingAs($product->vendor->user, 'sanctum')
+        ->postJson(route('variants.store', $product), [])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['sku', 'price']);
+});
+
+it('prevents negative prices', function () {
+    $product = Product::factory()->create();
+
+    $payload = [
+        'sku' => 'VAR->NEG-1',
+        'price' => -10.00,
+    ];
+
+    $this->actingAs($product->vendor->user, 'sanctum')
+        ->postJson(route('variants.store', $product), $payload)
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['price']);
+});
+
+it('prevents non-numeric prices', function () {
+    $product = Product::factory()->create();
+
+    $payload = [
+        'sku' => 'VAR->NEG-1',
+        'price' => 'invalid-price',
+    ];
+
+    $this->actingAs($product->vendor->user, 'sanctum')
+        ->postJson(route('variants.store', $product), $payload)
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['price']);
+});
