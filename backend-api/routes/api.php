@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\VendorController;
 use App\Http\Controllers\Api\DriverController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\VariantController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -41,6 +42,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('products')->controller(ProductController::class)->group(function () {
             Route::post('', 'store')->name('products.store');
             Route::put('{product}', 'update')->name('products.update');
+
+            Route::post('{product}/variants', [VariantController::class, 'store'])->name('variants.store');
         });
     });
 
