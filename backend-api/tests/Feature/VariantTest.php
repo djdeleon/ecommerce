@@ -29,3 +29,20 @@ test('creating a producting variant with same SKU is not allowed', function () {
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['sku']);
 })->only();
+
+test('variant price maintains high precision price decimal 4 without rounding errors', function () {
+    $product = Product::factory()->create();
+    $highPrecisionPrice = 99.98761123;
+    
+    $payload = [
+        'product_id' => $product->id,
+        'sku' => $product->name . '-sku',
+        'price' => $highPrecisionPrice
+    ];
+
+    $this->actingAs($product->vendor->user, 'sanctum')
+        ->postJson(route('variants.store', $product), $payload)
+        ->assertCreated();
+
+    expect($product->variants->first()->price)->toBe('99.9876');
+})->only();

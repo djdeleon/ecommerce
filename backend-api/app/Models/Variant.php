@@ -17,6 +17,10 @@ class Variant extends Model
         'price',
     ];
 
+    protected $casts = [
+        'price' => 'decimal:4',
+    ];
+
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
