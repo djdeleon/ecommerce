@@ -44,6 +44,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('{product}', 'update')->name('products.update');
 
             Route::post('{product}/variants', [VariantController::class, 'store'])->name('variants.store');
+            Route::put('{product}/variants/{variant}', [VariantController::class, 'update'])->name('variants.update');
         });
     });
 
