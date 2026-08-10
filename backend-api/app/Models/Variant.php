@@ -26,20 +26,6 @@ class Variant extends Model
         ];
     }
 
-    protected static function booted(): void
-    {
-        static::updated(function (Variant $variant) {
-            if ($variant->wasChanged('price')) {
-                $variant->priceLedgers()->create([
-                    'old_price' => bcdiv($variant->getOriginal('price')->getAmount(), 10000, 4),
-                    'new_price' => bcdiv($variant->price->getAmount(), 10000, 4),
-                    'changed_by_id' => $variant->product->vendor->user_id ?? null,
-                    'created_at' => now(),
-                ]);
-            }
-        });
-    }
-
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
@@ -48,5 +34,12 @@ class Variant extends Model
     public function priceLedgers(): HasMany
     {
         return $this->hasMany(ProductPriceLedger::class);
+    }
+
+    public function historyLogs(): HasMany
+    {
+        return $this->hasMany(HistoryLog::class, 'record_id')
+                    ->where('table_name', 'variants')
+                    ->orderByDesc('created_at');
     }
 }
