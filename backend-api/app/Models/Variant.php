@@ -7,6 +7,7 @@ use Database\Factories\VariantFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Variant extends Model
 {
@@ -28,5 +29,17 @@ class Variant extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function priceLedgers(): HasMany
+    {
+        return $this->hasMany(ProductPriceLedger::class);
+    }
+
+    public function historyLogs(): HasMany
+    {
+        return $this->hasMany(HistoryLog::class, 'record_id')
+                    ->where('table_name', 'variants')
+                    ->orderByDesc('created_at');
     }
 }

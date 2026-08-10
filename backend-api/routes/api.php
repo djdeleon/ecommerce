@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\DriverController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\VariantController;
+use App\Http\Middleware\SetPostgreUserContext;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -17,7 +18,7 @@ Route::prefix('auth')->group(function () {
     Route::post('vendor/register', [VendorController::class, 'register'])->name('vendor.register');
 });
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(function () {
     Route::middleware('role:admin')->group(function () {
         Route::get('admin/dashboard', [AdminController::class, 'dashboard'])->name('admin.dashboard');
 
@@ -44,6 +45,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('{product}', 'update')->name('products.update');
 
             Route::post('{product}/variants', [VariantController::class, 'store'])->name('variants.store');
+            Route::put('{product}/variants/{variant}', [VariantController::class, 'update'])->name('variants.update');
         });
     });
 
