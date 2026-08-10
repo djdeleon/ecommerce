@@ -69,6 +69,8 @@ This project is built using Agile SDLC methodologies, tracked via GitHub Issues,
     *   **Focus:** Docker Orchestration (PostgreSQL, Redis, RabbitMQ, Nginx), Monorepo Scaffold, and Pest PHP testing initialization.
 *   **[Sprint 01: Core Auth, RBAC & Profile Domains (Completed)](docs/sprints/SPRINT-01.md)**
     *   **Focus:** Laravel Sanctum Token Infrastructure, Spatie RBAC Middleware, multi-dashboard routing, and comprehensive Pest TDD coverage.
+*   **[Sprint 02: Product Catalog & Category Hierarchy (Completed)](docs/sprints/SPRINT-02.md)**
+    *   **Focus:** Self-referencing category trees, vendor storefront profiles, product variants with SKU management, and PostgreSQL trigger-driven immutable price ledgers.
 ---
 
 ## ⚡ Quick Start (Local Docker Infrastructure)
