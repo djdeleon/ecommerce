@@ -6,8 +6,10 @@ use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\VendorController;
 use App\Http\Controllers\Api\DriverController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\FulfillmentHubController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\VariantController;
+use App\Http\Controllers\Api\WarehouseController;
 use App\Http\Middleware\SetPostgreUserContext;
 use Illuminate\Support\Facades\Route;
 
@@ -16,6 +18,8 @@ Route::prefix('auth')->group(function () {
     Route::post('login', [AuthController::class, 'login'])->name('login');
 
     Route::post('vendor/register', [VendorController::class, 'register'])->name('vendor.register');
+    
+    Route::get('fulfillment-hub', [FulfillmentHubController::class, 'index'])->name('fulfillment-hubs.index');
 });
 
 Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(function () {
@@ -29,6 +33,8 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
             Route::patch('{category}', 'update')->name('category.update');
             Route::delete('{category}', 'destroy')->name('category.destroy');
         });
+
+        Route::post('fulfillment-hub', [FulfillmentHubController::class, 'store'])->name('fulfillment-hubs.store');
     });
 
     Route::middleware('role:customer')->group(function () {
@@ -47,6 +53,8 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
             Route::post('{product}/variants', [VariantController::class, 'store'])->name('variants.store');
             Route::put('{product}/variants/{variant}', [VariantController::class, 'update'])->name('variants.update');
         });
+
+        Route::post('{vendor}/warehouses', [WarehouseController::class, 'store'])->name('warehouses.store');
     });
 
     Route::middleware('role:driver')->group(function () {
