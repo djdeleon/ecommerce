@@ -33,13 +33,7 @@ class Variant extends Model
 
     public function priceLedgers(): HasMany
     {
-        return $this->hasMany(ProductPriceLedger::class);
-    }
-
-    public function historyLogs(): HasMany
-    {
-        return $this->hasMany(HistoryLog::class, 'record_id')
-                    ->where('table_name', 'variants')
+        return $this->hasMany(ProductPriceLedger::class)
                     ->orderByDesc('created_at');
     }
 }
