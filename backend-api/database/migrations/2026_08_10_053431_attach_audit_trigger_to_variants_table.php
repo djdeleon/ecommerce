@@ -13,10 +13,17 @@ return new class extends Migration
     public function up(): void
     {
         DB::unprepared("
-            DROP TRIGGER IF EXISTS audit_variants_price_change ON variants;
-            CREATE TRIGGER audit_variants_price_change
-            AFTER UPDATE OF price OR INSERT OR DELETE ON variants
+            DROP TRIGGER IF EXISTS audit_variants_insert_delete ON variants;
+            CREATE TRIGGER audit_variants_insert_delete
+            AFTER INSERT OR DELETE ON variants
             FOR EACH ROW
+            EXECUTE FUNCTION process_audit();
+
+            DROP TRIGGER IF EXISTS audit_variants_price_update ON variants;
+            CREATE TRIGGER audit_variants_price_update
+            AFTER UPDATE OF price ON variants
+            FOR EACH ROW
+            WHEN (OLD.price IS DISTINCT FROM NEW.price)
             EXECUTE FUNCTION process_audit();
         ");
     }
