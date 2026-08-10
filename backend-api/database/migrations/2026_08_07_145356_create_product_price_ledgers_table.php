@@ -18,8 +18,9 @@ return new class extends Migration
                 ->references('id')
                 ->on('variants')
                 ->onDelete('cascade');
+            $table->string('action', 10);
             $table->decimal('old_price', 12, 4)->nullable();
-            $table->decimal('new_price', 12, 4);
+            $table->decimal('new_price', 12, 4)->nullable();
             $table->unsignedBigInteger('changed_by_id')->nullable();
             $table->foreign('changed_by_id')
                 ->references('id')
