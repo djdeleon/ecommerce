@@ -3,12 +3,12 @@
 ## 🎯 Objectives & Scope
 The objective of Sprint 02 is to design and implement the robust backend data model and API endpoints representing the product schema and categories hierarchy, laying down structural bounds for secure merchant selling.
 
-- [ ] Implement self-referencing adjacency list table for hierarchical category mapping (#18)
-- [ ] Create vendor profile extensions linked to core identity tables (#19)
-- [ ] Develop primary product listings, unique slug generations, and status checks (#20)
-- [ ] Track product variations using secure, unique SKUs and decimal scale pricing (#21)
-- [ ] Author automated, immutable price change tracking ledgers for historical audit logs (#22)
-- [ ] Achieve complete test coverage using expressive Pest PHP features (TDD)
+- [x] Implement self-referencing adjacency list table for hierarchical category mapping (#18)
+- [x] Create vendor profile extensions linked to core identity tables (#19)
+- [x] Develop primary product listings, unique slug generations, and status checks (#20)
+- [x] Track product variations using secure, unique SKUs and decimal scale pricing (#21)
+- [x] Author automated, immutable price change tracking ledgers for historical audit logs (#22)
+- [x] Achieve complete test coverage using expressive Pest PHP features (TDD)
 
 ---
 
