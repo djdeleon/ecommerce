@@ -30,4 +30,5 @@ Rather than performing periodic sweeps, we leverage an observer-driven architect
 * **Bulk Import Performance:** The current pricing audit model logs entries individually. Bulk price updating via CSV or external APIs will require optimized batch insert queries to prevent connection timeouts inside the PostgreSQL database.
 
 ## 📈 Technical Debt & Future Scope
-*To be populated during retrospective/sprint completion.*
+- Search and filtering across large catalog volumes will be offloaded to Elasticsearch in upcoming search integration sprints.
+- Complex attribute-set matrices (e.g., color/size combinations) will be expanded in future inventory management iterations.
