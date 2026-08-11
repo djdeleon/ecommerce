@@ -36,4 +36,9 @@ class Variant extends Model
         return $this->hasMany(ProductPriceLedger::class)
                     ->orderByDesc('created_at');
     }
+
+    public function inventoryStocks(): HasMany
+    {
+        return $this->hasMany(InventoryStock::class);
+    }
 }

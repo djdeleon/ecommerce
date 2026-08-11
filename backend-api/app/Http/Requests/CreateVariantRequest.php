@@ -34,6 +34,11 @@ class CreateVariantRequest extends FormRequest
                 'min:0',
                 'decimal:0,4',
             ],
+
+            'initial_stock' => ['nullable', 'array'],
+            'initial_stock.facility_type' => ['required_with:initial_stock', 'string', 'in:warehouse,fulfillment_hub'],
+            'initial_stock.facility_id' => ['required_with:initial_stock', 'integer'],
+            'initial_stock.delta' => ['required_with:initial_stock', 'integer'],
         ];
     }
 }

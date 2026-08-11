@@ -25,7 +25,7 @@ return new class extends Migration
                 ->onDelete('cascade');
             $table->string('name');
             $table->string('slug')->unique();
-            $table->string('description');
+            $table->text('description');
             $table->string('status');
             $table->timestamps();
         });
