@@ -43,7 +43,7 @@ class InventoryStock extends Model
         if ($quantity <= 0) {
             throw new \InvalidArgumentException('Quantity must be greater than zero.');
         }
-        
+
         if ($quantity > $this->quantity_available) {
             throw new InsufficientStockException();
         }
@@ -56,6 +56,28 @@ class InventoryStock extends Model
                 'user_id' => $this->variant->product->vendor->user_id,
                 'delta_quantity' => -$quantity,
                 'entry_type' => 'reservation'
+            ]);
+        });
+    }
+
+    public function releaseStock(int $quantity): void
+    {
+        if ($quantity <= 0) {
+            throw new \InvalidArgumentException('Quantity must be greater than zero.');
+        }
+        
+        if ($quantity > $this->quantity_reserved) {
+            throw new InsufficientStockException('Cannot release more stock than is currently reserved.');
+        }
+
+        DB::transaction(function () use ($quantity) {
+            $this->increment('quantity_available', $quantity);
+            $this->decrement('quantity_reserved', $quantity);
+
+            $this->inventoryLedgers()->create([
+                'user_id' => $this->variant->product->vendor->user_id,
+                'delta_quantity' => $quantity,
+                'entry_type' => 'release'
             ]);
         });
     }

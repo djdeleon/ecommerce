@@ -6,6 +6,30 @@ use App\Models\Variant;
 use App\Models\Vendor;
 use App\Models\Warehouse;
 
+test('releasing reserved stock correctly restores quantity available and decreases quantity reserved', function () {
+    $stock = InventoryStock::factory()->create([
+        'quantity_available' => 100,
+        'quantity_reserved' => 0,
+    ]);
+
+    $stock->reserveStock(10);
+
+    expect($stock->fresh())
+        ->quantity_available->toBe(90)
+        ->quantity_reserved->toBe(10);
+
+    $stock->releaseStock(10);
+
+    expect($stock->fresh())
+        ->quantity_available->toBe(100)
+        ->quantity_reserved->toBe(0);
+
+    expect($stock->fresh()->inventoryLedgers->last())
+        ->inventory_stock_id->toBe($stock->id)
+        ->delta_quantity->toBe(10)
+        ->entry_type->toBe('release');
+});
+
 test('reserving available stock automatically reduces the available quantity', function () {
     $stock = InventoryStock::factory()->create([
         'quantity_available' => 100,
