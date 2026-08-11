@@ -17,10 +17,7 @@ class VariantController extends Controller
 
     public function store(CreateVariantRequest $request, Product $product): JsonResponse
     {
-        $variant = $product->variants()->create([
-            'sku' => $request['sku'],
-            'price' => $request['price'],
-        ]);
+        $variant = $product->variants()->create($request->validated());
 
         return $this->success(
             $variant,

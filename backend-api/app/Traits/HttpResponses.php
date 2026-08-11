@@ -13,4 +13,12 @@ trait HttpResponses
             'message' => $message,
         ], $code);
     }
+
+    protected function error(?string $message = null, int $code = 400, mixed $errors = null): JsonResponse
+    {
+        return response()->json([
+            'message' => $message,
+            'errors' => $errors,
+        ], $code);
+    }
 }

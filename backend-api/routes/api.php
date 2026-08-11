@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\VendorController;
 use App\Http\Controllers\Api\DriverController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\FulfillmentHubController;
+use App\Http\Controllers\Api\InventoryStockController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\VariantController;
 use App\Http\Controllers\Api\WarehouseController;
@@ -55,6 +56,8 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
         });
 
         Route::post('{vendor}/warehouses', [WarehouseController::class, 'store'])->name('warehouses.store');
+
+        Route::post('vendor/product-variant/{variant}/stock', [InventoryStockController::class, 'store'])->name('inventory-stocks.store');
     });
 
     Route::middleware('role:driver')->group(function () {

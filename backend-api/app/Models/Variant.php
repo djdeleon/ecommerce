@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Variant extends Model
 {
@@ -35,5 +36,10 @@ class Variant extends Model
     {
         return $this->hasMany(ProductPriceLedger::class)
                     ->orderByDesc('created_at');
+    }
+
+    public function inventoryStock(): HasOne
+    {
+        return $this->hasOne(InventoryStock::class);
     }
 }
