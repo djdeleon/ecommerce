@@ -33,3 +33,26 @@ test('inventory ledger relationships resolve stock and actor correctly', functio
         ->and($ledger->actor->id)->toBe($user->id)
         ->and($stock->inventoryLedgers->first()->id)->toBe($ledger->id);
 });
+
+test('chronological audit history can be retrieved from stock model', function () {
+    $stock = InventoryStock::factory()->create();
+
+    InventoryLedger::factory()->create([
+        'inventory_stock_id' => $stock->id,
+        'entry_type' => 'restock',
+        'delta_quantity' => 100,
+        'created_at' => now()->subHours(2),
+    ]);
+
+    InventoryLedger::factory()->create([
+        'inventory_stock_id' => $stock->id,
+        'entry_type' => 'reservation',
+        'delta_quantity' => -10,
+        'created_at' => now()->subHour(),
+    ]);
+
+    $history = $stock->refresh()->inventoryLedgers;
+
+    expect($history)->toHaveCount(2)
+        ->and($history->pluck('entry_type')->toArray())->toBe(['restock', 'reservation']);
+})->only();
