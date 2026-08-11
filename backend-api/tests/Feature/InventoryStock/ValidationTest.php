@@ -1,7 +1,37 @@
 <?php
 
+use App\Exceptions\InsufficientStockException;
+use App\Models\InventoryStock;
 use App\Models\Variant;
 use App\Models\Vendor;
+
+test('attempting to reserver with zero quantity throws exception', function () {
+    $stock = InventoryStock::factory()->create([
+        'quantity_available' => 100,
+        'quantity_reserved' => 0,
+    ]);
+
+    expect(fn () => $stock->reserveStock(0))
+        ->toThrow(InvalidArgumentException::class);
+
+    expect($stock->fresh())
+        ->quantity_available->toBe(100)
+        ->quantity_reserved->toBe(0);
+});
+
+test('attempting to reserve more stock than available throws exception without mutating state', function () {
+    $stock = InventoryStock::factory()->create([
+        'quantity_available' => 100,
+        'quantity_reserved' => 0,
+    ]);
+
+    expect(fn () => $stock->reserveStock(200))
+        ->toThrow(InsufficientStockException::class);
+
+    expect($stock->fresh())
+        ->quantity_available->toBe(100)
+        ->quantity_reserved->toBe(0);
+});
 
 describe('inventory stocks store validation testing', function () {
     test('inventory validation rule', function (array $invalidPayload, string $expectedErrorKey) {

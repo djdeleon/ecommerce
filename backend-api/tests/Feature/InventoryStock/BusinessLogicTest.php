@@ -1,9 +1,28 @@
 <?php
 
 use App\Models\FulfillmentHub;
+use App\Models\InventoryStock;
 use App\Models\Variant;
 use App\Models\Vendor;
 use App\Models\Warehouse;
+
+test('reserving available stock automatically reduces the available quantity', function () {
+    $stock = InventoryStock::factory()->create([
+        'quantity_available' => 100,
+        'quantity_reserved' => 0,
+    ]);
+
+    $stock->reserveStock(5);
+
+    expect($stock->inventoryLedgers->first())
+        ->inventory_stock_id->toBe($stock->id)
+        ->delta_quantity->toBe(-5)
+        ->entry_type->toBe('reservation');
+
+    expect($stock)
+        ->quantity_available->toBe(95)
+        ->quantity_reserved->toBe(5);
+});
 
 test('stock record gets created during the product variant creation as initial stock', function () {
     $vendor = Vendor::factory()->hasWarehouses(1)->hasProducts(1)->create();
