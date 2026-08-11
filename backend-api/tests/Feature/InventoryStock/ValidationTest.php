@@ -39,10 +39,10 @@ describe('inventory stocks store validation testing', function () {
             ['facility_id' => 1, 'facility_type' => 'warehouse', 'entry_type' => 'restock'], 
             'delta'
         ],
-        // 'passing string delta' => [
-        //     ['delta' => '5', 'facility_id' => 1, 'facility_type' => 'warehouse', 'entry_type' => 'restock'], 
-        //     'delta'
-        // ],
+        'passing string delta' => [
+            ['delta' => 'not-an-integer', 'facility_id' => 1, 'facility_type' => 'warehouse', 'entry_type' => 'restock'], 
+            'delta'
+        ],
 
         'missing entry type' => [
             ['facility_type' => 'warehouse', 'facility_id' => 1, 'delta' => 5], 
