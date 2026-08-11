@@ -3,6 +3,19 @@
 use App\Models\InventoryLedger;
 use App\Models\InventoryStock;
 use App\Models\User;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
+
+test('inventory ledger is strictly immutable in postgresql', function (string $query) {
+    $ledger = InventoryLedger::factory()->create();
+
+    $this->expectException(QueryException::class);
+    
+    DB::statement($query, [$ledger->id]);
+})->with([
+    'update' => "UPDATE inventory_ledgers SET action = 'HACKED' WHERE id = ?",
+    'delete' => 'DELETE FROM inventory_ledgers WHERE id = ?',
+])->only();
 
 test('inventory ledger updating is strictly prevented by immutability guard', function () {
     $ledger = InventoryLedger::factory()->create(['delta_quantity' => 10]);
@@ -55,4 +68,4 @@ test('chronological audit history can be retrieved from stock model', function (
 
     expect($history)->toHaveCount(2)
         ->and($history->pluck('entry_type')->toArray())->toBe(['restock', 'reservation']);
-})->only();
+});
