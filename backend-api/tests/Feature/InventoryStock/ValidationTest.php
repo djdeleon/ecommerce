@@ -4,6 +4,16 @@ use App\Exceptions\InsufficientStockException;
 use App\Models\InventoryStock;
 use App\Models\Variant;
 use App\Models\Vendor;
+use Illuminate\Database\QueryException;
+
+test('database constraint prevents negative quantity available and reserved', function (array $payload) {
+    expect(function () use ($payload) {
+        InventoryStock::factory()->create($payload);
+    })->toThrow(QueryException::class);
+})->with([
+    'passing below zero quantity_available' => [['quantity_available' => -5]],
+    'passing below zero quantity_reserved'  => [['quantity_reserved'  => -5]],
+]);
 
 test('attempting to fulfill the reserved stock with zero quantity throws exception', function () {
     $stock = InventoryStock::factory()->create([
