@@ -1,9 +1,76 @@
 <?php
 
 use App\Models\FulfillmentHub;
+use App\Models\InventoryStock;
 use App\Models\Variant;
 use App\Models\Vendor;
 use App\Models\Warehouse;
+
+test('fulfilling reserved stocks decrements the quantity reserved without affecting the quantity available', function () {
+    $stock = InventoryStock::factory()->create([
+        'quantity_available' => 100,
+        'quantity_reserved' => 0,
+    ]);
+
+    $stock->reserveStock(10);
+
+    expect($stock->fresh())
+        ->quantity_available->toBe(90)
+        ->quantity_reserved->toBe(10);
+
+    $stock->fulfillReservedStock(10);
+
+    expect($stock->fresh())
+        ->quantity_available->toBe(90)
+        ->quantity_reserved->toBe(0);
+
+    expect($stock->fresh()->inventoryLedgers->last())
+        ->inventory_stock_id->toBe($stock->id)
+        ->delta_quantity->toBe(-10)
+        ->entry_type->toBe('fulfillment');
+});
+
+test('releasing reserved stock correctly restores quantity available and decreases quantity reserved', function () {
+    $stock = InventoryStock::factory()->create([
+        'quantity_available' => 100,
+        'quantity_reserved' => 0,
+    ]);
+
+    $stock->reserveStock(10);
+
+    expect($stock->fresh())
+        ->quantity_available->toBe(90)
+        ->quantity_reserved->toBe(10);
+
+    $stock->releaseStock(10);
+
+    expect($stock->fresh())
+        ->quantity_available->toBe(100)
+        ->quantity_reserved->toBe(0);
+
+    expect($stock->fresh()->inventoryLedgers->last())
+        ->inventory_stock_id->toBe($stock->id)
+        ->delta_quantity->toBe(10)
+        ->entry_type->toBe('release');
+});
+
+test('reserving available stock automatically reduces the available quantity', function () {
+    $stock = InventoryStock::factory()->create([
+        'quantity_available' => 100,
+        'quantity_reserved' => 0,
+    ]);
+
+    $stock->reserveStock(5);
+
+    expect($stock->inventoryLedgers->first())
+        ->inventory_stock_id->toBe($stock->id)
+        ->delta_quantity->toBe(-5)
+        ->entry_type->toBe('reservation');
+
+    expect($stock)
+        ->quantity_available->toBe(95)
+        ->quantity_reserved->toBe(5);
+});
 
 test('stock record gets created during the product variant creation as initial stock', function () {
     $vendor = Vendor::factory()->hasWarehouses(1)->hasProducts(1)->create();
