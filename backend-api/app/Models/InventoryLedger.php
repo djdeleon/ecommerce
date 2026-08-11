@@ -5,6 +5,7 @@ namespace App\Models;
 use Database\Factories\InventoryLedgerFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class InventoryLedger extends Model
 {
@@ -28,5 +29,15 @@ class InventoryLedger extends Model
         static::deleting(function () {
             throw new \LogicException('Inventory ledger records are strictly immutable and cannot be deleted.');
         });
+    }
+
+    public function inventoryStock(): BelongsTo
+    {
+        return $this->belongsTo(InventoryStock::class);
+    }
+
+    public function actor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 }
