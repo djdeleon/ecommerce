@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Variant extends Model
 {
@@ -38,8 +37,8 @@ class Variant extends Model
                     ->orderByDesc('created_at');
     }
 
-    public function inventoryStock(): HasOne
+    public function inventoryStocks(): HasMany
     {
-        return $this->hasOne(InventoryStock::class);
+        return $this->hasMany(InventoryStock::class);
     }
 }

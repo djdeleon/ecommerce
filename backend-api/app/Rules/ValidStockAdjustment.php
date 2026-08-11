@@ -40,7 +40,7 @@ class ValidStockAdjustment implements ValidationRule, DataAwareRule
 
         $facilityId = $this->data['facility_id'] ?? null;
 
-        $stock = $this->variant->inventoryStock()
+        $stock = $this->variant->inventoryStocks()
             ->where('inventorable_type', $facilityType)
             ->where('inventorable_id', $facilityId)
             ->first();

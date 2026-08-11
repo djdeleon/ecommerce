@@ -16,7 +16,7 @@ class InventoryStockService
         $delta = (int) $data['delta'];
 
         return DB::transaction(function () use ($data, $variant, $facilityType, $userId, $delta) {
-            $stock = $variant->inventoryStock()->firstOrCreate([
+            $stock = $variant->inventoryStocks()->firstOrCreate([
                 'inventorable_type' => $facilityType,
                 'inventorable_id' => $data['facility_id'],
             ], [

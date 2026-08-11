@@ -76,7 +76,7 @@ test('multiple adjustments accumulate correctly and log separate ledgers', funct
         'quantity_available' => 100,
     ]);
 
-    $stock = $variant->refresh()->inventoryStock->first();
+    $stock = $variant->refresh()->inventoryStocks->first();
 
     expect($stock->inventoryLedgers)->toHaveCount(3);
     expect($stock->inventoryLedgers->pluck('delta_quantity')->toArray())->toEqualCanonicalizing([50, 20, 30]);
@@ -112,7 +112,7 @@ test('stock can be adjusted in a platform fulfillment hub', function () {
         'quantity_available' => 50,
     ]);
 
-    $stock = $variant->refresh()->inventoryStock->first();
+    $stock = $variant->refresh()->inventoryStocks->first();
 
     $this->assertDatabaseHas('inventory_ledgers', [
         'inventory_stock_id' => $stock->id,
@@ -125,7 +125,7 @@ test('stock can be adjusted in a platform fulfillment hub', function () {
 test('product variant can be created without specifying its stock', function () {
     $variant = Variant::factory()->create();
 
-    expect($variant->inventoryStock()->get()->isEmpty())->toBeTrue();
+    expect($variant->inventoryStocks()->get()->isEmpty())->toBeTrue();
 });
 
 test('a product variant stock can be adjusted', function () {
@@ -157,7 +157,7 @@ test('a product variant stock can be adjusted', function () {
         'quantity_available' => 50,
     ]);
 
-    $stock = $variant->refresh()->inventoryStock->first();
+    $stock = $variant->refresh()->inventoryStocks->first();
 
     $this->assertDatabaseHas('inventory_ledgers', [
         'inventory_stock_id' => $stock->id,

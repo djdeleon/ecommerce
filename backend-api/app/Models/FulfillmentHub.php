@@ -16,6 +16,6 @@ class FulfillmentHub extends Model
 
     public function inventoryStocks(): MorphMany
     {
-        return $this->morphMany(InventoryStock::class, 'taggable');
+        return $this->morphMany(InventoryStock::class, 'inventorable');
     }
 }
