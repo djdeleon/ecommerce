@@ -81,4 +81,25 @@ class InventoryStock extends Model
             ]);
         });
     }
+
+    public function fulfillReservedStock(int $quantity): void
+    {
+        if ($quantity <= 0) {
+            throw new \InvalidArgumentException('Quantity must be greater than zero.');
+        }
+        
+        if ($quantity > $this->quantity_reserved) {
+            throw new InsufficientStockException('Cannot fulfill more stock than is currently reserved.');
+        }
+
+        DB::transaction(function () use ($quantity) {
+            $this->decrement('quantity_reserved', $quantity);
+
+            $this->inventoryLedgers()->create([
+                'user_id' => $this->variant->product->vendor->user_id,
+                'delta_quantity' => -$quantity,
+                'entry_type' => 'fulfillment'
+            ]);
+        });
+    }
 }

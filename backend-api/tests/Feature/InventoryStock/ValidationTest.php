@@ -5,6 +5,38 @@ use App\Models\InventoryStock;
 use App\Models\Variant;
 use App\Models\Vendor;
 
+test('attempting to fulfill the reserved stock with zero quantity throws exception', function () {
+    $stock = InventoryStock::factory()->create([
+        'quantity_available' => 100,
+        'quantity_reserved' => 0,
+    ]);
+
+    $stock->reserveStock(10);
+
+    expect(fn () => $stock->fulfillReservedStock(0))
+        ->toThrow(InvalidArgumentException::class);
+
+    expect($stock->fresh())
+        ->quantity_available->toBe(90)
+        ->quantity_reserved->toBe(10);
+});
+
+test('attempting to fulfill more reserved stock than available throws exception without mutating state', function () {
+    $stock = InventoryStock::factory()->create([
+        'quantity_available' => 100,
+        'quantity_reserved' => 0,
+    ]);
+
+    $stock->reserveStock(10);
+
+    expect(fn () => $stock->fulfillReservedStock(200))
+        ->toThrow(InsufficientStockException::class);
+
+    expect($stock->fresh())
+        ->quantity_available->toBe(90)
+        ->quantity_reserved->toBe(10);
+});
+
 test('attempting to release with zero quantity throws exception', function () {
     $stock = InventoryStock::factory()->create([
         'quantity_available' => 100,

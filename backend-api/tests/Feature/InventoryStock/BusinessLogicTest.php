@@ -6,6 +6,30 @@ use App\Models\Variant;
 use App\Models\Vendor;
 use App\Models\Warehouse;
 
+test('fulfilling reserved stocks decrements the quantity reserved without affecting the quantity available', function () {
+    $stock = InventoryStock::factory()->create([
+        'quantity_available' => 100,
+        'quantity_reserved' => 0,
+    ]);
+
+    $stock->reserveStock(10);
+
+    expect($stock->fresh())
+        ->quantity_available->toBe(90)
+        ->quantity_reserved->toBe(10);
+
+    $stock->fulfillReservedStock(10);
+
+    expect($stock->fresh())
+        ->quantity_available->toBe(90)
+        ->quantity_reserved->toBe(0);
+
+    expect($stock->fresh()->inventoryLedgers->last())
+        ->inventory_stock_id->toBe($stock->id)
+        ->delta_quantity->toBe(-10)
+        ->entry_type->toBe('fulfillment');
+});
+
 test('releasing reserved stock correctly restores quantity available and decreases quantity reserved', function () {
     $stock = InventoryStock::factory()->create([
         'quantity_available' => 100,
