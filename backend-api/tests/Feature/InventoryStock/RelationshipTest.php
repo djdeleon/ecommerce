@@ -5,6 +5,26 @@ use App\Models\InventoryStock;
 use App\Models\Variant;
 use App\Models\Warehouse;
 
+test('facilities can reverse lookup their assigned inventory stock entries', function () {
+    $warehouse = Warehouse::factory()->create();
+    $hub = FulfillmentHub::factory()->create();
+
+    InventoryStock::factory()
+        ->count(3)
+        ->for($warehouse, 'inventorable')
+        ->create();
+    InventoryStock::factory()
+        ->count(2)
+        ->for($hub, 'inventorable')
+        ->create();
+
+    expect($warehouse->refresh()->inventoryStocks)->toHaveCount(3)
+        ->and($warehouse->inventoryStocks->first())->toBeInstanceOf(InventoryStock::class);
+
+    expect($hub->refresh()->inventoryStocks)->toHaveCount(2)
+        ->and($hub->inventoryStocks->first())->toBeInstanceOf(InventoryStock::class);
+});
+
 test('variant correctly retrieves all associated facility inventory record', function () {
     $variant = Variant::factory()->create();
     $warehouse = Warehouse::factory()->create();
@@ -47,15 +67,4 @@ test('inventory stock can polymorphically belongs to a fulfillment hub', functio
 
     expect($stock->inventorable)->toBeInstanceOf(FulfillmentHub::class)
         ->and($stock->inventorable->id)->toBe($fulfillmentHub->id);
-});
-
-test('warehouses and fulfillment hubs can retrieve their associated stocks', function () {
-    $warehouse = Warehouse::factory()->create();
-    $fulfillmentHub = FulfillmentHub::factory()->create();
-
-    InventoryStock::factory(2)->for($warehouse, 'inventorable')->create();
-    InventoryStock::factory(3)->for($fulfillmentHub, 'inventorable')->create();
-
-    expect($warehouse->inventoryStocks)->toHaveCount(2)
-        ->and($fulfillmentHub->inventoryStocks)->toHaveCount(3);
 });
