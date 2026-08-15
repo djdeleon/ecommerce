@@ -142,14 +142,18 @@ describe('product updation test', function () {
 
     test('updating a product name to an existing name generates a unique incremented slug', function () {
         $vendor = Vendor::factory()->create();
-        $product1 = Product::factory()->create([
-            'vendor_id' => $vendor->id,
-            'name' => 'Existing Product',
-        ]);
-        $product2 = Product::factory()->create([
-            'vendor_id' => $vendor->id,
-            'name' => 'New Product'
-        ]);
+
+        $this->actingAs($vendor->user, 'sanctum')
+            ->postJson(route('products.store'), [
+                'vendor_id' => $vendor->id,
+                'category_id' => Category::factory()->create()->id,
+                'name' => 'Existing Product',
+                'description' => 'This is a product description.',
+                'status' => 'active'
+            ])
+            ->assertCreated();
+            
+        $product2 = Product::factory()->for($vendor)->create();
 
         $payload = [
             'name' => 'Existing Product',

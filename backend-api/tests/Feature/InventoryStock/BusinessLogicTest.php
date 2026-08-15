@@ -2,9 +2,83 @@
 
 use App\Models\FulfillmentHub;
 use App\Models\InventoryStock;
+use App\Models\Product;
+use App\Models\User;
 use App\Models\Variant;
 use App\Models\Vendor;
 use App\Models\Warehouse;
+
+test('a vendor can view a complete and strictly isolated stock control tree', function () {
+    $vendor1 = Vendor::factory()->hasWarehouses(1, ['address' => 'Vendor 1 Warehouse'])->create();
+    $vendor2 = Vendor::factory()->hasWarehouses(1, ['address' => 'Secret Competitor Warehouse'])->create();
+
+    $product1 = Product::factory()->for($vendor1)->create(['name' => 'Vendor 1 Product']);
+    $variant1 = Variant::factory()->for($product1)->create(['sku' => 'SKU-V1']);
+    
+    InventoryStock::factory()->for($variant1)->create([
+        'inventorable_type' => Warehouse::class,
+        'inventorable_id' => $vendor1->warehouses->first()->id,
+        'quantity_available' => 50,
+        'quantity_reserved' => 5,
+    ]);
+
+    $product2 = Product::factory()->for($vendor2)->create(['name' => 'Hidden Competitor Product']);
+    $variant2 = Variant::factory()->for($product2)->create(['sku' => 'SKU-V2-PRIVATE']);
+    
+    InventoryStock::factory()->for($variant2)->create([
+        'inventorable_type' => Warehouse::class,
+        'inventorable_id' => $vendor2->warehouses->first()->id,
+        'quantity_available' => 999,
+    ]);
+
+    $response = $this->actingAs($vendor1->user, 'sanctum')
+        ->getJson(route('inventory-stocks.index'))
+        ->assertOk();
+
+    $response->assertJsonFragment(['name' => 'Vendor 1 Product'])
+             ->assertJsonFragment(['sku' => 'SKU-V1'])
+             ->assertJsonFragment(['quantity_available' => 50])
+             ->assertJsonFragment(['address' => 'Vendor 1 Warehouse']);
+
+    $response->assertJsonMissing(['name' => 'Hidden Competitor Product'])
+             ->assertJsonMissing(['sku' => 'SKU-V2-PRIVATE'])
+             ->assertJsonMissing(['address' => 'Secret Competitor Warehouse'])
+             ->assertJsonMissing(['quantity_available' => 999]);
+
+    $response->assertJsonCount(1, 'data.data');
+});
+
+test('an admin can visit the global inventory stock dashboard and view all vendor stocks', function () {
+    $vendor1 = Vendor::factory()->hasWarehouses(1)->create();
+    $vendor2 = Vendor::factory()->hasWarehouses(1)->create();
+
+    $product1 = Product::factory()->for($vendor1)->hasVariants(1)->create();
+    $product2 = Product::factory()->for($vendor2)->hasVariants(1)->create();
+
+    InventoryStock::factory()->for($product1->variants->first())->create([
+        'inventorable_type' => Warehouse::class,
+        'inventorable_id' => $vendor1->warehouses->first()->id,
+        'quantity_available' => 50,
+    ]);
+
+    InventoryStock::factory()->for($product2->variants->first())->create([
+        'inventorable_type' => Warehouse::class,
+        'inventorable_id' => $vendor2->warehouses->first()->id,
+        'quantity_available' => 75,
+    ]);
+
+    $admin = User::factory()->create();
+    $admin->assignRole('admin');
+
+    $this->actingAs($admin, 'sanctum')
+        ->getJson(route('inventory-stocks.index'))
+        ->assertOk()
+        ->assertJsonCount(2, 'data.data')
+        ->assertJsonFragment(['name' => $product1->name])
+        ->assertJsonFragment(['name' => $product2->name])
+        ->assertJsonFragment(['quantity_available' => 50])
+        ->assertJsonFragment(['quantity_available' => 75]);
+});
 
 test('fulfilling reserved stocks decrements the quantity reserved without affecting the quantity available', function () {
     $stock = InventoryStock::factory()->create([

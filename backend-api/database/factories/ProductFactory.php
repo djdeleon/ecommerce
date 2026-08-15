@@ -26,6 +26,7 @@ class ProductFactory extends Factory
             'vendor_id' => Vendor::factory(),
             'category_id' => Category::factory(),
             'name' => ucfirst($name),
+            'slug' => Str::slug($name),
             'description' => fake()->paragraph(),
             'status' => fake()->randomElement(['draft', 'active', 'archived']),
         ];

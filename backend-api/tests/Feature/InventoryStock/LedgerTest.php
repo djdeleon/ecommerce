@@ -15,7 +15,7 @@ test('inventory ledger is strictly immutable in postgresql', function (string $q
 })->with([
     'update' => "UPDATE inventory_ledgers SET action = 'HACKED' WHERE id = ?",
     'delete' => 'DELETE FROM inventory_ledgers WHERE id = ?',
-])->only();
+]);
 
 test('inventory ledger updating is strictly prevented by immutability guard', function () {
     $ledger = InventoryLedger::factory()->create(['delta_quantity' => 10]);
