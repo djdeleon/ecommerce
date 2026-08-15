@@ -71,6 +71,8 @@ This project is built using Agile SDLC methodologies, tracked via GitHub Issues,
     *   **Focus:** Laravel Sanctum Token Infrastructure, Spatie RBAC Middleware, multi-dashboard routing, and comprehensive Pest TDD coverage.
 *   **[Sprint 02: Product Catalog & Category Hierarchy (Completed)](docs/sprints/SPRINT-02.md)**
     *   **Focus:** Self-referencing category trees, vendor storefront profiles, product variants with SKU management, and PostgreSQL trigger-driven immutable price ledgers.
+*   **[Sprint 03: Warehouse Facilities & Inventory Management (Completed)](docs/sprints/SPRINT-03.md)**
+    *   **Focus:** Merchant warehouses and platform fulfillment hubs, polymorphic multi-facility stock management, reserved vs available quantity reservation logic, append-only inventory audit ledgers with database triggers, and vendor tenancy REST API security.
 ---
 
 ## ⚡ Quick Start (Local Docker Infrastructure)

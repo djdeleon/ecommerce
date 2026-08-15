@@ -3,11 +3,11 @@
 ## 🎯 Objectives & Scope
 The objective of Sprint 03 is to implement the backend structures and APIs governing physical storage facilities, stock allocation across multi-location hubs, and append-only auditing ledgers for all inventory adjustments.
 
-- [ ] Create data models and migration tables for `warehouses` and `fulfillment_hubs` (#34)
-- [ ] Implement polymorphic inventory stock tracking (`inventorable_type` / `inventorable_id`) across facilities (#35)
-- [ ] Implement stock availability tracking with strict reserved vs. available quantity calculations (`INVENTORY_STOCKS`) (#36)
-- [ ] Develop append-only audit ledgers (`INVENTORY_LEDGERS`) for historical stock movements and entry tracking (#37)
-- [ ] Author comprehensive automated Pest PHP tests for inventory operations, ledger entries, and vendor isolation (TDD) (#38)
+- [x] Create data models and migration tables for `warehouses` and `fulfillment_hubs` (#34)
+- [x] Implement polymorphic inventory stock tracking (`inventorable_type` / `inventorable_id`) across facilities (#35)
+- [x] Implement stock availability tracking with strict reserved vs. available quantity calculations (`INVENTORY_STOCKS`) (#36)
+- [x] Develop append-only audit ledgers (`INVENTORY_LEDGERS`) for historical stock movements and entry tracking (#37)
+- [x] Author comprehensive automated Pest PHP tests for inventory operations, ledger entries, and vendor isolation (TDD) (#38)
 
 ---
 
