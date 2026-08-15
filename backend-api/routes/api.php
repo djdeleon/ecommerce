@@ -44,6 +44,13 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
         Route::post('customer/vendors', [CustomerController::class, 'upgrade'])->name('customer.vendor-upgrade');
     });
 
+    Route::middleware('role:admin|vendor')->group(function () {
+        Route::get('warehouses', [WarehouseController::class, 'index'])->name('warehouses.index');
+        Route::post('warehouses', [WarehouseController::class, 'store'])->name('warehouses.store');
+
+        Route::get('inventory/stocks', [InventoryStockController::class, 'index'])->name('inventory-stocks.index');
+    });
+
     Route::middleware('role:vendor')->group(function () {
         Route::get('vendor/dashboard', [VendorController::class, 'dashboard'])->name('vendor.dashboard');
 
@@ -54,8 +61,6 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
             Route::post('{product}/variants', [VariantController::class, 'store'])->name('variants.store');
             Route::put('{product}/variants/{variant}', [VariantController::class, 'update'])->name('variants.update');
         });
-
-        Route::post('{vendor}/warehouses', [WarehouseController::class, 'store'])->name('warehouses.store');
 
         Route::post('vendor/product-variant/{variant}/stock', [InventoryStockController::class, 'store'])->name('inventory-stocks.store');
     });

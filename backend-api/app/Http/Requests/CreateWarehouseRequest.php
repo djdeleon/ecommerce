@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class CreateWarehouseRequest extends FormRequest
 {
@@ -12,6 +13,12 @@ class CreateWarehouseRequest extends FormRequest
      */
     public function authorize(): bool
     {
+        $user = $this->user();
+
+        if ($user->hasRole('admin') && !array_key_exists('vendor_id', $this->all())) {
+            return false;
+        }
+
         return true;
     }
 
@@ -26,7 +33,12 @@ class CreateWarehouseRequest extends FormRequest
             'address' => [
                 'required',
                 'string'
-            ]
+            ],
+            'vendor_id' => [
+                Rule::requiredIf($this->user()->hasRole('admin')),
+                'integer',
+                'exists:vendors,id',
+            ],
         ];
     }
 }
