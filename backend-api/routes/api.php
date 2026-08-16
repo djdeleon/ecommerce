@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\FulfillmentHubController;
 use App\Http\Controllers\Api\InventoryStockController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\VariantController;
+use App\Http\Controllers\Api\VehicleController;
 use App\Http\Controllers\Api\WarehouseController;
 use App\Http\Middleware\SetPostgreUserContext;
 use Illuminate\Support\Facades\Route;
@@ -69,6 +70,11 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
     Route::middleware('role:driver')->group(function () {
         Route::prefix('driver')->controller(DriverController::class)->group(function () {
             Route::get('dashboard', [DriverController::class, 'dashboard'])->name('drivers.dashboard');
+
+            Route::get('vehicles', [VehicleController::class, 'index'])->name('driver-vehicles.index');
+            Route::get('vehicles/create', [VehicleController::class, 'create'])->name('driver-vehicles.create');
+            Route::post('vehicles', [VehicleController::class, 'store'])->name('driver-vehicles.store');
+            Route::patch('vehicles/{vehicle}/active', [VehicleController::class, 'active'])->name('driver-vehicles.active');
         });
     });
 });

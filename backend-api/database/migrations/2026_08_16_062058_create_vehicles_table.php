@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('vehicles', function (Blueprint $table) {
             $table->unsignedSmallInteger('id')->autoIncrement()->primary();
-            $table->unsignedSmallInteger('driver_id')->unique();
+            $table->unsignedSmallInteger('driver_id');
             $table->foreign('driver_id')
                 ->references('id')
                 ->on('drivers')
@@ -21,6 +21,8 @@ return new class extends Migration
             $table->string('plate_number', 20)->unique();
             $table->string('type');
             $table->timestamps();
+
+            $table->unique(['driver_id', 'plate_number', 'type'], 'driver_vehicle_unique');
         });
     }
 
