@@ -19,6 +19,7 @@ Route::prefix('auth')->group(function () {
     Route::post('login', [AuthController::class, 'login'])->name('login');
 
     Route::post('vendor/register', [VendorController::class, 'register'])->name('vendor.register');
+    Route::post('register', [DriverController::class, 'register'])->name('drivers.register');
     
     Route::get('fulfillment-hub', [FulfillmentHubController::class, 'index'])->name('fulfillment-hubs.index');
 });
@@ -66,6 +67,8 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
     });
 
     Route::middleware('role:driver')->group(function () {
-        Route::get('driver/dashboard', [DriverController::class, 'dashboard'])->name('driver.dashboard');
+        Route::prefix('driver')->controller(DriverController::class)->group(function () {
+            Route::get('dashboard', [DriverController::class, 'dashboard'])->name('drivers.dashboard');
+        });
     });
 });
