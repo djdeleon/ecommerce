@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\VendorController;
 use App\Http\Controllers\Api\DriverController;
@@ -44,6 +45,8 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
         Route::get('customer/dashboard', [CustomerController::class, 'dashboard'])->name('customer.dashboard');
 
         Route::post('customer/vendors', [CustomerController::class, 'upgrade'])->name('customer.vendor-upgrade');
+
+        Route::post('carts', [CartController::class, 'store'])->name('carts.store');
     });
 
     Route::middleware('role:admin|vendor')->group(function () {
