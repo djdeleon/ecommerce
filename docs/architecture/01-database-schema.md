@@ -223,3 +223,69 @@ erDiagram
     SHADOW_USERS ||--o| DRIVERS : activates
     SHADOW_USERS ||--o{ SHIPMENT_LOGS : updates
 ```
+
+
+
+### 7. Orders & Checkout Domain
+This domain governs customer checkouts, multi-vendor order routing, order item state transitions, financial transaction processing, and seller escrow payout tracking.
+
+```mermaid
+erDiagram
+    ORDERS {
+        bigint id PK
+        bigint customer_id FK "Logical reference to Users"
+        decimal total_amount
+        string status
+        string shipping_address
+    }
+    ORDER_ITEMS {
+        bigint id PK
+        bigint order_id FK
+        bigint variant_id FK "Logical reference to Product Variants"
+        bigint vendor_id FK "Logical reference to Users"
+        smallint quantity_ordered
+        decimal price_at_purchased
+    }
+    ORDER_ITEM_STATUSES {
+        bigint id PK
+        bigint item_id FK
+        string status
+        bigint changed_by_id FK "Logical reference to Users"
+        string notes
+        timestamp created_at
+    }
+    PAYMENTS {
+        bigint id PK
+        bigint order_id FK
+        string payment_method
+        string transaction_reference
+        decimal amount_paid
+        string gateway_reference UK
+        string status
+    }
+    SELLER_PAYOUT_LEDGERS {
+        bigint id PK
+        bigint item_id FK
+        bigint vendor_id FK "Logical reference to Users"
+        decimal gross_amount
+        decimal platform_commission_fee
+        decimal net_payout_amount
+        string status
+    }
+    SHADOW_USERS {
+        bigint id PK "Represents Users table from Identity Domain"
+    }
+    SHADOW_PRODUCT_VARIANTS {
+        bigint id PK "Represents variants from Product Domain"
+    }
+
+    SHADOW_USERS ||--o{ ORDERS : places
+    SHADOW_USERS ||--o{ ORDER_ITEMS : operates
+    SHADOW_USERS ||--o{ ORDER_ITEM_STATUSES : updates
+    SHADOW_USERS ||--o{ SELLER_PAYOUT_LEDGERS : receives
+    ORDERS ||--o{ ORDER_ITEMS : contains
+    ORDERS ||--o{ PAYMENTS : settles
+    SHADOW_PRODUCT_VARIANTS ||--o{ ORDER_ITEMS : specifies
+    ORDER_ITEMS ||--o{ ORDER_ITEM_STATUSES : historicizes
+    ORDER_ITEMS ||--o{ SELLER_PAYOUT_LEDGERS : funds
+```
