@@ -37,7 +37,7 @@ class InventoryStockController extends Controller
                     }
             ])->paginate(15);
         } else {
-            $products = Product::where('vendor_id', $user->id)
+            $products = Product::where('vendor_id', $user->vendor->id)
                     ->with([
                         'variants:id,product_id,sku',
                         'variants.inventoryStocks' => function ($q) {

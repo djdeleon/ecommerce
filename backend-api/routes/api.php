@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\FulfillmentHubController;
 use App\Http\Controllers\Api\InventoryStockController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\VariantController;
+use App\Http\Controllers\Api\VehicleController;
 use App\Http\Controllers\Api\WarehouseController;
 use App\Http\Middleware\SetPostgreUserContext;
 use Illuminate\Support\Facades\Route;
@@ -19,6 +20,7 @@ Route::prefix('auth')->group(function () {
     Route::post('login', [AuthController::class, 'login'])->name('login');
 
     Route::post('vendor/register', [VendorController::class, 'register'])->name('vendor.register');
+    Route::post('drivers/register', [DriverController::class, 'register'])->name('drivers.register');
     
     Route::get('fulfillment-hub', [FulfillmentHubController::class, 'index'])->name('fulfillment-hubs.index');
 });
@@ -66,6 +68,13 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
     });
 
     Route::middleware('role:driver')->group(function () {
-        Route::get('driver/dashboard', [DriverController::class, 'dashboard'])->name('driver.dashboard');
+        Route::prefix('driver')->controller(DriverController::class)->group(function () {
+            Route::get('dashboard', [DriverController::class, 'dashboard'])->name('drivers.dashboard');
+
+            Route::get('vehicles', [VehicleController::class, 'index'])->name('driver-vehicles.index');
+            Route::get('vehicles/create', [VehicleController::class, 'create'])->name('driver-vehicles.create');
+            Route::post('vehicles', [VehicleController::class, 'store'])->name('driver-vehicles.store');
+            Route::patch('vehicles/{vehicle}/active', [VehicleController::class, 'active'])->name('driver-vehicles.active');
+        });
     });
 });
