@@ -17,7 +17,7 @@ return new class extends Migration
             $table->foreign('driver_id')
                 ->references('id')
                 ->on('drivers')
-                ->onDelete('cascade');
+                ->restrictOnDelete();
             $table->string('plate_number', 20)->unique();
             $table->string('type');
             $table->timestamps();

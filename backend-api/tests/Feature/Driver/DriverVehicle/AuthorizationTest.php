@@ -17,7 +17,7 @@ test('unauthenticated users cannot access driver vehicle endpoints', function ()
 
     $this->patchJson(route('driver-vehicles.active', $vehicle))
         ->assertUnauthorized();
-})->only();
+});
 
 test('authenticated users cannot access driver vehicle endpoints', function (string $role) {
     $vehicle = Vehicle::factory()->create();
@@ -43,4 +43,4 @@ test('authenticated users cannot access driver vehicle endpoints', function (str
 })->with([
     'customer role' => 'customer',
     'vendor role' => 'vendor',
-])->only();
+]);

@@ -20,7 +20,7 @@ Route::prefix('auth')->group(function () {
     Route::post('login', [AuthController::class, 'login'])->name('login');
 
     Route::post('vendor/register', [VendorController::class, 'register'])->name('vendor.register');
-    Route::post('register', [DriverController::class, 'register'])->name('drivers.register');
+    Route::post('drivers/register', [DriverController::class, 'register'])->name('drivers.register');
     
     Route::get('fulfillment-hub', [FulfillmentHubController::class, 'index'])->name('fulfillment-hubs.index');
 });

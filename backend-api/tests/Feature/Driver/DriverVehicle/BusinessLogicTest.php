@@ -31,7 +31,7 @@ test('a driver can see the list of its vehicles', function () {
             ->where('data.2.plate_number', $vehicleC->plate_number)
             ->where('data.2.type', $vehicleC->type)
         );
-})->only();
+});
 
 test('a driver can visit the vehicle registration with vehicle type options', function () {
     $driver = Driver::factory()->create();
@@ -49,7 +49,7 @@ test('a driver can visit the vehicle registration with vehicle type options', fu
             ->where('data.2.value', 'truck')
             ->where('data.2.label', 'Commercial Truck')
         );
-})->only();
+});
 
 test('a driver can register a vehicle', function () {
     $driver = Driver::factory()->create();
@@ -68,4 +68,4 @@ test('a driver can register a vehicle', function () {
     expect($driver->vehicles->first())
         ->plate_number->toBe($payload['plate_number'])
         ->type->toBe(VehicleType::VAN);
-})->only();
+});

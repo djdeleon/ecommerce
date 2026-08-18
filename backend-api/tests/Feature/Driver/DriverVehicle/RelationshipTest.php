@@ -8,7 +8,7 @@ test('a driver can have multiple vehicles', function () {
     Vehicle::factory(3)->for($driver)->create();
   
     expect($driver->vehicles->count())->toBe(3);
-})->only();
+});
 
 test('a group of vehicles belongs to a driver', function () { 
     $drivers = Driver::factory(3)->hasVehicles(3)->create();
@@ -23,7 +23,7 @@ test('a group of vehicles belongs to a driver', function () {
                 ->and($vehicle->driver->user->id)->toBe($driver->user->id);
         }
     }
-})->only();
+});
 
 test('a driver has an active vehicle', function () {
     $driver = Driver::factory()->create();
@@ -38,4 +38,4 @@ test('a driver has an active vehicle', function () {
         ->id->toBe($activeVehicle->id)
         ->plate_number->toBe($activeVehicle->plate_number)
         ->and($activeVehicle->driver_id)->toBe($driver->id);
-})->only();
+});

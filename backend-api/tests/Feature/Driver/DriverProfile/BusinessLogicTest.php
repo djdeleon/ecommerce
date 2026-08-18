@@ -32,7 +32,7 @@ test('an unauthenticated user can register as driver', function () {
 
     $user = User::where('name', $payload['name'])->first();
     expect($user->hasRole('driver'))->toBeTrue();
-})->only();
+});
 
 test('a driver can set an active vehicle', function () {
     $driver = Driver::factory()->create();
@@ -43,4 +43,4 @@ test('a driver can set an active vehicle', function () {
         ->assertOk();
     
     expect($driver->fresh()->active_vehicle_id)->toBe($vehicle->id);
-})->only();
+});
