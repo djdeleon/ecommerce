@@ -7,17 +7,29 @@ use Illuminate\Support\Facades\DB;
 
 class CustomerService
 {
-    public function upgradeUserToVendor(User $user, array $data): User
+    public function register(array $data): array
     {
-        return DB::transaction(function () use ($user, $data) {
-            $user->assignRole('vendor');
-
-            $user->vendor()->create([
-                'shop_name' => $data['shop_name'],
-                'business_tin' => $data['business_tin'],
+        return DB::transaction(function () use ($data) {
+            $user = User::create([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => $data['password'],
             ]);
 
-            return $user->load('vendor');
+            $user->assignRole('customer');
+
+            $user->customer()->create([
+                'shipping_address' => $data['shipping_address'],
+            ]);
+
+            $user->customer->cart()->create();
+
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return [
+                'user' => $user->load('vendor'),
+                'token' => $token,
+            ];
         });
     }
 }

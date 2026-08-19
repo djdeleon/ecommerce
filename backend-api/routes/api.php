@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\CartController;
+use App\Http\Controllers\Api\CartItemController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\VendorController;
 use App\Http\Controllers\Api\DriverController;
@@ -10,6 +11,7 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\FulfillmentHubController;
 use App\Http\Controllers\Api\InventoryStockController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VariantController;
 use App\Http\Controllers\Api\VehicleController;
 use App\Http\Controllers\Api\WarehouseController;
@@ -22,6 +24,8 @@ Route::prefix('auth')->group(function () {
 
     Route::post('vendor/register', [VendorController::class, 'register'])->name('vendor.register');
     Route::post('drivers/register', [DriverController::class, 'register'])->name('drivers.register');
+
+    Route::post('customers/register', [CustomerController::class, 'register'])->name('customers.register');
     
     Route::get('fulfillment-hub', [FulfillmentHubController::class, 'index'])->name('fulfillment-hubs.index');
 });
@@ -44,9 +48,10 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
     Route::middleware('role:customer')->group(function () {
         Route::get('customer/dashboard', [CustomerController::class, 'dashboard'])->name('customer.dashboard');
 
-        Route::post('customer/vendors', [CustomerController::class, 'upgrade'])->name('customer.vendor-upgrade');
+        Route::post('users/vendors/upgrade', [UserController::class, 'upgrade'])->name('users.vendor-upgrade');
 
-        Route::post('carts', [CartController::class, 'store'])->name('carts.store');
+        Route::get('carts', [CartController::class, 'index'])->name('carts.index');
+        Route::post('cart-items', [CartItemController::class, 'store'])->name('cart-items.store');
     });
 
     Route::middleware('role:admin|vendor')->group(function () {

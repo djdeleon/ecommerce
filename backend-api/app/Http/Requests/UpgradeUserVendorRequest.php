@@ -5,7 +5,7 @@ namespace App\Http\Requests;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoreCartRequest extends FormRequest
+class UpgradeUserVendorRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -23,12 +23,17 @@ class StoreCartRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'variant_id' => [
+            'shop_name' => [
                 'required',
+                'string',
+                'max:100',
+                'unique:vendors,shop_name',
             ],
-            'quantity' => [
+            'business_tin' => [
                 'required',
-                'integer',
+                'string',
+                'max:100',
+                'unique:vendors,business_tin',
             ],
         ];
     }

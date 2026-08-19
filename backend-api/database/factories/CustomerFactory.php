@@ -28,6 +28,7 @@ class CustomerFactory extends Factory
     {
         return $this->afterCreating(function (Customer $customer) {
             $customer->user->assignRole('customer');
+            $customer->cart()->create();
         });
     }
 }

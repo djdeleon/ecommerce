@@ -11,13 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('carts', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('customer_id');
-            $table->foreign('customer_id')
-                ->references('id')
-                ->on('customers')
-                ->restrictOnDelete();
+        Schema::create('coupons', function (Blueprint $table) {
+            $table->unsignedSmallInteger('id')->autoIncrement()->primary();
+            $table->string('code', 30)->unique();
+            $table->string('type');
+            $table->decimal('value', 8, 2);
             $table->timestamps();
         });
     }
@@ -27,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('carts');
+        Schema::dropIfExists('coupons');
     }
 };

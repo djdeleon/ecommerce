@@ -3,9 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\UpgradeVendorRequest;
+use App\Http\Requests\RegisterCustomerRequest;
 use App\Services\CustomerService;
 use App\Traits\HttpResponses;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class CustomerController extends Controller
@@ -21,14 +22,14 @@ class CustomerController extends Controller
         ]]);
     }
 
-    public function upgrade(UpgradeVendorRequest $request, CustomerService $service)
+    public function register(RegisterCustomerRequest $request, CustomerService $service): JsonResponse
     {
-        $data = $service->upgradeUserToVendor($request->user(), $request->validated());
+        $data = $service->register($request->validated());
 
         return $this->success(
             $data,
-            'Upgraded to vendor',
-            200
+            'Customer created',
+            201
         );
     }
 }

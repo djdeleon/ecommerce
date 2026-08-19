@@ -3,8 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\StoreCartRequest;
-use App\Models\Cart;
 use App\Traits\HttpResponses;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,28 +11,14 @@ class CartController extends Controller
 {
     use HttpResponses;
 
-    /**
-     * GET
-     * List of all customer's cart items
-     */
-    public function index()
-    {
-        // 
-    }
-
-    /**
-     * This is the "add to cart" button
-     */
-    public function store(StoreCartRequest $request): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         $customer = $request->user()->customer;
-
-        $item = $customer->carts()->create($request->validated());
+        $cart = $customer->cart()->with(['customer', 'cartItems'])->first();
 
         return $this->success(
-            $item,
-            'Item added',
-            201
+            $cart,
+            'Carts retrieved',
         );
     }
 

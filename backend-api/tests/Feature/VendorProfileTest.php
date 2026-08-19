@@ -42,7 +42,7 @@ test('a registered customer can upgrade as vendor', function () {
     ];
 
     actingAsRole(Roles::Customer)
-        ->postJson(route('customer.vendor-upgrade'), $vendorPayload)
+        ->postJson(route('users.vendor-upgrade'), $vendorPayload)
         ->assertStatus(200)
         ->assertJsonStructure([
             'message',
@@ -67,7 +67,7 @@ test('a registered vendor is unauthorized to access customer vendor upgrade', fu
     ]);
 
     $this->actingAs($user, 'sanctum')
-        ->postJson(route('customer.vendor-upgrade'), [
+        ->postJson(route('users.vendor-upgrade'), [
             'shop_name' => 'New Shop',
             'business_tin' => '456'
         ])
@@ -77,7 +77,7 @@ test('a registered vendor is unauthorized to access customer vendor upgrade', fu
 describe('validation tests for customer vendor upgrade', function () {
     it('fails if required vendor fields are missing', function () {
         actingAsRole(Roles::Customer)
-            ->postJson(route('customer.vendor-upgrade'), [])
+            ->postJson(route('users.vendor-upgrade'), [])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['shop_name', 'business_tin']);
     });
@@ -91,7 +91,7 @@ describe('validation tests for customer vendor upgrade', function () {
         ]);
     
         $this->actingAs($user, 'sanctum')
-            ->postJson(route('customer.vendor-upgrade'), [
+            ->postJson(route('users.vendor-upgrade'), [
                 'shop_name' => 'Original Shop',
                 'business_tin' => '123'
             ])
