@@ -25,6 +25,8 @@ return new class extends Migration
                 ->restrictOnDelete();
             $table->smallInteger('quantity');
             $table->timestamps();
+
+            $table->unique(['cart_id', 'variant_id'], 'cart_item_unique');
         });
     }
 

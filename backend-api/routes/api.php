@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\VendorController;
 use App\Http\Controllers\Api\DriverController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\FulfillmentHubController;
 use App\Http\Controllers\Api\InventoryStockController;
 use App\Http\Controllers\Api\ProductController;
@@ -52,6 +53,8 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
 
         Route::get('carts', [CartController::class, 'index'])->name('carts.index');
         Route::post('cart-items', [CartItemController::class, 'store'])->name('cart-items.store');
+
+        Route::post('checkouts', [CheckoutController::class, 'store'])->name('checkouts.store');
     });
 
     Route::middleware('role:admin|vendor')->group(function () {
