@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\FulfillmentHubController;
 use App\Http\Controllers\Api\InventoryStockController;
+use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VariantController;
@@ -55,6 +56,8 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
         Route::post('cart-items', [CartItemController::class, 'store'])->name('cart-items.store');
 
         Route::post('checkouts', [CheckoutController::class, 'store'])->name('checkouts.store');
+
+        Route::post('orders/place', [OrderController::class, 'place'])->name('orders.place');
     });
 
     Route::middleware('role:admin|vendor')->group(function () {
