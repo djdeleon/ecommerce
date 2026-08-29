@@ -27,10 +27,6 @@ class CreateOrderRequest extends FormRequest
                 'required',
                 'array',
             ],
-            'order_details.status' => [
-                'required',
-                'string',
-            ],
             'order_details.shipping_address' => [
                 'required',
                 'string',
@@ -44,9 +40,6 @@ class CreateOrderRequest extends FormRequest
                 'min:1',
             ],
             'order_items.*.variant_id' => [
-                'required',
-            ],
-            'order_items.*.vendor_id' => [
                 'required',
             ],
             'order_items.*.quantity_ordered' => [

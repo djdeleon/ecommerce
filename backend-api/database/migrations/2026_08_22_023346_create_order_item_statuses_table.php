@@ -19,7 +19,7 @@ return new class extends Migration
                 ->on('order_items')
                 ->restrictOnDelete();
             $table->string('status', 20);
-            $table->unsignedBigInteger('changed_by_id');
+            $table->unsignedBigInteger('changed_by_id')->nullable();
             $table->foreign('changed_by_id')
                 ->references('id')
                 ->on('users')

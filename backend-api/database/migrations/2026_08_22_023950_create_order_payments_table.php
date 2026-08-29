@@ -22,7 +22,7 @@ return new class extends Migration
             $table->string('transaction_reference');
             $table->decimal('amount_paid', 10, 4);
             $table->string('gateway_reference')->unique();
-            $table->string('status', 20);
+            $table->string('status', 20); // settled, failed, refunded
             $table->timestamps();
         });
     }

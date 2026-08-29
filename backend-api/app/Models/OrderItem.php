@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Database\Factories\OrderItemFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,9 +11,11 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class OrderItem extends Model
 {
+    /** @use HasFactory<OrderItemFactory> */
+    use HasFactory;
+
     protected $fillable = [
         'variant_id',
-        'vendor_id',
         'quantity_ordered',
         'price_at_purchased',
     ];
@@ -26,14 +30,14 @@ class OrderItem extends Model
         return $this->belongsTo(Variant::class);
     }
 
-    public function vendor(): BelongsTo
+    public function orderItemStatuses(): HasMany
     {
-        return $this->belongsTo(Vendor::class);
+        return $this->hasMany(OrderItemStatus::class);
     }
 
-    public function orderItemStatus(): HasOne
+    public function latestOrderItemStatus(): HasOne
     {
-        return $this->hasOne(OrderItemStatuses::class);
+        return $this->orderItemStatuses()->one()->latestOfMany();
     }
 
     public function sellerPayoutLedger(): HasOne

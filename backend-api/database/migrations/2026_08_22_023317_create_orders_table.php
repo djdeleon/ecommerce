@@ -19,7 +19,6 @@ return new class extends Migration
                 ->on('customers')
                 ->restrictOnDelete();
             $table->decimal('total_amount', 10, 4)->nullable();
-            $table->string('status');
             $table->string('shipping_address');
             $table->timestamps();
         });

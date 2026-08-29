@@ -23,11 +23,6 @@ return new class extends Migration
                 ->references('id')
                 ->on('variants')
                 ->restrictOnDelete();
-            $table->unsignedInteger('vendor_id');
-            $table->foreign('vendor_id')
-                ->references('id')
-                ->on('vendors')
-                ->restrictOnDelete();
             $table->unsignedSmallInteger('quantity_ordered');
             $table->decimal('price_at_purchased', 12, 4);
             $table->timestamps();

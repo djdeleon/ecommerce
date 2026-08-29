@@ -1,0 +1,3 @@
+# Overview
+## How they are interconnected...
+## Contains domain state transition matrices & Mermaid diagrams (Backend & Lifecycle rules).

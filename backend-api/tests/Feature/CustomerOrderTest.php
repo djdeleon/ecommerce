@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\OrderItemStatus as OrderItemStatusEnum;
+use App\Enums\OrderPaymentStatus;
 use App\Models\CartItem;
 use App\Models\Customer;
 use App\Models\Product;
@@ -52,7 +54,6 @@ test('a customer can place its orders', function () {
         $orderedCartItems = array_map(function ($item) {
             return [
                 'variant_id' => $item->variant()->first()->id,
-                'vendor_id' => $item->variant()->first()->product()->first()->vendor->id,
                 'quantity_ordered' => $item->quantity,
                 'price_at_purchased' => bcdiv($item->variant()->first()->price->getAmount(), 10000, 4),
             ];
@@ -63,7 +64,6 @@ test('a customer can place its orders', function () {
             // 'customer_id' $customer->order()->create()
             'order_details' => [
                 'total_amount' => "100.00", // source: frontend since the calculation comes from the backend
-                'status' => 'pending',
                 'shipping_address' => '123 Main St', // from customer's instance
             ],
             
@@ -82,4 +82,19 @@ test('a customer can place its orders', function () {
     $this->actingAs($customer->user)
         ->postJson(route('orders.place'), $payload)
         ->assertCreated();
+
+    expect($customer->orders)->toHaveCount(1);
+
+    $order = $customer->orders->first();
+
+    expect($order->orderItems)->toHaveCount(3);
+    $order->orderItems->each(function ($orderItem) {
+        expect($orderItem->orderItemStatuses)->toHaveCount(2);
+        expect($orderItem->orderItemStatuses[0]->status)->toBe(OrderItemStatusEnum::TO_PAY);
+        expect($orderItem->orderItemStatuses[1]->status)->toBe(OrderItemStatusEnum::TO_SHIP);
+        expect($orderItem->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::TO_SHIP);
+    });
+
+    expect($order->orderPayments)->toHaveCount(1);
+    expect($order->orderPayments->first()->status)->toBe(OrderPaymentStatus::COMPLETED);
 })->only();

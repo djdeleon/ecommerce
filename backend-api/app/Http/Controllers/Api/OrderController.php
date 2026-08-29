@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\OrderItemStatus as OrderItemStatusEnum;
+use App\Enums\OrderPaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateOrderRequest;
+use App\Models\Order;
 use App\Traits\HttpResponses;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,11 +28,19 @@ class OrderController extends Controller
             $orderItemStatusesPayload = $orderItems->map(function ($orderItem) use ($customer) {
                 return [
                     'id' => $orderItem->id,
-                    'status' => 'to process',
-                    'changed_by_id' => $customer->id, // for now, I am thinking who would be the actor for the first order status
-                    'notes' => 'Your order is currently being processed.',
+                    'status' => OrderItemStatusEnum::TO_PAY,
+                    'changed_by_id' => $customer->user_id, // for now, I am thinking who would be the actor for the first order status
+                    'notes' => 'Waiting for payment.',
                 ];
             });
+
+            $orderPayment = $order->orderPayments()->create([
+                'payment_method' => $data['payment_method'],
+                'transaction_reference' => fake()->bothify('TN-#####-??'),
+                'amount_paid' => $data['order_details']['total_amount'],
+                'gateway_reference' => fake()->bothify('GY-#####-??'),
+                'status' => OrderPaymentStatus::PENDING,
+            ]);
 
             $orderItems->zip($orderItemStatusesPayload)->each(function ($data) {
                 [$orderItem, $payload] = $data;
@@ -45,18 +56,26 @@ class OrderController extends Controller
                     'status'                  => 'pending',
                 ]);
 
-                $orderItem->orderItemStatus()->create($payload);
+                $orderItem->orderItemStatuses()->create($payload);
             });
 
-            $paymentOrderPayload = [
-                'payment_method' => $data['payment_method'],
-                'transaction_reference' => fake()->bothify('TN-#####-??'),
-                'amount_paid' => $data['order_details']['total_amount'],
-                'gateway_reference' => fake()->bothify('GY-#####-??'),
-                'status' => 'paid',
-            ];
+            $paymentGatewayResponse = 'completed';
 
-            $order->orderPayment()->create($paymentOrderPayload);
+            if ($paymentGatewayResponse === 'completed') {
+                $orderPayment->update([
+                    'status' => OrderPaymentStatus::COMPLETED,
+                ]);
+            }
+
+            if ($order->latestOrderPayment->status === OrderPaymentStatus::COMPLETED) {
+                $order->orderItems->each(function ($orderItem) use ($customer) {
+                    $orderItem->orderItemStatuses()->create([
+                        'status' => OrderItemStatusEnum::TO_SHIP,
+                        'changed_by_id' => $customer->user_id, // for now, I am thinking who would be the actor for the first order status
+                        'notes' => 'Your order is currently being processed.',
+                    ]);
+                });
+            } else if ($order->latestOrderPayment->status === OrderPaymentStatus::COMPLETED) {}
         });
 
         return $this->success(
@@ -101,5 +120,47 @@ class OrderController extends Controller
         //     'gateway_reference', // from third party
         //     'status', // settled
         // ];
+    }
+
+    public function cancel(Order $order): JsonResponse
+    {
+        $actor = 'customer';
+        $target = OrderItemStatusEnum::CANCELLED;
+        $orderPayment = $order->latestOrderPayment;
+
+        $order->orderItems->each(function ($orderItem) use ($target, $actor, $orderPayment) {
+            $current = $orderItem->latestOrderItemStatus->status;
+            $orderPaymentStatus = $orderPayment->status;
+
+            if (! $current->canTransitionWithPayment($target, $orderPaymentStatus, $actor)) {
+                return response()->json([
+                    'error' => 'Illegal State Transition',
+                    'message' => "Item ID {$orderItem->id} cannot be cancelled because it is in [{$current->value}] status with payment [{$orderPaymentStatus->value}]."
+                ]);
+            }
+        });
+
+        DB::transaction(function () use ($order, $orderPayment, $target) {
+            $order->orderItems->each(function ($orderItem) use ($target) {
+                $orderItem->orderItemStatuses()->create([
+                    'status' => $target,
+                    'changed_by_id' => $orderItem->order->customer->user_id,
+                    'notes' => 'Customer cancelled the order.',
+                ]);
+            });
+                    
+            $order->orderPayments()->create([
+                'payment_method' => $orderPayment->payment_method,
+                'transaction_reference' => fake()->numerify('TN-##########'),
+                'amount_paid' => $order->total_amount,
+                'gateway_reference' => 'GY-' . fake()->uuid(),
+                'status' => OrderPaymentStatus::REFUNDED,
+            ]);
+        });
+
+        return $this->success(
+            null,
+            'Order cancelled.'
+        );
     }
 }
