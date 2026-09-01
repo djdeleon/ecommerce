@@ -2,9 +2,9 @@
 
 namespace Database\Factories;
 
+use App\Enums\VehicleType;
 use App\Models\Driver;
 use App\Models\Vehicle;
-use App\VehicleType;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**

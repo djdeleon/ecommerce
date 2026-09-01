@@ -82,3 +82,14 @@ function actingAsRole(Roles $role)
 {
     return test()->actingAs(getUserWithRole($role), 'sanctum');
 }
+
+function pause(string $message = 'If approval of payment is successful, copy the PayPal Order ID from the Paypal Order ID terminal and paste it in the capture order test case $paypalOrderId and Press Enter to continue and move on to it...'): void 
+{
+    // Write directly to standard error output to bypass Pest's buffered runner output
+    fwrite(STDERR, "\n\n💡 [PAUSED] " . $message);
+    
+    // Open the direct keyboard input stream and wait for newline
+    $stream = fopen('php://stdin', 'r');
+    fgets($stream);
+    fclose($stream);
+}

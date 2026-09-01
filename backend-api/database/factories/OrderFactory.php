@@ -37,6 +37,6 @@ class OrderFactory extends Factory
     public function toShip(int $count = 1): static
     {
         return $this->has(OrderItem::factory()->count($count)->toShipStatus())
-                    ->has(OrderPayment::factory()->state(['status' => OrderPaymentStatus::COMPLETED])->count(1));
+                    ->has(OrderPayment::factory()->state(['transaction_reference' => 'PAYPAL-ORDER-12345', 'status' => OrderPaymentStatus::COMPLETED])->count(1));
     }
 }

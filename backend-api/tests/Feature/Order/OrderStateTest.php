@@ -39,9 +39,7 @@ test('validation of cross-domain order item transitions with payment status and 
     expect(OrderItemStatusEnum::TO_RECEIVE->canTransitionWithPayment(OrderItemStatusEnum::COMPLETED, OrderPaymentStatus::COMPLETED, 'customer'))->toBeTrue();
     expect(OrderItemStatusEnum::TO_RECEIVE->canTransitionWithPayment(OrderItemStatusEnum::COMPLETED, OrderPaymentStatus::COMPLETED, 'system'))->toBeTrue();
     expect(OrderItemStatusEnum::TO_RECEIVE->canTransitionWithPayment(OrderItemStatusEnum::RETURNED, OrderPaymentStatus::COMPLETED, 'vendor'))->toBeTrue();
-})->only();
-
-
+});
 
 
 // For Factory (Arrange) into Route (Act)
@@ -64,7 +62,7 @@ test('a customer with a paid order can cancel the order and be refunded', functi
 
     expect($order->orderPayments)->toHaveCount(2);
     expect($order->latestOrderPayment->status)->toBe(OrderPaymentStatus::REFUNDED);
-})->only();
+});
 
 // For Factory (Arrange) into Route (Act)
 // test('transitioning order to shipped automatically creates a core shipment record', function () {

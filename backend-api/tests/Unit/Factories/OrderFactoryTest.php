@@ -19,7 +19,7 @@ test('order factory toPay state correctly creates item in TO_PAY status with del
         expect($orderItem->orderItemStatuses)->toHaveCount(1);
         expect($orderItem->orderItemStatuses->first()->status)->toBe(OrderItemStatus::TO_PAY);
     });
-})->only();
+});
 
 test('order factory toShip state correctly creates item in TO_SHIP status', function () {
     $order = Order::factory()
@@ -31,7 +31,8 @@ test('order factory toShip state correctly creates item in TO_SHIP status', func
     expect($order->orderItems)->toHaveCount(2);
 
     $order->orderItems->each(function ($orderItem) {
-        expect($orderItem->orderItemStatuses)->toHaveCount(1);
-        expect($orderItem->orderItemStatuses->first()->status)->toBe(OrderItemStatus::TO_SHIP);
+        expect($orderItem->orderItemStatuses)->toHaveCount(2);
+        expect($orderItem->orderItemStatuses[0]->status)->toBe(OrderItemStatus::TO_PAY);
+        expect($orderItem->latestOrderItemStatus->status)->toBe(OrderItemStatus::TO_SHIP);
     });
-})->only();
+});

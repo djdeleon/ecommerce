@@ -18,6 +18,9 @@ class OrderPayment extends Model
         'transaction_reference',
         'amount_paid',
         'gateway_reference',
+        'transaction_fee',
+        'net_amount',
+        'gateway_response',
         'status',
     ];
 
@@ -25,6 +28,7 @@ class OrderPayment extends Model
     {
         return [
             'status' => OrderPaymentStatus::class,
+            'gateway_response' => 'array',
         ];
     }
 

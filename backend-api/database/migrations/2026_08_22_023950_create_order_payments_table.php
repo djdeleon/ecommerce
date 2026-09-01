@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\OrderPaymentStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -22,7 +23,12 @@ return new class extends Migration
             $table->string('transaction_reference');
             $table->decimal('amount_paid', 10, 4);
             $table->string('gateway_reference')->unique();
-            $table->string('status', 20); // settled, failed, refunded
+
+            $table->decimal('transaction_fee', 10, 4)->default(0.000);
+            $table->decimal('net_amount', 10, 4)->default(0.000);
+            $table->jsonb('gateway_response')->nullable();
+
+            $table->string('status', 20)->default(OrderPaymentStatus::PENDING);
             $table->timestamps();
         });
     }

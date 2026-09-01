@@ -4,26 +4,26 @@ use App\Enums\OrderItemStatus as OrderItemStatusEnum;
 use App\Enums\OrderPaymentStatus;
 use App\Models\CartItem;
 use App\Models\Customer;
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\Variant;
 use App\Models\Vendor;
+use Illuminate\Support\Facades\Http;
 
 test('a customer can place its orders', function () {
-        /**
-         * Workflow
-         * - Migration Files Creation
-         * - Migration Tables Population
-         * 
-         * NOTE:
-         * - Need to secure what data goes in the Controller/App
-         * - Need to secure allowed/authenticated user that uses the app/sends the request
-         * - Need to success/failure test for the feature
-         * 
-         * For recognizing the payload
-         * - Identify all the fiels needed
-         * - - then work on on how are you going to store this in your database design schema.
-         * - - - because some of the data in the payload could be part of a table and another table.
-         */
+        Http::fake([
+            '*/v1/oauth2/token' => Http::response([
+                'access_token' => 'mocked-paypal-token',
+            ], 200),
+
+            '*/v2/checkout/orders' => Http::response([
+                'id' => 'PAYPAL-ORDER-12345',
+                'status' => 'CREATED',
+                'links' => [
+                    ['rel' => 'approve', 'href' => 'https://www.sandbox.paypal.com/checkoutnow?token=PAYPAL-ORDER-12345']
+                ]
+            ], 201)
+        ]);
 
         $vendors = Vendor::factory(3)->create();
         $vendorA = $vendors[0];
@@ -60,28 +60,24 @@ test('a customer can place its orders', function () {
         }, $selectedCartItems);
 
         $payload = [
-            // orders table
-            // 'customer_id' $customer->order()->create()
             'order_details' => [
-                'total_amount' => "100.00", // source: frontend since the calculation comes from the backend
-                'shipping_address' => '123 Main St', // from customer's instance
+                'total_amount' => "100.00",
+                'shipping_address' => '123 Main St',
             ],
-            
-            // order_items
-            // NOTE: the array value below is for the payload but of course the insertion into the table would be one at a time or createMany()
-            // 'order_id' // from $order->order_items()->create()
-            // 'variant_id' => [1, 2, 3], // source: frontend
-            // 'vendor_id' => [1, 2], // source: frontend ; this is already provided by the checkout controller
-            // 'quantity_ordered' => 2, // source: frontend
-            // 'price_at_purchased' => "50.00", // source: frontend
-
             'order_items' => $orderedCartItems,
             'payment_method' => 'paypal',
         ];
 
-    $this->actingAs($customer->user)
+    $response = $this->actingAs($customer->user)
         ->postJson(route('orders.place'), $payload)
         ->assertCreated();
+
+    $response->assertJsonStructure([
+        'data' => [
+            'paypal_order_id',
+            'redirect_url',
+        ]
+    ]);
 
     expect($customer->orders)->toHaveCount(1);
 
@@ -89,12 +85,71 @@ test('a customer can place its orders', function () {
 
     expect($order->orderItems)->toHaveCount(3);
     $order->orderItems->each(function ($orderItem) {
-        expect($orderItem->orderItemStatuses)->toHaveCount(2);
+        expect($orderItem->orderItemStatuses)->toHaveCount(1);
         expect($orderItem->orderItemStatuses[0]->status)->toBe(OrderItemStatusEnum::TO_PAY);
-        expect($orderItem->orderItemStatuses[1]->status)->toBe(OrderItemStatusEnum::TO_SHIP);
-        expect($orderItem->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::TO_SHIP);
+        expect($orderItem->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::TO_PAY);
     });
 
     expect($order->orderPayments)->toHaveCount(1);
-    expect($order->orderPayments->first()->status)->toBe(OrderPaymentStatus::COMPLETED);
-})->only();
+    expect($order->orderPayments->first()->status)->toBe(OrderPaymentStatus::PENDING);
+});
+
+test('a customer can approve its paypal payment order', function () {
+    $order = Order::factory()
+        ->toPay()
+        ->create();
+
+    $paypalOrderId = $order->orderPayments->first()->transaction_reference;
+
+    Http::fake([
+        '*/v1/oauth2/token' => Http::response([
+            'access_token' => 'mocked-paypal-token',
+        ], 200),
+
+        "*/v2/checkout/orders/*/capture" => Http::response([
+            'id' => 'PAYPAL-TN-12345',
+            'status' => 'COMPLETED',
+            "purchase_units" => [
+                0 => [
+                    "payments" => [
+                        "captures" => [
+                            0 => [
+                                "id" => "PAYPAL-CAPTURE-12345",
+                                "status" => "COMPLETED",
+                                "amount" => [
+                                "currency_code" => "USD",
+                                "value" => "100.00"
+                                ],
+                                "seller_receivable_breakdown" => [
+                                "paypal_fee" => [
+                                    "currency_code" => "USD",
+                                    "value" => "3.70"
+                                ],
+                                "net_amount" => [
+                                    "currency_code" => "USD",
+                                    "value" => "96.30"
+                                ]
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+        ], 200)
+    ]);
+
+    $this->actingAs($order->customer->user, 'sanctum')
+        ->postJson(route('orders.capture'), ['paypal_order_id' => $paypalOrderId])
+        ->assertOk();
+
+    expect($order->orderItems)->toHaveCount(1);
+    $order->orderItems->each(function ($orderItem) {
+        expect($orderItem->orderItemStatuses)->toHaveCount(2);
+        expect($orderItem->orderItemStatuses[0]->status)->toBe(OrderItemStatusEnum::TO_PAY);
+        expect($orderItem->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::TO_SHIP);
+    });
+
+    expect($order->latestOrderPayment)
+        ->status->toBe(OrderPaymentStatus::COMPLETED)
+        ->gateway_reference->toBe('PAYPAL-CAPTURE-12345');
+});

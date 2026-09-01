@@ -43,9 +43,15 @@ class OrderItemFactory extends Factory
     {
         return $this->afterCreating(function (OrderItem $item) {
             $item->orderItemStatuses()->create([
+                'status' => OrderItemStatusEnum::TO_PAY,
+                'changed_by_id' => null,
+                'notes' => 'Waiting for payment.',
+            ]);
+            
+            $item->orderItemStatuses()->create([
                 'status' => OrderItemStatusEnum::TO_SHIP,
                 'changed_by_id' => $item->order->customer->user_id ?? 1,
-                'notes' => 'Payment confirmed.',
+                'notes' => 'payment completed.',
             ]);
         });
     }

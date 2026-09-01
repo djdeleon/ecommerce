@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests;
 
-use App\VehicleType;
+use App\Enums\VehicleType;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Enum;

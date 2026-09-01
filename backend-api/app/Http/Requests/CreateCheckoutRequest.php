@@ -36,11 +36,7 @@ class CreateCheckoutRequest extends FormRequest
                 function ($attribute, $value, $fail) {
                     $customer = $this->user()->customer;
 
-                    $itemBelongsToUser = DB::table('cart_items')
-                        ->join('carts', 'cart_items.cart_id', '=', 'carts.id')
-                        ->where('cart_items.id', $value)
-                        ->where('carts.customer_id', $customer->id)
-                        ->exists();
+                    $itemBelongsToUser = $customer->cart->cartItems()->where('id', $value)->get();
 
                     if (! $itemBelongsToUser) {
                         $fail("The selected item with ID {$value} is invalid or does not belong to your cart.");

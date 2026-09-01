@@ -1,8 +1,8 @@
 <?php
 
+use App\Enums\VehicleType;
 use App\Models\Driver;
 use App\Models\Vehicle;
-use App\VehicleType;
 use Illuminate\Testing\Fluent\AssertableJson;
 
 test('a driver can see the list of its vehicles', function () {
