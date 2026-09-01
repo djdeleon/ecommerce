@@ -69,7 +69,7 @@ class PaypalService
 
         $response = Http::withToken($token)
             ->withBody('{}', 'application/json')
-            ->post("{$this->baseUrl}/v2/checkout/orders/{$paypalOrderId}/capture", []);
+            ->post("{$this->baseUrl}/v2/checkout/orders/{$paypalOrderId}/capture");
 
         if ($response->failed()) {
             throw new Exception('Failed to capture PayPal Order: ' . $response->body());

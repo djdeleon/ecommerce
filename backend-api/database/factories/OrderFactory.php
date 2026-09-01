@@ -28,10 +28,10 @@ class OrderFactory extends Factory
         ];
     }
 
-    public function toPay(int $count = 1): static
+    public function toPay(int $count = 1, ?string $paymentMethod = 'paypal'): static
     {
         return $this->has(OrderItem::factory()->count($count)->toPayStatus())
-                    ->has(OrderPayment::factory()->state(['status' => OrderPaymentStatus::PENDING])->count(1));
+                    ->has(OrderPayment::factory()->state(['payment_method' => $paymentMethod, 'status' => OrderPaymentStatus::PENDING])->count(1));
     }
 
     public function toShip(int $count = 1): static

@@ -12,11 +12,14 @@ use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\FulfillmentHubController;
 use App\Http\Controllers\Api\InventoryStockController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\PayPalWebhookController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\StripeWebhookController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VariantController;
 use App\Http\Controllers\Api\VehicleController;
 use App\Http\Controllers\Api\WarehouseController;
+use App\Http\Controllers\Api\XenditWebhookController;
 use App\Http\Middleware\SetPostgreUserContext;
 use Illuminate\Support\Facades\Route;
 
@@ -57,8 +60,12 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
 
         Route::post('checkouts', [CheckoutController::class, 'store'])->name('checkouts.store');
 
-        Route::post('orders/place', [OrderController::class, 'place'])->name('orders.place');
-        Route::post('orders/capture', [OrderController::class, 'capture'])->name('orders.capture');
+        Route::post('orders/paypal/place', [OrderController::class, 'paypalPlace'])->name('orders.paypal-place');
+        
+        Route::post('orders/stripe/place', [OrderController::class, 'stripePlace'])->name('orders.stripe-place');
+
+        Route::post('orders/xendit/place', [OrderController::class, 'xenditPlace'])->name('orders.xendit-place');
+
         Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
     });
 
@@ -94,3 +101,7 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
         });
     });
 });
+
+Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle'])->name('stripe.webhook');
+Route::post('/xendit/webhook', [XenditWebhookController::class, 'handle'])->name('xendit.webhook');
+Route::post('/paypal/webhook', [PayPalWebhookController::class, 'handle'])->name('paypal.webhook');

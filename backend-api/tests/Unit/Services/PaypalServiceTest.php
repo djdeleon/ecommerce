@@ -63,7 +63,7 @@ test('paypal sandbox integration capture order', function () {
         config('services.paypal.sandbox.secret'),
     );
 
-    $paypalOrderId = '3AX87750GR061040B';
+    $paypalOrderId = '0D348403CR831583T';
 
     $captureData = $paypalService->captureOrder($paypalOrderId);
 

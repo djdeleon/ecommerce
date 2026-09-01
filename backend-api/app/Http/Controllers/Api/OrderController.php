@@ -9,7 +9,10 @@ use App\Http\Requests\CreateOrderRequest;
 use App\Models\Order;
 use App\Models\OrderPayment;
 use App\Services\Payments\PaypalService;
+use App\Services\Payments\StripeService;
+use App\Services\Payments\XenditService;
 use App\Traits\HttpResponses;
+use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +22,111 @@ class OrderController extends Controller
     use HttpResponses;
 
     public function place(CreateOrderRequest $request): JsonResponse
+    {
+        $customer = $request->user()->customer;
+        $data = $request->validated();
+
+        return $this->success(
+            [
+                'order_id' => 'payment_id_123',
+                'redirect_url' => '/success',
+            ],
+            'Order placed. Please redirect user to approve payment.',
+            201
+        );
+    }
+
+    public function xenditPlace(CreateOrderRequest $request)
+    {
+        $customer = $request->user()->customer;
+        $data = $request->validated();
+        $paymentMethod = strtoupper($data['payment_method']);
+
+        $xenditOrder = DB::transaction(function () use ($data, $customer, $paymentMethod) {
+            $order = $customer->orders()->create($data['order_details']);
+            
+            $stripeService = new XenditService();
+            $paymentRequest = $stripeService->createPaymentRequest($order, $paymentMethod);
+
+            if (isset($paymentRequest['status']) && $paymentRequest['status'] === 'REQUIRES_ACTION') {
+                foreach ($paymentRequest['actions'] as $action) {
+                    if ($action['type'] === 'REDIRECT_CUSTOMER') {
+                        $order->orderPayments()->create([
+                            'payment_method' => $paymentRequest['channel_code'],
+                            'transaction_reference' => $paymentRequest['payment_request_id'],
+                            'amount_paid' => $data['order_details']['total_amount'],
+                            'gateway_reference' => fake()->bothify('GY-initial-#####-??'),
+                            'gateway_response' => $data,
+                            'status' => OrderPaymentStatus::PENDING, // or $paypalOrder['status'] returns "CREATED"
+                        ]);
+                    }
+                }
+            }
+
+            $orderItems = $order->orderItems()->createMany($data['order_items']);
+
+            $orderItems->each(function ($orderItem) use ($customer) {
+                $orderItem->orderItemStatuses()->create([
+                    'status' => OrderItemStatusEnum::TO_PAY,
+                    'changed_by_id' => $customer->user_id, // for now, I am thinking who would be the actor for the first order status
+                    'notes' => 'Waiting for payment.',
+                ]);
+            });
+
+            // Redirect the user to GCash validation page
+            // return redirect()->away($action['value']);
+
+            return $paymentRequest;
+        });
+
+        // return redirect()->back()->with('error', 'Payment initialization failed.');
+        return $this->success(
+            $xenditOrder,
+            'Order placed. Please redirect user to approve payment.',
+            201
+        );
+    }
+
+    public function stripePlace(CreateOrderRequest $request)
+    {
+        $customer = $request->user()->customer;
+        $data = $request->validated();
+        
+        $stripeOrder = DB::transaction(function () use ($data, $customer) {
+            $order = $customer->orders()->create($data['order_details']);
+
+            $stripeService = new StripeService();
+            $paymentIntent = $stripeService->createPaymentIntent($order);
+
+            $order->orderPayments()->create([
+                'payment_method' => $data['payment_method'],
+                'transaction_reference' => $paymentIntent['id'],
+                'amount_paid' => $data['order_details']['total_amount'],
+                'gateway_reference' => 'GY-null',
+                'status' => OrderPaymentStatus::PENDING, // or $paypalOrder['status'] returns "CREATED"
+            ]);
+
+            $orderItems = $order->orderItems()->createMany($data['order_items']);
+
+            $orderItems->each(function ($orderItem) use ($customer) {
+                $orderItem->orderItemStatuses()->create([
+                    'status' => OrderItemStatusEnum::TO_PAY,
+                    'changed_by_id' => $customer->user_id, // for now, I am thinking who would be the actor for the first order status
+                    'notes' => 'Waiting for payment.',
+                ]);
+            });
+
+            return $paymentIntent;
+        });
+
+        return $this->success(
+            $stripeOrder,
+            'Order placed. Please redirect user to approve payment.',
+            201
+        );
+    }
+
+    public function paypalPlace(CreateOrderRequest $request): JsonResponse
     {
         $customer = $request->user()->customer;
         $data = $request->validated();
@@ -46,7 +154,7 @@ class OrderController extends Controller
                 'payment_method' => $data['payment_method'],
                 'transaction_reference' => $paypalOrder['id'],
                 'amount_paid' => $data['order_details']['total_amount'],
-                'gateway_reference' => fake()->bothify('GY-#####-??'),
+                'gateway_reference' => fake()->bothify('GY-initial-#####-??'),
                 'status' => OrderPaymentStatus::PENDING, // or $paypalOrder['status'] returns "CREATED"
             ]);
 
@@ -97,48 +205,6 @@ class OrderController extends Controller
             ],
             'Order placed. Please redirect user to approve payment.',
             201
-        );
-    }
-
-    public function capture(Request $request)
-    {
-        $request->validate([
-            'paypal_order_id' => ['required', 'string']
-        ]);
-
-        $paypalOrderId = $request->input('paypal_order_id');
-
-        $paypalService = new PaypalService(
-            config('services.paypal.sandbox.client_id'),
-            config('services.paypal.sandbox.secret'),
-        );
-        
-        $orderPayment = OrderPayment::where('transaction_reference', $paypalOrderId)->firstOrFail();
-        
-        $captureData = $paypalService->captureOrder($paypalOrderId);
-        $captureDetails = $captureData['purchase_units'][0]['payments']['captures'][0];
-        $fee = $captureDetails['seller_receivable_breakdown']['paypal_fee']['value'];
-        $net = $captureDetails['seller_receivable_breakdown']['net_amount']['value'];
-
-        $orderPayment->gateway_reference = $captureDetails['id'];
-        $orderPayment->status = OrderPaymentStatus::COMPLETED;
-        $orderPayment->transaction_fee = $fee;
-        $orderPayment->net_amount = $net;
-        $orderPayment->gateway_response = $captureData;
-        $orderPayment->save();
-
-        $order = $orderPayment->order;
-        $order->orderItems->each(function ($orderItem) {
-            $orderItem->orderItemStatuses()->create([
-                'status' => OrderItemStatusEnum::TO_SHIP,
-                'changed_by_id' => $orderItem->order->customer->user_id ?? 1,
-                'notes' => 'Order has been paid.',
-            ]);
-        });
-
-        return $this->success(
-            null,
-            'Payment captured successfully.'
         );
     }
 

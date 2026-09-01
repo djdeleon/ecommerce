@@ -16,6 +16,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
         ]);
+        // Exclude webhooks from CSRF protection
+        $middleware->preventRequestForgery(except: [
+            'api/stripe/webhook',
+            'api/xendit/webhook',
+            'api/paypal/webhook',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

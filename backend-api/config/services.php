@@ -25,6 +25,18 @@ return [
         ]
     ],
 
+    'stripe' => [
+        'sandbox' => [
+            'secret' => env('STRIPE_SECRET'),
+            'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        ]
+    ],
+
+    'xendit' => [
+        'secret' => env('XENDIT_SECRET_KEY'),
+        'api_url' => 'https://api.xendit.co',
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],
