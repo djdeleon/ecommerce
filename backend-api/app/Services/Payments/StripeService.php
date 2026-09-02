@@ -3,6 +3,7 @@
 namespace App\Services\Payments;
 
 use App\Models\Order;
+use App\Services\Contracts\PaymentServiceInterface;
 use Exception;
 use Stripe\Event;
 use Stripe\Exception\SignatureVerificationException;
@@ -10,7 +11,7 @@ use Stripe\StripeClient;
 use Stripe\Webhook;
 use UnexpectedValueException;
 
-class StripeService
+class StripeService implements PaymentServiceInterface
 {
     public StripeClient $client;
 
@@ -19,7 +20,12 @@ class StripeService
         $this->client = new StripeClient(config('services.stripe.sandbox.secret'));
     }
 
-    public function createPaymentIntent(Order $order)
+    public function pay(Order $order, ?string $paymentMethod): array
+    {
+        return $this->createPaymentIntent($order);
+    }
+
+    public function createPaymentIntent(Order $order): array
     {
         $amountInCents = (int) bcmul($order->total_amount, '100', 0);
 

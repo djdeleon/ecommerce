@@ -3,10 +3,11 @@
 namespace App\Services\Payments;
 
 use App\Models\Order;
+use App\Services\Contracts\PaymentServiceInterface;
 use Exception;
 use Illuminate\Support\Facades\Http;
 
-class PaypalService
+class PaypalService implements PaymentServiceInterface
 {
     protected string $clientId;
     protected string $secret;
@@ -17,6 +18,11 @@ class PaypalService
         $this->clientId = $clientId;
         $this->secret = $secret;
         $this->baseUrl = config('services.paypal.sandbox.api_url');
+    }
+
+    public function pay(Order $order, ?string $paymentMethod): array
+    {
+        return $this->createOrder($order);
     }
 
     public function createToken(): string

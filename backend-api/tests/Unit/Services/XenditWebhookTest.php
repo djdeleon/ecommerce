@@ -63,4 +63,4 @@ test('stripe webhook successfully transitions payment and order items to paid st
         expect($orderItem->orderItemStatuses)->toHaveCount(2);
         expect($orderItem->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::TO_SHIP);
     });
-})->only();
+});

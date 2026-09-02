@@ -60,7 +60,7 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
 
         Route::post('checkouts', [CheckoutController::class, 'store'])->name('checkouts.store');
 
-        Route::post('orders/paypal/place', [OrderController::class, 'paypalPlace'])->name('orders.paypal-place');
+        Route::post('orders/place', [OrderController::class, 'place'])->name('orders.place');
         
         Route::post('orders/stripe/place', [OrderController::class, 'stripePlace'])->name('orders.stripe-place');
 

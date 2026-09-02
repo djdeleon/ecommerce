@@ -3,9 +3,10 @@
 namespace App\Services\Payments;
 
 use App\Models\Order;
+use App\Services\Contracts\PaymentServiceInterface;
 use Illuminate\Support\Facades\Http;
 
-class XenditService
+class XenditService implements PaymentServiceInterface
 {
     protected string $secretKey;
     protected string $baseUrl;
@@ -14,6 +15,11 @@ class XenditService
     {
         $this->secretKey = config('services.xendit.secret');
         $this->baseUrl = config('services.xendit.api_url');
+    }
+
+    public function pay(Order $order, ?string $paymentMethod): array
+    {
+        return $this->createPaymentRequest($order, $paymentMethod);
     }
 
     public function createPaymentRequest(Order $order, string $paymentMethod)

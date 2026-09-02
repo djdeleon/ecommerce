@@ -7,9 +7,42 @@ use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Variant;
 use App\Models\Vendor;
+use App\Services\Payments\StripeService;
 use Illuminate\Support\Facades\Http;
 
-test('a customer can place its orders with xendit gcash payment', function () {
+test('a customer can place its orders with xendit available payment methods', function ($payment) {
+    Http::fake([
+        '*/v3/payment_requests' => Http::response([
+            "payment_request_id" => "pr-test-mock-12345",
+            "country" => "PH",
+            "currency" => "PHP",
+            "business_id" => "6a96a6c9b6944cd91cb75290",
+            "reference_id" => "ORD-1-1788308622",
+            "description" => "Description examples",
+            "metadata" => [
+                "metametadata" => "metametametadata"
+            ],
+            "created" => "2026-09-02T00:23:41.406Z",
+            "updated" => "2026-09-02T00:23:41.406Z",
+            "status" => "REQUIRES_ACTION",
+            "capture_method" => "AUTOMATIC",
+            "channel_code" => $payment['channel_code'],
+            "request_amount" => 100,
+            "channel_properties" => [
+                "success_return_url" => "https://xendit.co/success",
+                "failure_return_url" => "https://xendit.co/failure"
+            ],
+            "type" => "PAY",
+            "actions" => [
+                [
+                    "type" => "REDIRECT_CUSTOMER",
+                    "descriptor" => "WEB_URL",
+                    "value" => "https://ewallet-mock-connector.xendit.co/v1/ewallet_connector/checkouts?token=dabmp3dh527c73ck662g"
+                ]
+            ]
+        ], 201)
+    ]);
+
     $vendors = Vendor::factory(3)->create();
     $vendorA = $vendors[0];
     $vendorB = $vendors[1];
@@ -50,18 +83,60 @@ test('a customer can place its orders with xendit gcash payment', function () {
             'shipping_address' => '123 Main St',
         ],
         'order_items' => $orderedCartItems,
-        'payment_method' => 'gcash',
+        'payment_method' => $payment['value'],
     ];
 
     $this->actingAs($customer->user, 'sanctum')
-        ->postJson(route('orders.xendit-place'), $payload)
+        ->postJson(route('orders.place'), $payload)
         ->assertCreated()
         ->assertJsonStructure([
             'data' => ['payment_request_id']
         ]);
-});
+    
+    expect($customer->orders)->toHaveCount(1);
+
+    $order = $customer->orders->first();
+
+    expect($order->orderItems)->toHaveCount(3);
+    $order->orderItems->each(function ($orderItem) {
+        expect($orderItem->orderItemStatuses)->toHaveCount(1);
+        expect($orderItem->orderItemStatuses[0]->status)->toBe(OrderItemStatusEnum::TO_PAY);
+        expect($orderItem->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::TO_PAY);
+    });
+
+    expect($order->orderPayments)->toHaveCount(1);
+    expect($order->orderPayments->first())
+        ->status->toBe(OrderPaymentStatus::PENDING)
+        ->transaction_reference->toBe('pr-test-mock-12345')
+        ->payment_method->toBe($payment['channel_code']);
+})->with([
+    'xendit gcash payment' => [
+        ['channel_code' => "GCASH", 'value' => 'gcash'],
+    ],
+    'xendit paymaya payment' => [
+        ['channel_code' => "PAYMAYA", 'value' => 'paymaya'],
+    ],
+    'xendit grabpay payment' => [
+        ['channel_code' => "GRABPAY", 'value' => 'grabpay'],
+    ],
+    'xendit shopeepay payment' => [
+        ['channel_code' => "SHOPEEPAY", 'value' => 'shopeepay'],
+    ],
+    'xendit qrph payment' => [
+        ['channel_code' => "QRPH", 'value' => 'qrph'],
+    ],
+])->only();
 
 test('a customer can place its orders with stripe payment', function () {
+    $this->mock(StripeService::class, function ($mock) {
+        $mock->shouldReceive('pay')
+            ->once()
+            ->andReturn([
+                'id' => 'pi_test_mock_12345',
+                'client_secret' => 'pi_test_mock_12345_secret_abcde',
+            ]);
+    });
+    
     $vendors = Vendor::factory(3)->create();
         $vendorA = $vendors[0];
         $vendorB = $vendors[1];
@@ -102,16 +177,31 @@ test('a customer can place its orders with stripe payment', function () {
             'shipping_address' => '123 Main St',
         ],
         'order_items' => $orderedCartItems,
-        'payment_method' => 'paypal',
+        'payment_method' => 'stripe',
     ];
 
     $this->actingAs($customer->user, 'sanctum')
-        ->postJson(route('orders.stripe-place'), $payload)
+        ->postJson(route('orders.place'), $payload)
         ->assertCreated()
-        ->assertJsonStructure([
-            'data' => ['id', 'client_secret']
-        ]);
-});
+        ->assertJsonStructure(['data' => ['id', 'client_secret']]);
+    
+    expect($customer->orders)->toHaveCount(1);
+
+    $order = $customer->orders->first();
+
+    expect($order->orderItems)->toHaveCount(3);
+    $order->orderItems->each(function ($orderItem) {
+        expect($orderItem->orderItemStatuses)->toHaveCount(1);
+        expect($orderItem->orderItemStatuses[0]->status)->toBe(OrderItemStatusEnum::TO_PAY);
+        expect($orderItem->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::TO_PAY);
+    });
+
+    expect($order->orderPayments)->toHaveCount(1);
+    expect($order->orderPayments->first())
+        ->status->toBe(OrderPaymentStatus::PENDING)
+        ->transaction_reference->toBe('pi_test_mock_12345')
+        ->payment_method->toBe('stripe');
+})->only();
 
 test('a customer can place its orders with paypal payment', function () {
         Http::fake([
@@ -171,16 +261,10 @@ test('a customer can place its orders with paypal payment', function () {
             'payment_method' => 'paypal',
         ];
 
-    $response = $this->actingAs($customer->user)
-        ->postJson(route('orders.paypal-place'), $payload)
-        ->assertCreated();
-
-    $response->assertJsonStructure([
-        'data' => [
-            'paypal_order_id',
-            'redirect_url',
-        ]
-    ]);
+    $this->actingAs($customer->user)
+        ->postJson(route('orders.place'), $payload)
+        ->assertCreated()
+        ->assertJsonStructure(['data' => ['id', 'redirect_url']]);
 
     expect($customer->orders)->toHaveCount(1);
 
@@ -194,5 +278,8 @@ test('a customer can place its orders with paypal payment', function () {
     });
 
     expect($order->orderPayments)->toHaveCount(1);
-    expect($order->orderPayments->first()->status)->toBe(OrderPaymentStatus::PENDING);
-});
+    expect($order->orderPayments->first())
+        ->status->toBe(OrderPaymentStatus::PENDING)
+        ->transaction_reference->toBe('PAYPAL-ORDER-12345')
+        ->payment_method->toBe('paypal');
+})->only();

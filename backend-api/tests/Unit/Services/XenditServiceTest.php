@@ -16,4 +16,4 @@ test('xendit sandbox integration create payment request', function () {
     dump($paymentRequest);
 
     expect($paymentRequest)->toHaveKeys(['payment_request_id', 'status', 'channel_code', 'type', 'actions']);
-})->only();
+});
