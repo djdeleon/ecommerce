@@ -20,9 +20,47 @@ class PaypalService implements PaymentServiceInterface
         $this->baseUrl = config('services.paypal.sandbox.api_url');
     }
 
-    public function pay(Order $order, ?string $paymentMethod): array
+    public function pay(Order $order): array
     {
         return $this->createOrder($order);
+    }
+
+    public function gatewayResponseVerification(array $response): bool
+    {
+        if (
+            isset($response['id']) && 
+            isset($response['status']) && 
+            $response['status'] === 'CREATED' &&
+            is_array($response['links'])
+        ) {
+            foreach ($response['links'] as $link) {
+                if ($link['rel'] === 'approve' && isset($link['href'])) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public function getPaymentMethod(array $response): string
+    {
+        return 'paypal';
+    }
+
+    public function getTransactionReference(array $response): string
+    {
+        return $response['id'];
+    }
+
+    public function orderCreationResponse(array $response): array
+    {
+        $approvalUrl = collect($response['links'])->firstWhere('rel', 'approve')['href'];
+
+        return [
+            'id' => $response['id'],
+            'redirect_url' => $approvalUrl,
+        ];
     }
 
     public function createToken(): string

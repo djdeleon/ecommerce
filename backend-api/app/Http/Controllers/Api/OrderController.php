@@ -7,7 +7,7 @@ use App\Enums\OrderPaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateOrderRequest;
 use App\Models\Order;
-use App\Actions\OrderPlaceAction;
+use App\Actions\PlaceOrderAction;
 use App\Traits\HttpResponses;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -16,9 +16,12 @@ class OrderController extends Controller
 {
     use HttpResponses;
 
-    public function place(CreateOrderRequest $request, OrderPlaceAction $action): JsonResponse
+    public function place(CreateOrderRequest $request, PlaceOrderAction $action): JsonResponse
     {
-        $order = $action->execute($request);
+        $order = $action->execute(
+            $request->user()->customer,
+            $request->validated()
+        );
 
         return $this->success(
             $order,

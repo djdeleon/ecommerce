@@ -10,6 +10,7 @@ class XenditService implements PaymentServiceInterface
 {
     protected string $secretKey;
     protected string $baseUrl;
+    protected string $channelCode;
 
     public function __construct()
     {
@@ -17,9 +18,56 @@ class XenditService implements PaymentServiceInterface
         $this->baseUrl = config('services.xendit.api_url');
     }
 
-    public function pay(Order $order, ?string $paymentMethod): array
+    public function setChannelCode(string $channelCode): self
     {
-        return $this->createPaymentRequest($order, $paymentMethod);
+        $this->channelCode = strtoupper($channelCode);
+        
+        return $this;
+    }
+
+    public function pay(Order $order): array
+    {
+        return $this->createPaymentRequest($order, $this->channelCode);
+    }
+
+    public function gatewayResponseVerification(array $response): bool
+    {
+        if (isset($response['status']) && $response['status'] === 'REQUIRES_ACTION') {
+            foreach ($response['actions'] as $action) {
+                if ($action['type'] === 'REDIRECT_CUSTOMER') {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public function getPaymentMethod(array $response): string
+    {
+        return $this->channelCode;
+    }
+
+    public function getTransactionReference(array $response): string
+    {
+        return $response['payment_request_id'];
+    }
+
+    public function orderCreationResponse(array $response): array
+    {
+        $redirectUrl = '';
+
+        foreach ($response['actions'] as $action) {
+            if ($action['type'] === "REDIRECT_CUSTOMER") {
+                $redirectUrl = $action['value'];
+            }
+        }
+
+        return [
+            'payment_request_id' => $response['payment_request_id'],
+            'reference_id' => $response['reference_id'],
+            'redirect_url' => $redirectUrl,
+        ];
     }
 
     public function createPaymentRequest(Order $order, string $paymentMethod)

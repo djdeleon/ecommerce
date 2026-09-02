@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Services\AuthService;
 use App\Services\Contracts\AuthServiceInterface;
+use App\Services\Payments\PaypalService;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\ServiceProvider;
 
@@ -15,6 +16,13 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(AuthServiceInterface::class, AuthService::class);
+        
+        $this->app->singleton(PaypalService::class, function () {
+            return new PaypalService(
+                config('services.paypal.sandbox.client_id'), 
+                config('services.paypal.sandbox.secret')
+            );
+        });
 
         /**
          * List of Payment Methods

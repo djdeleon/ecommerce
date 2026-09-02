@@ -62,10 +62,6 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
 
         Route::post('orders/place', [OrderController::class, 'place'])->name('orders.place');
         
-        Route::post('orders/stripe/place', [OrderController::class, 'stripePlace'])->name('orders.stripe-place');
-
-        Route::post('orders/xendit/place', [OrderController::class, 'xenditPlace'])->name('orders.xendit-place');
-
         Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
     });
 

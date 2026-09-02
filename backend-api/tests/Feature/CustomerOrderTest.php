@@ -90,7 +90,7 @@ test('a customer can place its orders with xendit available payment methods', fu
         ->postJson(route('orders.place'), $payload)
         ->assertCreated()
         ->assertJsonStructure([
-            'data' => ['payment_request_id']
+            'data' => ['payment_request_id', 'reference_id', 'redirect_url']
         ]);
     
     expect($customer->orders)->toHaveCount(1);
@@ -129,6 +129,25 @@ test('a customer can place its orders with xendit available payment methods', fu
 
 test('a customer can place its orders with stripe payment', function () {
     $this->mock(StripeService::class, function ($mock) {
+        $mock->shouldReceive('gatewayResponseVerification')
+            ->once()
+            ->andReturn(true);
+
+        $mock->shouldReceive('getPaymentMethod')
+            ->once()
+            ->andReturn('stripe');
+
+        $mock->shouldReceive('getTransactionReference')
+            ->once()
+            ->andReturn('pi_test_mock_12345');
+
+        $mock->shouldReceive('orderCreationResponse')
+            ->once()
+            ->andReturn([
+                "id" => "pi_3UB7Cb0bzHVebQGT1uzpi00w",
+                "client_secret" => "pi_3UB7Cb0bzHVebQGT1uzpi00w_secret_lqsFNwvziN2SZdvNA5jhjzSj3"
+            ]);
+            
         $mock->shouldReceive('pay')
             ->once()
             ->andReturn([

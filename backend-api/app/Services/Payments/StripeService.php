@@ -20,9 +20,18 @@ class StripeService implements PaymentServiceInterface
         $this->client = new StripeClient(config('services.stripe.sandbox.secret'));
     }
 
-    public function pay(Order $order, ?string $paymentMethod): array
+    public function pay(Order $order): array
     {
         return $this->createPaymentIntent($order);
+    }
+
+    public function gatewayResponseVerification(array $response): bool
+    {
+        if (isset($response['id']) && isset($response['client_secret'])) {
+            return true;
+        }
+
+        return false;
     }
 
     public function createPaymentIntent(Order $order): array
@@ -45,6 +54,21 @@ class StripeService implements PaymentServiceInterface
             'id' => $paymentIntent->id,
             'client_secret' => $paymentIntent->client_secret,
         ];
+    }
+
+    public function getPaymentMethod(array $response): string
+    {
+        return 'stripe';
+    }
+
+    public function getTransactionReference(array $response): string
+    {
+        return $response['id'];
+    }
+
+    public function orderCreationResponse(array $response): array
+    {
+        return $response;
     }
 
     public function verifyWebhook(string $payload, string $signatureHeader): Event
