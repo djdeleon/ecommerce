@@ -25,11 +25,11 @@ test('payment service factory resolves supported gateways correctly from the con
         ->toBeInstanceOf($expectedClass)
         ->toBeInstanceOf(PaymentServiceInterface::class);
         
-})->with('payment_gateways')->only();
+})->with('payment_gateways');
 
 test('payment service factory throws exception for unsupported gateway methods', function () {
     $factory = app(PaymentServiceFactory::class);
 
     expect(fn () => $factory->make('invalid_gateway'))
         ->toThrow(InvalidArgumentException::class, 'Payment gateway [invalid_gateway] is not supported.');
-})->only();
+});

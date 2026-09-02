@@ -9,8 +9,7 @@ test('order factory toPay state correctly creates item in TO_PAY status with del
         ->toPay(2)
         ->create();
 
-    // dd($order->orderPayments);
-
+    expect($order->orderPayments)->toHaveCount(1);
     expect($order->latestOrderPayment->status)->toBe(OrderPaymentStatus::PENDING);
 
     expect($order->orderItems)->toHaveCount(2);
@@ -26,6 +25,7 @@ test('order factory toShip state correctly creates item in TO_SHIP status', func
         ->toShip(2)
         ->create();
 
+    expect($order->orderPayments)->toHaveCount(1);
     expect($order->latestOrderPayment->status)->toBe(OrderPaymentStatus::COMPLETED);
 
     expect($order->orderItems)->toHaveCount(2);

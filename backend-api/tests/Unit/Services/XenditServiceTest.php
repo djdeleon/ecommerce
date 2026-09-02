@@ -13,7 +13,5 @@ test('xendit sandbox integration create payment request', function () {
     $xenditService = new XenditService();
     $paymentRequest = $xenditService->createPaymentRequest($order, 'gcash');
 
-    dump($paymentRequest);
-
     expect($paymentRequest)->toHaveKeys(['payment_request_id', 'status', 'channel_code', 'type', 'actions']);
 });
