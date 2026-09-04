@@ -1,6 +1,6 @@
 <?php
 
-use App\Enums\OrderPaymentStatus;
+use App\Enums\OrderPackagePaymentStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -12,26 +12,22 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('order_payments', function (Blueprint $table) {
+        Schema::create('order_package_payments', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('order_id');
-            $table->foreign('order_id')
-                ->references('id')
-                ->on('orders')
-                ->restrictOnDelete();
+            $table->foreignId('order_package_id')->constrained()->restrictOnDelete();
             $table->string('payment_method');
             $table->string('transaction_reference');
             $table->decimal('amount_paid', 10, 4);
-            $table->string('gateway_reference');
+            $table->string('gateway_reference')->nullable();
 
             $table->decimal('transaction_fee', 10, 4)->default(0.000);
             $table->decimal('net_amount', 10, 4)->default(0.000);
             $table->jsonb('gateway_response')->nullable();
 
-            $table->string('status', 20)->default(OrderPaymentStatus::Pending);
-            $table->timestamps();
+            $table->string('status', 20)->default(OrderPackagePaymentStatus::Pending);
 
-            $table->unique(['id', 'order_id', 'gateway_reference'], 'gateway_ref_unique');
+            $table->unique(['id', 'order_package_id', 'gateway_reference'], 'gateway_ref_unique');
+            $table->timestamps();
         });
     }
 
@@ -40,6 +36,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('order_payments');
+        Schema::dropIfExists('order_package_payments');
     }
 };

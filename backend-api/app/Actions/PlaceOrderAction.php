@@ -2,8 +2,8 @@
 
 namespace App\Actions;
 
-use App\Enums\OrderItemStatus;
-use App\Enums\OrderPaymentStatus;
+use App\Enums\OrderPackagePaymentStatus;
+use App\Enums\OrderPackageStatus;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Services\Contracts\PaymentServiceInterface;
@@ -32,34 +32,32 @@ class PlaceOrderAction
                 throw new Exception("Gateway response is not valid to proceed to make a payment: " . json_encode($gatewayResponse));
             }
 
-            $this->createPendingOrderPayment($order, $gatewayResponse, $paymentService, $data);
-            
-            $this->createOrderItemsWithStatuses($order, $data['order_items'], $customer);
+            $this->packOrders($order, $gatewayResponse, $paymentService, $data, $customer);
 
             return $paymentService->orderCreationResponse($gatewayResponse);
         });
     }
 
-    private function createPendingOrderPayment(Order $order, array $response, PaymentServiceInterface $paymentService, array $data)
+    private function packOrders(Order $order, array $response, PaymentServiceInterface $paymentService, array $data, Customer $customer): void
     {
-        $order->orderPayments()->create([
-            'payment_method' => $paymentService->getPaymentMethod($response),
-            'transaction_reference' => $paymentService->getTransactionReference($response),
-            'amount_paid' => $data['order_details']['total_amount'],
-            'gateway_reference' => fake()->bothify('GY-initial-#####-??'),
-            'status' => OrderPaymentStatus::Pending,
-        ]);
-    }
+        $vendorItems = collect($data['order_items'])->groupBy('vendor_id');
 
-    private function createOrderItemsWithStatuses(Order $order, array $items, Customer $customer)
-    {
-        $orderItems = $order->orderItems()->createMany($items);
+        $vendorItems->each(function ($items, $key) use ($order, $response, $paymentService, $data, $customer) {
+            $orderPackage = $order->orderPackages()->create(['vendor_id' => $key]);
 
-        $orderItems->each(function ($orderItem) use ($customer) {
-            $orderItem->orderItemStatuses()->create([
-                'status' => OrderItemStatus::ToPay,
+            $orderPackage->orderPackageItems()->createmany($items);
+
+            $orderPackage->orderPackageStatuses()->create([
+                'status' => OrderPackageStatus::ToPay,
                 'changed_by_id' => $customer->user_id,
                 'notes' => 'Waiting for payment.',
+            ]);
+
+            $orderPackage->orderPackagePayments()->create([
+                'payment_method' => $paymentService->getPaymentMethod($response),
+                'transaction_reference' => $paymentService->getTransactionReference($response),
+                'amount_paid' => $data['order_details']['total_amount'],
+                'status' => OrderPackagePaymentStatus::Pending,
             ]);
         });
     }

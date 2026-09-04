@@ -4,11 +4,9 @@ use App\Models\Order;
 use App\Services\Payments\StripeService;
 
 test('stripe sandbox integration create payment intent', function () {
-    $order = Order::factory()
-        ->toPay()
-        ->create([
-            'total_amount' => 120.50,
-        ]);
+    $order = OrderTestBuilder::order()
+                            ->packages()
+                            ->toPay('stripe');
 
     $stripeService = new StripeService();
     $paymentIntent = $stripeService->createPaymentIntent($order);

@@ -2,8 +2,9 @@
 
 namespace App\Services\Orders;
 
-use App\Enums\OrderPaymentStatus;
+use App\Enums\OrderPackagePaymentStatus;
 use App\Models\Order;
+use App\Models\OrderPackage;
 use App\Services\Orders\OrderCancellationInterface;
 use App\Services\Orders\OrderCancellationTrait;
 use Illuminate\Support\Facades\DB;
@@ -14,27 +15,46 @@ class PaidOrderCancellation implements OrderCancellationInterface
     use OrderCancellationTrait;
 
     #[Override]
-    public function cancel(Order $order)
+    public function cancel(Order|OrderPackage $orderOrPackage)
     {
-        $orderPayment = $order->latestOrderPayment;
+        if ($orderOrPackage instanceof Order) {
+            DB::transaction(function () use ($orderOrPackage) {
+                $this->cancelItems($orderOrPackage);
 
-        DB::transaction(function () use ($order, $orderPayment) {
-            $this->cancelItems($order);
+                $actorRole = request()->user()->roles()->pluck('name')[0];
 
-            $actorRole = request()->user()->roles()->pluck('name')[0];
+                $orderOrPackage->orderPackages->each(function ($item) use ($actorRole) {
+                    $orderPayment = $item->getLatestOrderPackagePayment;
+        
+                    $item->orderPackagePayments()->create([
+                        'payment_method' => $orderPayment['payment_method'],
+                        'transaction_reference' => $orderPayment['transaction_reference'],
+                        'amount_paid' => $orderPayment['amount_paid'],
+                        'gateway_reference' => $orderPayment['gateway_reference'],
+                        'transaction_fee' => $orderPayment['transaction_fee'],
+                        'net_amount' => $orderPayment['net_amount'],
+                        'gateway_response' => $orderPayment['gateway_response'],
+                        'status' => OrderPackagePaymentStatus::Refunded,
+                    ]);
+                });
+            });
+        } else {
+            DB::transaction(function () use ($orderOrPackage) {
+                $this->cancelItems($orderOrPackage);
 
-            $order->orderPayments()->create([
-                'payment_method' => $orderPayment['payment_method'],
-                'transaction_reference' => $orderPayment['transaction_reference'],
-                'amount_paid' => $orderPayment['amount_paid'],
-                'gateway_reference' => $orderPayment['gateway_reference'],
-                'transaction_fee' => $orderPayment['transaction_fee'],
-                'net_amount' => $orderPayment['net_amount'],
-                'gateway_response' => $orderPayment['gateway_response'],
-                'status' => ($actorRole === 'customer')
-                    ? OrderPaymentStatus::Failed
-                    : OrderPaymentStatus::PartialRefund,
-            ]);
-        });
+                $orderPayment = $orderOrPackage->getLatestOrderPackagePayment;
+
+                $orderOrPackage->orderPackagePayments()->create([
+                    'payment_method' => $orderPayment['payment_method'],
+                    'transaction_reference' => $orderPayment['transaction_reference'],
+                    'amount_paid' => $orderPayment['amount_paid'],
+                    'gateway_reference' => $orderPayment['gateway_reference'],
+                    'transaction_fee' => $orderPayment['transaction_fee'],
+                    'net_amount' => $orderPayment['net_amount'],
+                    'gateway_response' => $orderPayment['gateway_response'],
+                    'status' => OrderPackagePaymentStatus::Refunded,
+                ]);
+            });
+        }
     }
 }

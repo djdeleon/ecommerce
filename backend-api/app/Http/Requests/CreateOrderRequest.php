@@ -39,6 +39,9 @@ class CreateOrderRequest extends FormRequest
                 'array',
                 'min:1',
             ],
+            'order_items.*.vendor_id' => [
+                'required',
+            ],
             'order_items.*.variant_id' => [
                 'required',
             ],

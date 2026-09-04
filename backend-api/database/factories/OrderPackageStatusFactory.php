@@ -2,16 +2,16 @@
 
 namespace Database\Factories;
 
-use App\Enums\OrderItemStatus as StatusEnum;
+use App\Enums\OrderPackageStatus as EnumsOrderPackageStatus;
 use App\Models\Customer;
-use App\Models\OrderItem;
-use App\Models\OrderItemStatus;
+use App\Models\OrderPackage;
+use App\Models\OrderPackageStatus;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<OrderItemStatus>
+ * @extends Factory<OrderPackageStatus>
  */
-class OrderItemStatusFactory extends Factory
+class OrderPackageStatusFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -21,8 +21,8 @@ class OrderItemStatusFactory extends Factory
     public function definition(): array
     {
         return [
-            'order_item_id' => OrderItem::factory(),
-            'status' => StatusEnum::ToPay,
+            'order_package_id' => OrderPackage::factory(),
+            'status' => EnumsOrderPackageStatus::ToPay,
             'changed_by_id' => Customer::factory()->create()->user->id,
             'notes' => 'waiting for customer to pay',
         ];

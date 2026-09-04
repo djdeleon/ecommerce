@@ -19,4 +19,4 @@ test('an order item can be shipped', function () {
     // $this->actingAs($customer->user, 'sanctum')
     //     ->postJson(route('shipments.store'))
     //     ->assertCreated();
-});
+})->skip();

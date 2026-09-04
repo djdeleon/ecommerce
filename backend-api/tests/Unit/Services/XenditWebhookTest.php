@@ -1,20 +1,23 @@
 <?php
 
-use App\Enums\OrderItemStatus as OrderItemStatusEnum;
-use App\Enums\OrderPaymentStatus;
+use App\Enums\OrderPackagePaymentStatus;
+use App\Enums\OrderPackageStatus;
 use App\Models\Order;
-use App\Models\OrderPayment;
 
 test('stripe webhook successfully transitions payment and order items to paid state', function () {
-    $order = Order::factory()
-        ->toPay(2)
-        ->create();
-
+    $order = Order::factory()->unpaid()->create();
+    
     $xenditReferenceId = 'ORD-' . $order->id . '-MOCK';
-    $orderPayment = OrderPayment::factory()->for($order)->create([
-        'status' => OrderPaymentStatus::Pending,
-        'transaction_reference' => $xenditReferenceId,
-    ]);
+
+    $order = OrderTestBuilder::order()
+                ->packages()
+                ->withItems()
+                ->withStatuses()
+                ->withPayments(attributes: [
+                        'status' => OrderPackagePaymentStatus::Pending,
+                        'transaction_reference' => $xenditReferenceId,
+                    ])
+                ->create();
 
     $payload = [
         'created' => '2026-09-01T18:46:31.898Z',
@@ -52,15 +55,13 @@ test('stripe webhook successfully transitions payment and order items to paid st
     $response = $this->postJson(route('xendit.webhook'), $payload);
     $response->assertOk();
 
-    $orderPayment->refresh();
+    $orderPayment = $order->orderPackages[0]->orderPackagePayments[0];
 
     expect($orderPayment)
         ->payment_method->toBe('xendit')
-        ->status->toBe(OrderPaymentStatus::Completed)
+        ->status->toBe(OrderPackagePaymentStatus::Completed)
         ->gateway_reference->toBe('cptr-2cc743c3-04a9-4317-995e-18ac709327a2');
 
-    $order->orderItems->each(function ($orderItem) {
-        expect($orderItem->orderItemStatuses)->toHaveCount(2);
-        expect($orderItem->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::ToShip);
-    });
+    expect($order->orderPackages[0]->orderPackageStatuses[0]->status)->toBe(OrderPackageStatus::ToPay);
+    expect($order->orderPackages[0]->getLatestOrderPackageStatus->status)->toBe(OrderPackageStatus::ToShip);
 });

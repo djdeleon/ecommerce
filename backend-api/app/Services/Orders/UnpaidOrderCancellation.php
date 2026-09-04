@@ -2,8 +2,9 @@
 
 namespace App\Services\Orders;
 
-use App\Enums\OrderPaymentStatus;
+use App\Enums\OrderPackagePaymentStatus;
 use App\Models\Order;
+use App\Models\OrderPackage;
 use App\Services\Orders\OrderCancellationInterface;
 use App\Services\Orders\OrderCancellationTrait;
 use Illuminate\Support\Facades\DB;
@@ -14,16 +15,26 @@ class UnpaidOrderCancellation implements OrderCancellationInterface
     use OrderCancellationTrait;
 
     #[Override]
-    public function cancel(Order $order)
+    public function cancel(Order|OrderPackage $orderOrPackage)
     {
-        $orderPayment = $order->latestOrderPayment;
-        
-        DB::transaction(function () use ($order, $orderPayment) {
-            $this->cancelItems($order);
-                    
-            $orderPayment->update([
-                'status' => OrderPaymentStatus::Failed,
-            ]);
-        });
+        if ($orderOrPackage instanceof Order) {
+            DB::transaction(function () use ($orderOrPackage) {
+                $orderOrPackage->orderPackages->each(function ($item) {
+                    $this->cancelItems($item);
+       
+                    $item->getLatestOrderPackagePayment->update([
+                        'status' => OrderPackagePaymentStatus::Failed,
+                    ]);
+                });
+            });
+        } else {
+            DB::transaction(function () use ($orderOrPackage) {
+                $this->cancelItems($orderOrPackage);
+    
+                $orderOrPackage->getLatestOrderPackagePayment->update([
+                    'status' => OrderPackagePaymentStatus::Failed,
+                ]);
+            });
+        }
     }
 }

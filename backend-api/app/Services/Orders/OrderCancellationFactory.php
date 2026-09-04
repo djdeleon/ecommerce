@@ -2,18 +2,17 @@
 
 namespace App\Services\Orders;
 
-use App\Enums\OrderPaymentStatus;
-use App\Services\Orders\OrderCancellationInterface;
+use App\Enums\OrderPackagePaymentStatus;
 
 class OrderCancellationFactory
 {
-    public function make(OrderPaymentStatus $paymentStatus): OrderCancellationInterface
+    public function make(OrderPackagePaymentStatus $paymentStatus): OrderCancellationInterface
     {
-        if ($paymentStatus === OrderPaymentStatus::Completed) {
+        if ($paymentStatus === OrderPackagePaymentStatus::Completed) {
             return app(PaidOrderCancellation::class);
         }
 
-        if (in_array($paymentStatus, [OrderPaymentStatus::Pending, OrderPaymentStatus::Authorized, OrderPaymentStatus::Failed])) {
+        if (in_array($paymentStatus, [OrderPackagePaymentStatus::Pending, OrderPackagePaymentStatus::Authorized, OrderPackagePaymentStatus::Failed])) {
             return app(UnpaidOrderCancellation::class);
         }
 

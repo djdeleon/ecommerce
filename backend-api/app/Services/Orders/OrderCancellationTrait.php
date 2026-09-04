@@ -2,43 +2,49 @@
 
 namespace App\Services\Orders;
 
-use App\Enums\OrderItemStatus;
+use App\Enums\OrderPackageStatus;
 use App\Models\Order;
+use App\Models\OrderPackage;
 
 trait OrderCancellationTrait
 {
-    public function cancelItems(Order $order)
+    public function cancelItems(Order|OrderPackage $orderOrPackage)
     {
-        $actorRole = request()->user()->roles()->pluck('name')[0];
-        $actorId = request()->user()->id;
+        if ($orderOrPackage instanceof Order) {
+            $actorRole = request()->user()->roles()->pluck('name')[0];
+            $actorId = request()->user()->id;
+    
+            $target = OrderPackageStatus::Cancelled;
 
-        if ($actorRole === 'vendor') {
-            // need to get all the order items belong to the vendor
-            $filteredOrderItems = $order->orderItems->filter(function ($orderItem) use ($actorId) {
-                if ($orderItem->variant->product->vendor->user_id === $actorId) {
-                    return $orderItem;
-                }
-            });
-
-            $target = OrderItemStatus::Rejected;
-
-            $filteredOrderItems->each(function ($orderItem) use ($target, $actorId, $actorRole) {
-                $orderItem->orderItemStatuses()->create([
+            $orderOrPackage->orderPackages->each(function ($package) use ($target, $actorId, $actorRole) {
+                $package->orderPackagestatuses()->create([
                     'status' => $target,
                     'changed_by_id' => $actorId,
                     'notes' => ucfirst($actorRole) . ' ' . $target->value . ' the order.',
                 ]);
             });
-        } else { 
-            $target = OrderItemStatus::Cancelled;
+    
+        } else {
+            $actorRole = request()->user()->roles()->pluck('name')[0];
+            $actorId = request()->user()->id;
 
-            $order->orderItems->each(function ($orderItem) use ($target, $actorId, $actorRole) {
-                $orderItem->orderItemStatuses()->create([
+            if ($actorRole === 'vendor') {
+                $target = OrderPackageStatus::Rejected;
+    
+                $orderOrPackage->orderPackagestatuses()->create([
                     'status' => $target,
                     'changed_by_id' => $actorId,
                     'notes' => ucfirst($actorRole) . ' ' . $target->value . ' the order.',
                 ]);
-            });
+            } else { 
+                $target = OrderPackageStatus::Cancelled;
+    
+                $orderOrPackage->orderPackagestatuses()->create([
+                    'status' => $target,
+                    'changed_by_id' => $actorId,
+                    'notes' => ucfirst($actorRole) . ' ' . $target->value . ' the order.',
+                ]);
+            }
         }
     }
 }

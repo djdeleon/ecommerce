@@ -64,7 +64,8 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
     });
 
     Route::middleware('role:customer|vendor')->group(function () {
-        Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
+        Route::post('order-packages/{orderPackage}/cancel', [OrderController::class, 'cancelAsVendor'])->name('orders.vendor.cancel');
+        Route::post('orders/{order}/cancel', [OrderController::class, 'cancelAsCustomer'])->name('orders.customer.cancel');
     });
 
     Route::middleware('role:admin|vendor')->group(function () {

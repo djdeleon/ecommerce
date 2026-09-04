@@ -1,38 +1,40 @@
 <?php
 
-use App\Enums\OrderItemStatus;
-use App\Enums\OrderPaymentStatus;
+use App\Enums\OrderPackageStatus;
+use App\Enums\OrderPackagePaymentStatus;
 use App\Models\Order;
 
 test('order factory toPay state correctly creates item in ToPay status with delegated records', function () {
-    $order = Order::factory()
-        ->toPay(2)
-        ->create();
+    $order = OrderTestBuilder::order()
+                            ->packages()
+                            ->withitems()
+                            ->toPay();
 
-    expect($order->orderPayments)->toHaveCount(1);
-    expect($order->latestOrderPayment->status)->toBe(OrderPaymentStatus::Pending);
+    $orderPackage = $order->orderPackages[0];
 
-    expect($order->orderItems)->toHaveCount(2);
+    expect($orderPackage->orderPackagePayments)->toHaveCount(1);
+    expect($orderPackage->getLatestOrderPackagePayment->status)->toBe(OrderPackagePaymentStatus::Pending);
 
-    $order->orderItems->each(function ($orderItem) {
-        expect($orderItem->orderItemStatuses)->toHaveCount(1);
-        expect($orderItem->orderItemStatuses->first()->status)->toBe(OrderItemStatus::ToPay);
-    });
+    expect($orderPackage->orderPackageItems)->toHaveCount(1);
+
+    expect($orderPackage->orderPackageStatuses)->toHaveCount(1);
+    expect($orderPackage->getLatestOrderPackageStatus->status)->toBe(OrderPackageStatus::ToPay);
 });
 
 test('order factory toShip state correctly creates item in ToShip status', function () {
-    $order = Order::factory()
-        ->toShip(2)
-        ->create();
+    $order = OrderTestBuilder::order()
+                            ->packages()
+                            ->withitems()
+                            ->toShip();
 
-    expect($order->orderPayments)->toHaveCount(1);
-    expect($order->latestOrderPayment->status)->toBe(OrderPaymentStatus::Completed);
+    $orderPackage = $order->orderPackages[0];
 
-    expect($order->orderItems)->toHaveCount(2);
+    expect($orderPackage->orderPackagePayments)->toHaveCount(1);
+    expect($orderPackage->getLatestOrderPackagePayment->status)->toBe(OrderPackagePaymentStatus::Completed);
 
-    $order->orderItems->each(function ($orderItem) {
-        expect($orderItem->orderItemStatuses)->toHaveCount(2);
-        expect($orderItem->orderItemStatuses[0]->status)->toBe(OrderItemStatus::ToPay);
-        expect($orderItem->latestOrderItemStatus->status)->toBe(OrderItemStatus::ToShip);
-    });
+    expect($orderPackage->orderPackageItems)->toHaveCount(1);
+
+    expect($orderPackage->orderPackageStatuses)->toHaveCount(2);
+    expect($orderPackage->orderPackageStatuses[0]->status)->toBe(OrderPackageStatus::ToPay);
+    expect($orderPackage->getLatestOrderPackageStatus->status)->toBe(OrderPackageStatus::ToShip);
 });

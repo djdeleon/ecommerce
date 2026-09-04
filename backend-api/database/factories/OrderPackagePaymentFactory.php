@@ -2,15 +2,15 @@
 
 namespace Database\Factories;
 
-use App\Enums\OrderPaymentStatus;
-use App\Models\Order;
-use App\Models\OrderPayment;
+use App\Enums\OrderPackagePaymentStatus;
+use App\Models\OrderPackage;
+use App\Models\OrderPackagePayment;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<OrderPayment>
+ * @extends Factory<OrderPackagePayment>
  */
-class OrderPaymentFactory extends Factory
+class OrderPackagePaymentFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -20,12 +20,12 @@ class OrderPaymentFactory extends Factory
     public function definition(): array
     {
         return [
-            'order_id' => Order::factory(),
+            'order_package_id' => OrderPackage::factory(),
             'payment_method' => 'paypal',
             'transaction_reference' => fake()->numerify('TN-##########'),
             'amount_paid' => '100.00',
             'gateway_reference' => 'GY-' . fake()->uuid(),
-            'status' => OrderPaymentStatus::Pending,
+            'status' => OrderPackagePaymentStatus::Pending,
         ];
     }
 }

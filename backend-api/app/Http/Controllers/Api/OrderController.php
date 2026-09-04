@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateOrderRequest;
 use App\Models\Order;
 use App\Actions\PlaceOrderAction;
+use App\Models\OrderPackage;
 use App\Traits\HttpResponses;
 use Illuminate\Http\JsonResponse;
 
@@ -43,7 +44,17 @@ class OrderController extends Controller
         //     ]);
     }
 
-    public function cancel(Order $order, CancelOrderAction $action): JsonResponse
+    public function cancelAsVendor(OrderPackage $orderPackage, CancelOrderAction $action): JsonResponse
+    {
+        $action->execute($orderPackage);
+
+        return $this->success(
+            null,
+            'Order cancelled.'
+        );
+    }
+
+    public function cancelAsCustomer(Order $order, CancelOrderAction $action): JsonResponse
     {
         $action->execute($order);
 

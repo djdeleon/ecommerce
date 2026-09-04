@@ -2,8 +2,9 @@
 
 namespace App\Actions;
 
-use App\Enums\OrderItemStatus;
+use App\Enums\OrderPackageStatus;
 use App\Models\Order;
+use App\Models\OrderPackage;
 use App\Services\Orders\OrderCancellationFactory;
 
 class CancelOrderAction
@@ -12,14 +13,24 @@ class CancelOrderAction
         protected OrderCancellationFactory $orderCancellationFactory
     ) {}
     
-    public function execute(Order $order)
+    public function execute(Order|OrderPackage $orderOrPackage)
     {
-        $current = $order->latestOrderPayment->status;
+        if ($orderOrPackage instanceof OrderPackage) {
+            $orderOrPackage->ensureItemsCanTransition(OrderPackageStatus::Cancelled);
+            
+            $current = $orderOrPackage->getLatestOrderPackagePayment->status;
+            
+            $orderCancellation = $this->orderCancellationFactory->make($current);
 
-        $order->ensureItemsCanTransition(OrderItemStatus::Cancelled);
+            $orderCancellation->cancel($orderOrPackage);
+        } else {
+            $orderOrPackage->ensurePackagesCanTransition(OrderPackageStatus::Cancelled);
+            
+            $current = $orderOrPackage->orderPackages[0]->getLatestOrderPackagePayment->status;
+            
+            $orderCancellation = $this->orderCancellationFactory->make($current);
 
-        $orderCancellation = $this->orderCancellationFactory->make($current);
-
-        $orderCancellation->cancel($order);
+            $orderCancellation->cancel($orderOrPackage);
+        }
     }
 }

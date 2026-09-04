@@ -1,12 +1,7 @@
 <?php
 
-use App\Enums\OrderItemStatus as OrderItemStatusEnum;
-use App\Enums\OrderPaymentStatus;
-use App\Enums\OrderStatus;
-use App\Models\Order;
-use App\Models\OrderItem;
-use App\Models\OrderItemStatus;
-use App\Models\OrderPayment;
+use App\Enums\OrderPackagePaymentStatus;
+use App\Enums\OrderPackageStatus;
 
 // Test ILLEGAL States, NOT the legal. Legal is already being handled when we do the Factory into Route Test Cases Below
 // test('blocks invalid order state transitions', function (OrderStatus $initialState, string $actionRoute) {
@@ -27,41 +22,41 @@ use App\Models\OrderPayment;
 // ]);
 
 test('validation of cross-domain order item transitions with payment status and actors', function () {
-    expect(OrderItemStatusEnum::ToPay->canTransitionWithPayment(OrderItemStatusEnum::ToShip, OrderPaymentStatus::Completed, 'system'))->toBeTrue();
-    expect(OrderItemStatusEnum::ToPay->canTransitionWithPayment(OrderItemStatusEnum::Cancelled, OrderPaymentStatus::Pending, 'customer'))->toBeTrue();
-    expect(OrderItemStatusEnum::ToPay->canTransitionWithPayment(OrderItemStatusEnum::Cancelled, OrderPaymentStatus::Authorized, 'customer'))->toBeTrue();
-    expect(OrderItemStatusEnum::ToPay->canTransitionWithPayment(OrderItemStatusEnum::Cancelled, OrderPaymentStatus::Failed, 'customer'))->toBeTrue();
+    expect(OrderPackageStatus::ToPay->canTransitionWithPayment(OrderPackageStatus::ToShip, OrderPackagePaymentStatus::Completed, 'system'))->toBeTrue();
+    expect(OrderPackageStatus::ToPay->canTransitionWithPayment(OrderPackageStatus::Cancelled, OrderPackagePaymentStatus::Pending, 'customer'))->toBeTrue();
+    expect(OrderPackageStatus::ToPay->canTransitionWithPayment(OrderPackageStatus::Cancelled, OrderPackagePaymentStatus::Authorized, 'customer'))->toBeTrue();
+    expect(OrderPackageStatus::ToPay->canTransitionWithPayment(OrderPackageStatus::Cancelled, OrderPackagePaymentStatus::Failed, 'customer'))->toBeTrue();
 
-    expect(OrderItemStatusEnum::ToShip->canTransitionWithPayment(OrderItemStatusEnum::ToReceive, OrderPaymentStatus::Completed, 'vendor'))->toBeTrue();
-    expect(OrderItemStatusEnum::ToShip->canTransitionWithPayment(OrderItemStatusEnum::Rejected, OrderPaymentStatus::Completed, 'vendor'))->toBeTrue();
-    expect(OrderItemStatusEnum::ToShip->canTransitionWithPayment(OrderItemStatusEnum::Cancelled, OrderPaymentStatus::Completed, 'customer'))->toBeTrue();
+    expect(OrderPackageStatus::ToShip->canTransitionWithPayment(OrderPackageStatus::ToReceive, OrderPackagePaymentStatus::Completed, 'vendor'))->toBeTrue();
+    expect(OrderPackageStatus::ToShip->canTransitionWithPayment(OrderPackageStatus::Rejected, OrderPackagePaymentStatus::Completed, 'vendor'))->toBeTrue();
+    expect(OrderPackageStatus::ToShip->canTransitionWithPayment(OrderPackageStatus::Cancelled, OrderPackagePaymentStatus::Completed, 'customer'))->toBeTrue();
 
-    expect(OrderItemStatusEnum::ToReceive->canTransitionWithPayment(OrderItemStatusEnum::Completed, OrderPaymentStatus::Completed, 'customer'))->toBeTrue();
-    expect(OrderItemStatusEnum::ToReceive->canTransitionWithPayment(OrderItemStatusEnum::Completed, OrderPaymentStatus::Completed, 'system'))->toBeTrue();
-    expect(OrderItemStatusEnum::ToReceive->canTransitionWithPayment(OrderItemStatusEnum::Returned, OrderPaymentStatus::Completed, 'vendor'))->toBeTrue();
+    expect(OrderPackageStatus::ToReceive->canTransitionWithPayment(OrderPackageStatus::Completed, OrderPackagePaymentStatus::Completed, 'customer'))->toBeTrue();
+    expect(OrderPackageStatus::ToReceive->canTransitionWithPayment(OrderPackageStatus::Completed, OrderPackagePaymentStatus::Completed, 'system'))->toBeTrue();
+    expect(OrderPackageStatus::ToReceive->canTransitionWithPayment(OrderPackageStatus::Returned, OrderPackagePaymentStatus::Completed, 'vendor'))->toBeTrue();
 });
 
 
 // For Factory (Arrange) into Route (Act)
 // THIS IS NOT ONLY PERTAINING TO THE STATE TEST, THIS IS FEATURE TEST
 test('a customer with a paid order can cancel the order and be refunded', function () {
-    $order = Order::factory()
-        ->toShip(2)
-        ->create();
+    $order = OrderTestBuilder::order()
+        ->packages()
+        ->withItems()
+        ->toShip();
 
     $this->actingAs($order->customer->user, 'sanctum')
-        ->postJson(route('orders.cancel', $order))
+        ->postJson(route('orders.customer.cancel', $order))
         ->assertOk();
     
-    $order->fresh();
+    $orderPackage = $order->orderPackages[0];
 
-    expect($order->orderItems)->toHaveCount(2);
-    $order->orderItems->each(function ($orderItem) {
-        expect($orderItem->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::Cancelled);
-    });
+    expect($orderPackage->orderPackageItems)->toHaveCount(1);
+    expect($orderPackage->getLatestOrderPackageStatus->status)->toBe(OrderPackageStatus::Cancelled);
 
-    expect($order->orderPayments)->toHaveCount(2);
-    expect($order->latestOrderPayment->status)->toBe(OrderPaymentStatus::Failed);
+    expect($orderPackage->orderPackagePayments)->toHaveCount(2);
+    expect($orderPackage->orderPackagePayments[0]->status)->toBe(OrderPackagePaymentStatus::Completed);
+    expect($orderPackage->getLatestOrderPackagePayment->status)->toBe(OrderPackagePaymentStatus::Refunded);
 });
 
 // For Factory (Arrange) into Route (Act)

@@ -2,7 +2,8 @@
 
 namespace App\Models;
 
-use App\Enums\OrderItemStatus;
+use App\Enums\OrderPackagePaymentStatus;
+use App\Enums\OrderPackageStatus;
 use Database\Factories\OrderFactory;
 use Exception;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -26,41 +27,40 @@ class Order extends Model
         return $this->belongsTo(Customer::class);
     }
 
-    public function orderItems(): HasMany
+    public function orderPackages(): HasMany
     {
-        return $this->hasMany(OrderItem::class);
+        return $this->hasMany(OrderPackage::class);
     }
 
-    public function orderPayments(): HasMany
+    public function orderPackagePayments(): HasMany
     {
-        return $this->hasMany(OrderPayment::class);
+        return $this->hasMany(OrderPackagePayment::class);
     }
 
-    public function latestOrderPayment(): HasOne
+    public function latestOrderPackagePayment(): HasOne
     {
-        return $this->orderPayments()->one()->latestOfMany();
+        return $this->orderPackagePayments()->one()->latestOfMany();
     }
 
-    public function ensureItemsCanTransition(OrderItemStatus $target)
+    public function ensurePackagesCanTransition(OrderPackageStatus $target): bool
     {
-        $actorId = request()->user()->id;
-        $actorRole = request()->user()->roles()->pluck('name')[0];
-        $currentPaymentStatus = $this->latestOrderPayment->status;
+        // $isAllPackagesPending = $this->orderPackages->every(function ($package) {
+        //     return ($package->getLatestOrderPackagePayment->status === OrderPackagePaymentStatus::Pending);
+        // });
 
-        // need to get all the order items belong to the vendor
-        $filteredOrderItems = $this->orderItems->filter(function ($orderItem) use ($actorId) {
-            if ($orderItem->variant->product->vendor->user_id === $actorId) {
-                return $orderItem;
-            }
-        });
+        // if (! $isAllPackagesPending) {
+        //     throw new Exception("This order can no longer be cancelled.");
+        // }
 
-        $filteredOrderItems->each(function ($orderItem) use ($target, $currentPaymentStatus, $actorRole) {
-            $currentItemStatus = $orderItem->latestOrderItemStatus->status;
-
-            $canTransition = $currentItemStatus->canTransitionWithPayment($target, $currentPaymentStatus, $actorRole);
-
+        $this->orderPackages->each(function ($item) use ($target) {
+            $actorRole = request()->user()->roles()->pluck('name')[0];
+            $currentPaymentStatus = $item->getLatestOrderPackagePayment->status;
+            $currentPackageStatus = $item->getLatestOrderPackageStatus->status;
+    
+            $canTransition = $currentPackageStatus->canTransitionWithPayment($target, $currentPaymentStatus, $actorRole);
+    
             if (! $canTransition) {
-                throw new Exception("[{$currentItemStatus->value}] Item ID {$orderItem->id} cannot transition to cancelled because it is in payment status of [{$currentPaymentStatus->value}].");
+                throw new Exception("This [{$currentPackageStatus->value}] package cannot transition to cancelled because it is in payment status of [{$currentPaymentStatus->value}].");
             }
         });
 

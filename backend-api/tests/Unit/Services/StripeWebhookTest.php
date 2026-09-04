@@ -1,23 +1,23 @@
 <?php
 
-use App\Enums\OrderItemStatus as EnumsOrderItemStatus;
-use App\Enums\OrderPaymentStatus;
-use App\Models\Order;
-use App\Models\OrderPayment;
+use App\Enums\OrderPackagePaymentStatus;
+use App\Enums\OrderPackageStatus;
 use App\Services\Payments\StripeService;
 use Illuminate\Support\Facades\Http;
 use Stripe\Event;
 
 test('stripe webhook successfully transitions payment and order items to paid state', function () {
-    $order = Order::factory()
-        ->toPay(2)
-        ->create();
-
     $paymentIntentId = 'pl_test_mock_12345';
-    $orderPayment = OrderPayment::factory()->for($order)->create([
-        'status' => OrderPaymentStatus::Pending,
-        'transaction_reference' => $paymentIntentId,
-    ]);
+
+    $order = OrderTestBuilder::order()
+                ->packages()
+                ->withItems()
+                ->withStatuses()
+                ->withPayments(attributes: [
+                        'status' => OrderPackagePaymentStatus::Pending,
+                        'transaction_reference' => $paymentIntentId,
+                    ])
+                ->create();
 
     $payload = [
         'id' => 'evt_test_webhook_123',
@@ -37,19 +37,17 @@ test('stripe webhook successfully transitions payment and order items to paid st
             ->andReturn(Event::constructFrom($payload));
     });
 
-    $response = $this->postJson(route('stripe.webhook'), $payload, [
+    $this->postJson(route('stripe.webhook'), $payload, [
         'Stripe-Signature' => 'mocked_signature_header'
-    ]);
-    $response->assertOk();
+    ])->assertOk();
 
-    $orderPayment->refresh();
+    $orderPackagePayment = $order->orderPackages[0]->getLatestOrderPackagePayment;
 
-    expect($orderPayment)
-        ->status->toBe(OrderPaymentStatus::Completed)
+    expect($orderPackagePayment)
+        ->status->toBe(OrderPackagePaymentStatus::Completed)
         ->gateway_reference->toBe('ch_mock_charge_999');
 
-    $order->orderItems->each(function ($orderItem) {
-        expect($orderItem->orderItemStatuses)->toHaveCount(2);
-        expect($orderItem->latestOrderItemStatus->status)->toBe(EnumsOrderItemStatus::ToShip);
-    });
+    expect($order->orderPackages[0]->orderPackageStatuses)->toHaveCount(2);
+    expect($order->orderPackages[0]->orderPackageStatuses[0]->status)->toBe(OrderPackageStatus::ToPay);
+    expect($order->orderPackages[0]->getLatestOrderPackageStatus->status)->toBe(OrderPackageStatus::ToShip);
 });

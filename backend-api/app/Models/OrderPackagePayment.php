@@ -2,15 +2,15 @@
 
 namespace App\Models;
 
-use App\Enums\OrderPaymentStatus;
-use Database\Factories\OrderPaymentFactory;
+use App\Enums\OrderPackagePaymentStatus;
+use Database\Factories\OrderPackagePaymentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class OrderPayment extends Model
+class OrderPackagePayment extends Model
 {
-    /** @use HasFactory<OrderPaymentFactory> */
+    /** @use HasFactory<OrderPackagePaymentFactory> */
     use HasFactory;
 
     protected $fillable = [
@@ -27,13 +27,13 @@ class OrderPayment extends Model
     protected function casts(): array
     {
         return [
-            'status' => OrderPaymentStatus::class,
+            'status' => OrderPackagePaymentStatus::class,
             'gateway_response' => 'array',
         ];
     }
 
-    public function order(): BelongsTo
+    public function orderPackage(): BelongsTo
     {
-        return $this->belongsTo(Order::class);
+        return $this->belongsTo(OrderPackage::class);
     }
 }

@@ -2,14 +2,18 @@
 
 namespace Database\Factories;
 
-use App\Enums\OrderPaymentStatus;
+use App\Enums\OrderPackagePaymentStatus;
+use App\Enums\OrderPackageStatus as EnumsOrderPackageStatus;
 use App\Models\Customer;
 use App\Models\Order;
-use App\Models\OrderItem;
-use App\Models\OrderPayment;
+use App\Models\OrderPackage;
+use App\Models\OrderPackageItem;
+use App\Models\OrderPackagePayment;
+use App\Models\OrderPackageStatus;
 use App\Models\Variant;
 use App\Models\Vendor;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Override;
 
 /**
  * @extends Factory<Order>
@@ -30,15 +34,50 @@ class OrderFactory extends Factory
         ];
     }
 
+    public function unpaid(): static
+    {
+        return $this->afterCreating(function (Order $order) {
+            OrderPackage::factory()
+                ->for($order)
+                ->hasOrderPackageItems()
+                ->hasOrderPackageStatuses()
+                ->hasOrderPackagePayments()
+                ->create();
+
+            // OrderPackageItem::factory()->for($orderPackage)->create();
+            // OrderPackageStatus::factory()->for($orderPackage)->create();
+            // OrderPackagePayment::factory()->for($orderPackage)->create();
+        });
+    }
+
+    public function paid()
+    {
+        return $this->afterCreating(function (Order $order) {
+            $orderPackage = OrderPackage::factory()->for($order)->create();
+
+            OrderPackageItem::factory()->for($orderPackage)->create();
+
+            OrderPackageStatus::factory()->for($orderPackage)->create();
+            OrderPackageStatus::factory()->for($orderPackage)->create([
+                'status' => EnumsOrderPackageStatus::ToShip,
+                'changed_by_id' => $order->customer->user_id,
+                'notes' => 'Order has been paid.',
+            ]);
+
+            $payment = OrderPackagePayment::factory()->for($orderPackage)->create();
+            $payment->update(['status' => OrderPackagePaymentStatus::Completed]);
+        });
+    }
+
     public function toPay(int $count = 1, ?string $paymentMethod = 'paypal'): static
     {
-        return $this->has(OrderItem::factory()->count($count)->toPayStatus())
-                    ->has(OrderPayment::factory()->state(['payment_method' => $paymentMethod, 'status' => OrderPaymentStatus::Pending])->count(1));
+        return $this->has(OrderPackageItem::factory()->count($count)->toPayStatus())
+                    ->has(OrderPackagePayment::factory()->state(['payment_method' => $paymentMethod, 'status' => OrderPackagePaymentStatus::Pending])->count(1));
     }
 
     public function toShip(int $count = 1): static
     {
-        return $this->has(OrderItem::factory()->count($count)->toShipStatus())
-                    ->has(OrderPayment::factory()->state(['transaction_reference' => 'PAYPAL-ORDER-12345', 'status' => OrderPaymentStatus::Completed])->count(1));
+        return $this->has(OrderPackageItem::factory()->count($count)->toShipStatus())
+                    ->has(OrderPackagePayment::factory()->state(['transaction_reference' => 'PAYPAL-ORDER-12345', 'status' => OrderPackagePaymentStatus::Completed])->count(1));
     }
 }

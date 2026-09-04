@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-enum OrderPaymentStatus: string
+enum OrderPackagePaymentStatus: string
 {
     case Pending       = 'pending';        // Customer initiated checkout, gateway is processing, pending is temporary (pending record is mutable waiting for the gateway response)
     case Authorized    = 'authorized';     // Funds are held/reserved on card but not yet withdrawn

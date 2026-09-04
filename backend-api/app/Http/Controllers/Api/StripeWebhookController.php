@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Enums\OrderItemStatus as OrderItemStatusEnums;
-use App\Enums\OrderPaymentStatus;
+use App\Enums\OrderPackagePaymentStatus;
+use App\Enums\OrderPackageStatus;
 use App\Http\Controllers\Controller;
+use App\Models\OrderPackagePayment;
 use App\Models\OrderPayment;
 use App\Services\Payments\StripeService;
 use Exception;
@@ -30,22 +31,22 @@ class StripeWebhookController extends Controller
             $paymentIntentId = $paymentIntent->id;
             $chargeId = $paymentIntent->latest_charge; // Capture ID/Receipt ID
 
-            $orderPayment = OrderPayment::where('transaction_reference', $paymentIntentId)->first();
+            $orderPayment = OrderPackagePayment::where('transaction_reference', $paymentIntentId)->first();
 
-            if ($orderPayment && $orderPayment->status === OrderPaymentStatus::Pending) {
-                $order = $orderPayment->order;
+            if ($orderPayment && $orderPayment->status === OrderPackagePaymentStatus::Pending) {
+                $order = $orderPayment->orderPackage->order;
 
                 DB::transaction(function () use ($order, $orderPayment, $chargeId) {
                     $orderPayment->update([
                         'payment_method' => 'stripe',
-                        'status' => OrderPaymentStatus::Completed,
+                        'status' => OrderPackagePaymentStatus::Completed,
                         'gateway_reference' => $chargeId,
                     ]);
 
-                    $order->orderItems->each(function ($orderItem) {
-                            $orderItem->orderItemStatuses()->create([
-                                'status' => OrderItemStatusEnums::ToShip,
-                                'changed_by_id' => $orderItem->order->customer->user_id,
+                    $order->orderPackages->each(function ($package) {
+                            $package->orderPackageStatuses()->create([
+                                'status' => OrderPackageStatus::ToShip,
+                                'changed_by_id' => $package->order->customer->user_id,
                                 'notes' => 'Payment succesfully captured via card.',
                             ]);
                     });

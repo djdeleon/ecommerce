@@ -11,13 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('seller_payout_ledgers', function (Blueprint $table) {
+        Schema::create('order_package_payouts', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('order_item_id');
-            $table->foreign('order_item_id')
-                ->references('id')
-                ->on('order_items')
-                ->restrictOnDelete();
+            $table->foreignId('order_package_id')->constrained()->restrictOnDelete();
+            $table->foreignId('vendor_id')->constrained()->restrictOnDelete();
             $table->decimal('gross_amount', 10, 4);
             $table->decimal('platform_commission_fee', 10, 4);
             $table->decimal('net_payout_amount', 10, 4);
@@ -31,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('seller_payout_ledgers');
+        Schema::dropIfExists('order_package_payouts');
     }
 };

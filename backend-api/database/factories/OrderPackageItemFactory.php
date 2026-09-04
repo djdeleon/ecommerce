@@ -3,16 +3,15 @@
 namespace Database\Factories;
 
 use App\Models\Order;
-use App\Models\OrderItem;
+use App\Models\OrderPackageItem;
 use App\Models\Variant;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use App\Enums\OrderItemStatus as OrderItemStatusEnum;
-use App\Models\Vendor;
+use App\Enums\OrderPackageStatus as OrderPackageStatusEnum;
 
 /**
- * @extends Factory<OrderItem>
+ * @extends Factory<OrderPackageItem>
  */
-class OrderItemFactory extends Factory
+class OrderPackageItemFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -22,7 +21,7 @@ class OrderItemFactory extends Factory
     public function definition(): array
     {
         return [
-            'order_id' => Order::factory(),
+            'order_package_id' => OrderPackageItem::factory(),
             'variant_id' => Variant::factory(),
             'quantity_ordered' => 1,
             'price_at_purchased' => "100.00",
@@ -31,9 +30,9 @@ class OrderItemFactory extends Factory
 
     public function toPayStatus(): static
     {
-        return $this->afterCreating(function (OrderItem $item) {
+        return $this->afterCreating(function (OrderPackageItem $item) {
             $item->orderItemStatuses()->create([
-                'status' => OrderItemStatusEnum::ToPay,
+                'status' => OrderPackageStatusEnum::ToPay,
                 'changed_by_id' => null,
                 'notes' => 'Waiting for payment.',
             ]);
@@ -42,15 +41,15 @@ class OrderItemFactory extends Factory
 
     public function toShipStatus(): static
     {
-        return $this->afterCreating(function (OrderItem $item) {
+        return $this->afterCreating(function (OrderPackageItem $item) {
             $item->orderItemStatuses()->create([
-                'status' => OrderItemStatusEnum::ToPay,
+                'status' => OrderPackageStatusEnum::ToPay,
                 'changed_by_id' => null,
                 'notes' => 'Waiting for payment.',
             ]);
             
             $item->orderItemStatuses()->create([
-                'status' => OrderItemStatusEnum::ToShip,
+                'status' => OrderPackageStatusEnum::ToShip,
                 'changed_by_id' => $item->order->customer->user_id ?? 1,
                 'notes' => 'payment completed.',
             ]);

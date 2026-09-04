@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-enum OrderItemStatus: string
+enum OrderPackageStatus: string
 {
     case ToPay     = 'to_pay';     // triggers when a customer encounters some problem with their online payment
     case ToShip    = 'to_ship';    // Paid, waiting for vendor to package
@@ -30,7 +30,7 @@ enum OrderItemStatus: string
      */
     public function canTransitionWithPayment(
         self $target,
-        OrderPaymentStatus $orderPaymentStatus,
+        OrderPackagePaymentStatus $orderPaymentStatus,
         string $actor // 'customer', 'vendor', 'system', 'admin'
     ): bool {
         if (! $this->canTransitionTo($target)) {
@@ -38,23 +38,23 @@ enum OrderItemStatus: string
         }
 
         return match($target) {
-            self::ToShip => $orderPaymentStatus === OrderPaymentStatus::Completed && $actor === 'system',
+            self::ToShip => $orderPaymentStatus === OrderPackagePaymentStatus::Completed && $actor === 'system',
 
-            self::ToReceive => $orderPaymentStatus === OrderPaymentStatus::Completed && $actor === 'vendor',
+            self::ToReceive => $orderPaymentStatus === OrderPackagePaymentStatus::Completed && $actor === 'vendor',
 
-            self::Completed => $orderPaymentStatus === OrderPaymentStatus::Completed && in_array($actor, ['system', 'customer']),
+            self::Completed => $orderPaymentStatus === OrderPackagePaymentStatus::Completed && in_array($actor, ['system', 'customer']),
 
             self::Cancelled => in_array($actor, ['customer', 'vendor']) && in_array($orderPaymentStatus, [
-                                                            OrderPaymentStatus::Pending, 
-                                                            OrderPaymentStatus::Authorized, 
-                                                            OrderPaymentStatus::Failed, 
-                                                            OrderPaymentStatus::Completed,
-                                                            OrderPaymentStatus::PartialRefund,
+                                                            OrderPackagePaymentStatus::Pending, 
+                                                            OrderPackagePaymentStatus::Authorized, 
+                                                            OrderPackagePaymentStatus::Failed, 
+                                                            OrderPackagePaymentStatus::Completed,
+                                                            OrderPackagePaymentStatus::PartialRefund,
                                                         ]),
 
-            self::Rejected => $actor === 'vendor' && $orderPaymentStatus === OrderPaymentStatus::Completed,
+            self::Rejected => $actor === 'vendor' && $orderPaymentStatus === OrderPackagePaymentStatus::Completed,
             
-            self::Returned => $actor === 'vendor' && $orderPaymentStatus === OrderPaymentStatus::Completed,
+            self::Returned => $actor === 'vendor' && $orderPaymentStatus === OrderPackagePaymentStatus::Completed,
 
             default => false,
         };
