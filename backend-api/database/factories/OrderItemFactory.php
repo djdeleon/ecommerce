@@ -7,6 +7,7 @@ use App\Models\OrderItem;
 use App\Models\Variant;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use App\Enums\OrderItemStatus as OrderItemStatusEnum;
+use App\Models\Vendor;
 
 /**
  * @extends Factory<OrderItem>
@@ -32,7 +33,7 @@ class OrderItemFactory extends Factory
     {
         return $this->afterCreating(function (OrderItem $item) {
             $item->orderItemStatuses()->create([
-                'status' => OrderItemStatusEnum::TO_PAY,
+                'status' => OrderItemStatusEnum::ToPay,
                 'changed_by_id' => null,
                 'notes' => 'Waiting for payment.',
             ]);
@@ -43,13 +44,13 @@ class OrderItemFactory extends Factory
     {
         return $this->afterCreating(function (OrderItem $item) {
             $item->orderItemStatuses()->create([
-                'status' => OrderItemStatusEnum::TO_PAY,
+                'status' => OrderItemStatusEnum::ToPay,
                 'changed_by_id' => null,
                 'notes' => 'Waiting for payment.',
             ]);
             
             $item->orderItemStatuses()->create([
-                'status' => OrderItemStatusEnum::TO_SHIP,
+                'status' => OrderItemStatusEnum::ToShip,
                 'changed_by_id' => $item->order->customer->user_id ?? 1,
                 'notes' => 'payment completed.',
             ]);

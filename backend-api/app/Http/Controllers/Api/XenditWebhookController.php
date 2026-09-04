@@ -34,21 +34,21 @@ class XenditWebhookController extends Controller
             return response()->json(['status' => 'ignored', 'message' => 'No matching payment record found.'], 200);
         }
 
-        if ($event === 'payment.capture' && $data['status'] === "SUCCEEDED" && $orderPayment->status === OrderPaymentStatus::PENDING) {
+        if ($event === 'payment.capture' && $data['status'] === "SUCCEEDED" && $orderPayment->status === OrderPaymentStatus::Pending) {
             $order = $orderPayment->order;
             $capture = $data['captures'][0];
 
             DB::transaction(function () use ($order, $orderPayment, $capture) {
                 $orderPayment->update([
                     'payment_method' => 'xendit',
-                    'status' => OrderPaymentStatus::COMPLETED,
+                    'status' => OrderPaymentStatus::Completed,
                     'net_amount' => $capture['capture_amount'],
                     'gateway_reference' => $capture['capture_id'],
                 ]);
 
                 $order->orderItems->each(function ($orderItem) {
                     $updatedOrderItemStatuses = $orderItem->orderItemStatuses()->create([
-                        'status' => OrderItemStatusEnums::TO_SHIP,
+                        'status' => OrderItemStatusEnums::ToShip,
                         'changed_by_id' => $orderItem->order->customer->user_id,
                         'notes' => 'Payment successfully captured via GCash.',
                     ]);
@@ -65,11 +65,11 @@ class XenditWebhookController extends Controller
         }
 
         // --- BRANCH 2: Payment Failed or Expired! (Shopee Retry Style) ---
-        // if (in_array($event, ['payment_request.failed', 'payment_request.expiry']) && $orderPayment->status === OrderPaymentStatus::PENDING) {
-        //     // Update the single ledger attempt to FAILED.
-        //     // Items remain in TO_PAY so the customer can click "Pay Now" again!
+        // if (in_array($event, ['payment_request.failed', 'payment_request.expiry']) && $orderPayment->status === OrderPaymentStatus::Pending) {
+        //     // Update the single ledger attempt to Failed.
+        //     // Items remain in ToPay so the customer can click "Pay Now" again!
         //     $orderPayment->update([
-        //         'status' => OrderPaymentStatus::FAILED,
+        //         'status' => OrderPaymentStatus::Failed,
         //     ]);
         // }
 

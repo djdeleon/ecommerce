@@ -7,6 +7,8 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderPayment;
+use App\Models\Variant;
+use App\Models\Vendor;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -31,12 +33,12 @@ class OrderFactory extends Factory
     public function toPay(int $count = 1, ?string $paymentMethod = 'paypal'): static
     {
         return $this->has(OrderItem::factory()->count($count)->toPayStatus())
-                    ->has(OrderPayment::factory()->state(['payment_method' => $paymentMethod, 'status' => OrderPaymentStatus::PENDING])->count(1));
+                    ->has(OrderPayment::factory()->state(['payment_method' => $paymentMethod, 'status' => OrderPaymentStatus::Pending])->count(1));
     }
 
     public function toShip(int $count = 1): static
     {
         return $this->has(OrderItem::factory()->count($count)->toShipStatus())
-                    ->has(OrderPayment::factory()->state(['transaction_reference' => 'PAYPAL-ORDER-12345', 'status' => OrderPaymentStatus::COMPLETED])->count(1));
+                    ->has(OrderPayment::factory()->state(['transaction_reference' => 'PAYPAL-ORDER-12345', 'status' => OrderPaymentStatus::Completed])->count(1));
     }
 }

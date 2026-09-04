@@ -30,8 +30,8 @@ class PayPalWebhookController extends Controller
                 'order_payment' => $orderPayment?->toArray(),
             ]);
 
-            // Idempotency Check: Only capture if DB still says PENDING
-            if ($orderPayment && $orderPayment->status === OrderPaymentStatusEnum::PENDING) {
+            // Idempotency Check: Only capture if DB still says Pending
+            if ($orderPayment && $orderPayment->status === OrderPaymentStatusEnum::Pending) {
                 $paypalService = new PaypalService(
                     config('services.paypal.sandbox.client_id'),
                     config('services.paypal.sandbox.secret'),
@@ -46,7 +46,7 @@ class PayPalWebhookController extends Controller
                 }
 
                 $orderPayment->gateway_reference = $captureDetails['id'];
-                $orderPayment->status = OrderPaymentStatusEnum::COMPLETED;
+                $orderPayment->status = OrderPaymentStatusEnum::Completed;
                 $orderPayment->transaction_fee = $fee;
                 $orderPayment->net_amount = $net;
                 $orderPayment->gateway_response = $capture;
@@ -55,7 +55,7 @@ class PayPalWebhookController extends Controller
                 $order = $orderPayment->order;
                 $order->orderItems->each(function ($orderItem) {
                     $updatedOrderItemStatuses = $orderItem->orderItemStatuses()->create([
-                        'status' => OrderItemStatusEnum::TO_SHIP,
+                        'status' => OrderItemStatusEnum::ToShip,
                         'changed_by_id' => $orderItem->order->customer->user_id ?? 1,
                         'notes' => 'Order has been paid.',
                     ]);

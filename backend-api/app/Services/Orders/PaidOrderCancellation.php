@@ -21,6 +21,8 @@ class PaidOrderCancellation implements OrderCancellationInterface
         DB::transaction(function () use ($order, $orderPayment) {
             $this->cancelItems($order);
 
+            $actorRole = request()->user()->roles()->pluck('name')[0];
+
             $order->orderPayments()->create([
                 'payment_method' => $orderPayment['payment_method'],
                 'transaction_reference' => $orderPayment['transaction_reference'],
@@ -29,7 +31,9 @@ class PaidOrderCancellation implements OrderCancellationInterface
                 'transaction_fee' => $orderPayment['transaction_fee'],
                 'net_amount' => $orderPayment['net_amount'],
                 'gateway_response' => $orderPayment['gateway_response'],
-                'status' => OrderPaymentStatus::FAILED
+                'status' => ($actorRole === 'customer')
+                    ? OrderPaymentStatus::Failed
+                    : OrderPaymentStatus::PartialRefund,
             ]);
         });
     }

@@ -12,7 +12,7 @@ test('stripe webhook successfully transitions payment and order items to paid st
 
     $xenditReferenceId = 'ORD-' . $order->id . '-MOCK';
     $orderPayment = OrderPayment::factory()->for($order)->create([
-        'status' => OrderPaymentStatus::PENDING,
+        'status' => OrderPaymentStatus::Pending,
         'transaction_reference' => $xenditReferenceId,
     ]);
 
@@ -56,11 +56,11 @@ test('stripe webhook successfully transitions payment and order items to paid st
 
     expect($orderPayment)
         ->payment_method->toBe('xendit')
-        ->status->toBe(OrderPaymentStatus::COMPLETED)
+        ->status->toBe(OrderPaymentStatus::Completed)
         ->gateway_reference->toBe('cptr-2cc743c3-04a9-4317-995e-18ac709327a2');
 
     $order->orderItems->each(function ($orderItem) {
         expect($orderItem->orderItemStatuses)->toHaveCount(2);
-        expect($orderItem->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::TO_SHIP);
+        expect($orderItem->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::ToShip);
     });
 });

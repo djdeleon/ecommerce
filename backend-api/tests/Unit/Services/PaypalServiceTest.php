@@ -55,7 +55,7 @@ test('paypal sandbox integration create order', function () {
     dump("Approval URL: {$approvalUrl}"); // login to the PayPal Developer and open this link in a new browser
 
     pause();
-});
+})->skip();
 
 test('paypal sandbox integration capture order', function () {
     $paypalService = new PaypalService(
@@ -63,7 +63,7 @@ test('paypal sandbox integration capture order', function () {
         config('services.paypal.sandbox.secret'),
     );
 
-    $paypalOrderId = '3V594329K26515226';
+    $paypalOrderId = '7Y258289420126212';
 
     $captureData = $paypalService->captureOrder($paypalOrderId);
 
@@ -75,4 +75,4 @@ test('paypal sandbox integration capture order', function () {
     expect($captureDetails['status'])->toBe('COMPLETED');
     expect($captureDetails['seller_receivable_breakdown']['paypal_fee']['value'])->not->toBeNull();
     expect($captureDetails['seller_receivable_breakdown']['net_amount']['value'])->not->toBeNull();
-});
+})->skip();

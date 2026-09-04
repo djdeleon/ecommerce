@@ -43,17 +43,24 @@ class Order extends Model
 
     public function ensureItemsCanTransition(OrderItemStatus $target)
     {
-        $actor = 'customer';
+        $actorId = request()->user()->id;
+        $actorRole = request()->user()->roles()->pluck('name')[0];
         $currentPaymentStatus = $this->latestOrderPayment->status;
 
-        // dd($actor, $target, $currentPaymentStatus);
-        $this->orderItems->each(function ($orderItem) use ($target, $currentPaymentStatus, $actor) {
+        // need to get all the order items belong to the vendor
+        $filteredOrderItems = $this->orderItems->filter(function ($orderItem) use ($actorId) {
+            if ($orderItem->variant->product->vendor->user_id === $actorId) {
+                return $orderItem;
+            }
+        });
+
+        $filteredOrderItems->each(function ($orderItem) use ($target, $currentPaymentStatus, $actorRole) {
             $currentItemStatus = $orderItem->latestOrderItemStatus->status;
 
-            $canTransition = $currentItemStatus->canTransitionWithPayment($target, $currentPaymentStatus, $actor);
+            $canTransition = $currentItemStatus->canTransitionWithPayment($target, $currentPaymentStatus, $actorRole);
 
             if (! $canTransition) {
-                throw new Exception("Item ID {$orderItem->id} cannot be cancelled because it is in [{$currentItemStatus->value}] status with payment [{$currentPaymentStatus->value}].");
+                throw new Exception("[{$currentItemStatus->value}] Item ID {$orderItem->id} cannot transition to cancelled because it is in payment status of [{$currentPaymentStatus->value}].");
             }
         });
 

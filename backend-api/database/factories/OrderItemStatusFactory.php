@@ -22,7 +22,7 @@ class OrderItemStatusFactory extends Factory
     {
         return [
             'order_item_id' => OrderItem::factory(),
-            'status' => StatusEnum::TO_PAY,
+            'status' => StatusEnum::ToPay,
             'changed_by_id' => Customer::factory()->create()->user->id,
             'notes' => 'waiting for customer to pay',
         ];

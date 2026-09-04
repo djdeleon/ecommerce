@@ -6,6 +6,7 @@ use App\Enums\OrderItemStatus as StatusEnum;
 use Database\Factories\OrderItemStatusFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OrderItemStatus extends Model
 {
@@ -23,5 +24,10 @@ class OrderItemStatus extends Model
         return [
             'status' => StatusEnum::class
         ];
+    }
+
+    public function orderItem(): BelongsTo
+    {
+        return $this->belongsTo(OrderItem::class);
     }
 }

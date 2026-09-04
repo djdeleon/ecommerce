@@ -9,11 +9,11 @@ class OrderCancellationFactory
 {
     public function make(OrderPaymentStatus $paymentStatus): OrderCancellationInterface
     {
-        if ($paymentStatus === OrderPaymentStatus::COMPLETED) {
+        if ($paymentStatus === OrderPaymentStatus::Completed) {
             return app(PaidOrderCancellation::class);
         }
 
-        if (in_array($paymentStatus, [OrderPaymentStatus::PENDING, OrderPaymentStatus::AUTHORIZED, OrderPaymentStatus::FAILED])) {
+        if (in_array($paymentStatus, [OrderPaymentStatus::Pending, OrderPaymentStatus::Authorized, OrderPaymentStatus::Failed])) {
             return app(UnpaidOrderCancellation::class);
         }
 

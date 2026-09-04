@@ -61,7 +61,9 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
         Route::post('checkouts', [CheckoutController::class, 'store'])->name('checkouts.store');
 
         Route::post('orders/place', [OrderController::class, 'place'])->name('orders.place');
-        
+    });
+
+    Route::middleware('role:customer|vendor')->group(function () {
         Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
     });
 

@@ -4,13 +4,13 @@ namespace App\Enums;
 
 enum OrderItemStatus: string
 {
-    case TO_PAY     = 'to_pay';     // triggers when a customer encounters some problem with their online payment
-    case TO_SHIP    = 'to_ship';    // Paid, waiting for vendor to package
-    case TO_RECEIVE = 'to_receive'; // Shipped / In transit / Delivered
-    case COMPLETED  = 'completed';  // Delivered & confirmed by customer
-    case CANCELLED  = 'cancelled';  // Cancelled before shipping
-    case REJECTED   = 'rejected';   // Declined by Vendor
-    case RETURNED   = 'returned';   // Returned
+    case ToPay     = 'to_pay';     // triggers when a customer encounters some problem with their online payment
+    case ToShip    = 'to_ship';    // Paid, waiting for vendor to package
+    case ToReceive = 'to_receive'; // Shipped / In transit / Delivered
+    case Completed  = 'completed';  // Delivered & confirmed by customer
+    case Cancelled  = 'cancelled';  // Cancelled before shipping
+    case Rejected   = 'rejected';   // Declined by Vendor
+    case Returned   = 'returned';   // Returned
 
     /**
      * Legal Transition State
@@ -18,10 +18,10 @@ enum OrderItemStatus: string
     public function canTransitionTo(self $target): bool
     {
         return match($this) {
-            self::TO_PAY     => in_array($target, [self::TO_SHIP, self::CANCELLED]),
-            self::TO_SHIP    => in_array($target, [self::TO_RECEIVE, self::REJECTED, self::CANCELLED]),
-            self::TO_RECEIVE => in_array($target, [self::COMPLETED, self::RETURNED]),
-            default          => false, // Terminal states: CANCELLED, REJECTED, COMPLETED, RETURNED
+            self::ToPay     => in_array($target, [self::ToShip, self::Cancelled]),
+            self::ToShip    => in_array($target, [self::ToReceive, self::Rejected, self::Cancelled]),
+            self::ToReceive => in_array($target, [self::Completed, self::Returned]),
+            default          => false, // Terminal states: Cancelled, Rejected, Completed, Returned
         };
     }
 
@@ -38,64 +38,65 @@ enum OrderItemStatus: string
         }
 
         return match($target) {
-            self::TO_SHIP => $orderPaymentStatus === OrderPaymentStatus::COMPLETED && $actor === 'system',
+            self::ToShip => $orderPaymentStatus === OrderPaymentStatus::Completed && $actor === 'system',
 
-            self::TO_RECEIVE => $orderPaymentStatus === OrderPaymentStatus::COMPLETED && $actor === 'vendor',
+            self::ToReceive => $orderPaymentStatus === OrderPaymentStatus::Completed && $actor === 'vendor',
 
-            self::COMPLETED => $orderPaymentStatus === OrderPaymentStatus::COMPLETED && in_array($actor, ['system', 'customer']),
+            self::Completed => $orderPaymentStatus === OrderPaymentStatus::Completed && in_array($actor, ['system', 'customer']),
 
-            self::CANCELLED => $actor === 'customer' && in_array($orderPaymentStatus, [
-                                                            OrderPaymentStatus::PENDING, 
-                                                            OrderPaymentStatus::AUTHORIZED, 
-                                                            OrderPaymentStatus::FAILED, 
-                                                            OrderPaymentStatus::COMPLETED
+            self::Cancelled => in_array($actor, ['customer', 'vendor']) && in_array($orderPaymentStatus, [
+                                                            OrderPaymentStatus::Pending, 
+                                                            OrderPaymentStatus::Authorized, 
+                                                            OrderPaymentStatus::Failed, 
+                                                            OrderPaymentStatus::Completed,
+                                                            OrderPaymentStatus::PartialRefund,
                                                         ]),
 
-            self::REJECTED => $actor === 'vendor' && $orderPaymentStatus === OrderPaymentStatus::COMPLETED,
+            self::Rejected => $actor === 'vendor' && $orderPaymentStatus === OrderPaymentStatus::Completed,
             
-            self::RETURNED => $actor === 'vendor' && $orderPaymentStatus === OrderPaymentStatus::COMPLETED,
+            self::Returned => $actor === 'vendor' && $orderPaymentStatus === OrderPaymentStatus::Completed,
 
             default => false,
         };
     }
 
     /**
-     * an order status is set to TO_PAY for the INITIAL STATUS for the newly created order,
+     * an order status is set to ToPay for the INITIAL STATUS for the newly created order,
      * - This is the initial status of the order so we shouldn't be saying "can be" but "is set to" and simply lay out all the side effects
      * - - an order record is created
-     * - - order items status are set to TO_PAY
-     * - - an order payment is set to PENDING
+     * - - order items status are set to ToPay
+     * - - an order payment is set to Pending
      * 
-     * an order status can be set to TO_SHIP,
-     * - IF the Order Payment Status is COMPLETED
-     * - AND the latest Order Item Status is TO_PAY
+     * an order status can be set to ToShip,
+     * - IF the Order Payment Status is Completed
+     * - AND the latest Order Item Status is ToPay
      * 
-     * a vendor can set the order status to TO_RECEIVE,
-     * - IF the Order Payment Status is COMPLETED
-     * - AND the latest Order Item Status is TO_SHIP
+     * a vendor can set the order status to ToReceive,
+     * - IF the Order Payment Status is Completed
+     * - AND the latest Order Item Status is ToShip
      * 
-     * an order status can be set to COMPLETED in Two Ways:
+     * an order status can be set to Completed in Two Ways:
      * 1. a customer can set,
-     * - IF the Order Payment Status is COMPLETED
-     * - AND the latest Order Item Status is TO_RECEIVE
+     * - IF the Order Payment Status is Completed
+     * - AND the latest Order Item Status is ToReceive
      * 2. the system automatically sets the status in 1 week prior to delivery date,
-     * - IF the Order Payment Status is COMPLETED
-     * - AND the latest Order Item Status is TO_RECEIVE
+     * - IF the Order Payment Status is Completed
+     * - AND the latest Order Item Status is ToReceive
      * 
-     * a customer can set the order status to CANCELLED in Two Ways,
+     * a customer can set the order status to Cancelled in Two Ways,
      * 1. a customer can set,
-     * - IF the Order Payment Status is PENDING / AUTHORIZED / FAILED
-     * - AND the latest Order Item Status is TO_PAY
+     * - IF the Order Payment Status is Pending / Authorized / Failed
+     * - AND the latest Order Item Status is ToPay
      * 2. a customer can set,
-     * - IF the Order Payment Status is COMPLETED
-     * - AND the latest Order Item Status is TO_SHIP
+     * - IF the Order Payment Status is Completed
+     * - AND the latest Order Item Status is ToShip
      * 
-     * A vendor can set the order status to REJECTED,
-     * - IF the Order Payment Status is COMPLETED
-     * - AND the latest Order Item Status is TO_SHIP
+     * A vendor can set the order status to Rejected,
+     * - IF the Order Payment Status is Completed
+     * - AND the latest Order Item Status is ToShip
      * 
-     * an order status can be set to RETURNED, 
-     * - IF the Order Payment Status is COMPLETED
-     * - AND the latest order item status is TO_RECEIVE
+     * an order status can be set to Returned, 
+     * - IF the Order Payment Status is Completed
+     * - AND the latest order item status is ToReceive
      */ 
 }

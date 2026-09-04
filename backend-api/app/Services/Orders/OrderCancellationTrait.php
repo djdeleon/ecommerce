@@ -9,12 +9,36 @@ trait OrderCancellationTrait
 {
     public function cancelItems(Order $order)
     {
-        $order->orderItems->each(function ($orderItem) {
-            $orderItem->orderItemStatuses()->create([
-                'status' => OrderItemStatus::CANCELLED,
-                'changed_by_id' => $orderItem->order->customer->user_id,
-                'notes' => 'Customer cancelled the order.',
-            ]);
-        });
+        $actorRole = request()->user()->roles()->pluck('name')[0];
+        $actorId = request()->user()->id;
+
+        if ($actorRole === 'vendor') {
+            // need to get all the order items belong to the vendor
+            $filteredOrderItems = $order->orderItems->filter(function ($orderItem) use ($actorId) {
+                if ($orderItem->variant->product->vendor->user_id === $actorId) {
+                    return $orderItem;
+                }
+            });
+
+            $target = OrderItemStatus::Rejected;
+
+            $filteredOrderItems->each(function ($orderItem) use ($target, $actorId, $actorRole) {
+                $orderItem->orderItemStatuses()->create([
+                    'status' => $target,
+                    'changed_by_id' => $actorId,
+                    'notes' => ucfirst($actorRole) . ' ' . $target->value . ' the order.',
+                ]);
+            });
+        } else { 
+            $target = OrderItemStatus::Cancelled;
+
+            $order->orderItems->each(function ($orderItem) use ($target, $actorId, $actorRole) {
+                $orderItem->orderItemStatuses()->create([
+                    'status' => $target,
+                    'changed_by_id' => $actorId,
+                    'notes' => ucfirst($actorRole) . ' ' . $target->value . ' the order.',
+                ]);
+            });
+        }
     }
 }

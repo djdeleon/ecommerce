@@ -32,19 +32,19 @@ class StripeWebhookController extends Controller
 
             $orderPayment = OrderPayment::where('transaction_reference', $paymentIntentId)->first();
 
-            if ($orderPayment && $orderPayment->status === OrderPaymentStatus::PENDING) {
+            if ($orderPayment && $orderPayment->status === OrderPaymentStatus::Pending) {
                 $order = $orderPayment->order;
 
                 DB::transaction(function () use ($order, $orderPayment, $chargeId) {
                     $orderPayment->update([
                         'payment_method' => 'stripe',
-                        'status' => OrderPaymentStatus::COMPLETED,
+                        'status' => OrderPaymentStatus::Completed,
                         'gateway_reference' => $chargeId,
                     ]);
 
                     $order->orderItems->each(function ($orderItem) {
                             $orderItem->orderItemStatuses()->create([
-                                'status' => OrderItemStatusEnums::TO_SHIP,
+                                'status' => OrderItemStatusEnums::ToShip,
                                 'changed_by_id' => $orderItem->order->customer->user_id,
                                 'notes' => 'Payment succesfully captured via card.',
                             ]);

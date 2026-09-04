@@ -28,7 +28,7 @@ return new class extends Migration
             $table->decimal('net_amount', 10, 4)->default(0.000);
             $table->jsonb('gateway_response')->nullable();
 
-            $table->string('status', 20)->default(OrderPaymentStatus::PENDING);
+            $table->string('status', 20)->default(OrderPaymentStatus::Pending);
             $table->timestamps();
 
             $table->unique(['id', 'order_id', 'gateway_reference'], 'gateway_ref_unique');

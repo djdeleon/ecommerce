@@ -22,7 +22,7 @@ class UnpaidOrderCancellation implements OrderCancellationInterface
             $this->cancelItems($order);
                     
             $orderPayment->update([
-                'status' => OrderPaymentStatus::FAILED,
+                'status' => OrderPaymentStatus::Failed,
             ]);
         });
     }

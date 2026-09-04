@@ -15,7 +15,7 @@ test('stripe webhook successfully transitions payment and order items to paid st
 
     $paymentIntentId = 'pl_test_mock_12345';
     $orderPayment = OrderPayment::factory()->for($order)->create([
-        'status' => OrderPaymentStatus::PENDING,
+        'status' => OrderPaymentStatus::Pending,
         'transaction_reference' => $paymentIntentId,
     ]);
 
@@ -45,11 +45,11 @@ test('stripe webhook successfully transitions payment and order items to paid st
     $orderPayment->refresh();
 
     expect($orderPayment)
-        ->status->toBe(OrderPaymentStatus::COMPLETED)
+        ->status->toBe(OrderPaymentStatus::Completed)
         ->gateway_reference->toBe('ch_mock_charge_999');
 
     $order->orderItems->each(function ($orderItem) {
         expect($orderItem->orderItemStatuses)->toHaveCount(2);
-        expect($orderItem->latestOrderItemStatus->status)->toBe(EnumsOrderItemStatus::TO_SHIP);
+        expect($orderItem->latestOrderItemStatus->status)->toBe(EnumsOrderItemStatus::ToShip);
     });
 });

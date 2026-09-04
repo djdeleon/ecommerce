@@ -25,7 +25,7 @@ class OrderPaymentFactory extends Factory
             'transaction_reference' => fake()->numerify('TN-##########'),
             'amount_paid' => '100.00',
             'gateway_reference' => 'GY-' . fake()->uuid(),
-            'status' => OrderPaymentStatus::PENDING,
+            'status' => OrderPaymentStatus::Pending,
         ];
     }
 }

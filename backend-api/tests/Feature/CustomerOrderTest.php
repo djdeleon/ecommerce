@@ -5,11 +5,179 @@ use App\Enums\OrderPaymentStatus;
 use App\Models\CartItem;
 use App\Models\Customer;
 use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\OrderItemStatus;
+use App\Models\OrderPayment;
 use App\Models\Product;
 use App\Models\Variant;
 use App\Models\Vendor;
 use App\Services\Payments\StripeService;
 use Illuminate\Support\Facades\Http;
+
+describe('a completed, to_ship order can be rejected', function () { // needs to be placed in other file
+    // scenario one
+    test('a single item order can be rejected by the vendor', function () {
+        $product = Product::factory()->hasVariants(2)->create();
+        $variantA = $product->variants[0];
+        $variantB = $product->variants[1];
+        $vendor = $product->vendor;
+
+        $order = Order::factory()->create();
+        $customer = $order->customer;
+
+        $orderItemA = OrderItem::factory()->for($order)->create(['variant_id' => $variantA->id]);
+        $orderItemB = OrderItem::factory()->for($order)->create(['variant_id' => $variantB->id]);
+
+        OrderItemStatus::factory()->for($orderItemA)->create(['status' => OrderItemStatusEnum::ToPay]);
+        OrderItemStatus::factory()->for($orderItemA)->create(['status' => OrderItemStatusEnum::ToShip]);
+        OrderItemStatus::factory()->for($orderItemB)->create(['status' => OrderItemStatusEnum::ToPay]);
+        OrderItemStatus::factory()->for($orderItemB)->create(['status' => OrderItemStatusEnum::ToShip]);
+
+        OrderPayment::factory()->for($order)->create(['status' => OrderPaymentStatus::Completed]);
+        // The arrangement above can be turn into a method
+
+        $this->actingAs($vendor->user, 'sanctum')
+            ->postJson(route('orders.cancel', $order))
+            ->assertOk();
+        
+        $order->refresh();
+
+        expect($order->orderPayments)->toHaveCount(2);
+        expect($order->orderPayments[0]->status)->toBe(OrderPaymentStatus::Completed);
+        expect($order->latestOrderPayment->status)->toBe(OrderPaymentStatus::PartialRefund);
+        
+        expect($order->orderItems)->toHaveCount(2);
+    
+        $order->orderItems->each(function ($orderItem) use ($vendor) {
+            expect($orderItem->orderItemStatuses)->toHaveCount(3);
+            expect($orderItem->orderItemStatuses[0]->status)->toBe(OrderItemStatusEnum::ToPay);
+            expect($orderItem->orderItemStatuses[1]->status)->toBe(OrderItemStatusEnum::ToShip);
+            expect($orderItem->latestOrderItemStatus)
+                ->status->toBe(OrderItemStatusEnum::Rejected)
+                ->changed_by_id->toBe($vendor->user_id);
+        });
+    });
+    
+    // scenario two
+    test('a multiple package order can be rejected by the multiple vendors', function () {
+        // Package A
+        $pA = Product::factory()->hasVariants(2)->create();
+        $pAvtA = $pA->variants[0];
+        $pAvtB = $pA->variants[1];
+        $pAVA = $pA->vendor;
+
+        // Package B
+        $pB = Product::factory()->hasVariants(2)->create();
+        $pBvtA = $pB->variants[0];
+        $pBvtB = $pB->variants[1];
+        $pBVB = $pB->vendor;
+
+        // Package C
+        $pC = Product::factory()->hasVariants(2)->create();
+        $pCvtA = $pC->variants[0];
+        $pCvtB = $pC->variants[1];
+        $pCVC = $pC->vendor;
+
+        $order = Order::factory()->create();
+        $customer = $order->customer;
+
+        $pAorderItemA = OrderItem::factory()->for($order)->create(['variant_id' => $pAvtA->id]);
+        $pAorderItemB = OrderItem::factory()->for($order)->create(['variant_id' => $pAvtB->id]);
+        $pBorderItemA = OrderItem::factory()->for($order)->create(['variant_id' => $pBvtA->id]);
+        $pBorderItemB = OrderItem::factory()->for($order)->create(['variant_id' => $pBvtB->id]);
+        $pCorderItemA = OrderItem::factory()->for($order)->create(['variant_id' => $pCvtA->id]);
+        $pCorderItemB = OrderItem::factory()->for($order)->create(['variant_id' => $pCvtB->id]);
+
+        OrderItemStatus::factory()->for($pAorderItemA)->create(['status' => OrderItemStatusEnum::ToPay]);
+        OrderItemStatus::factory()->for($pAorderItemA)->create(['status' => OrderItemStatusEnum::ToShip]);
+        
+        OrderItemStatus::factory()->for($pAorderItemB)->create(['status' => OrderItemStatusEnum::ToPay]);
+        OrderItemStatus::factory()->for($pAorderItemB)->create(['status' => OrderItemStatusEnum::ToShip]);
+
+        OrderItemStatus::factory()->for($pBorderItemA)->create(['status' => OrderItemStatusEnum::ToPay]);
+        OrderItemStatus::factory()->for($pBorderItemA)->create(['status' => OrderItemStatusEnum::ToShip]);
+
+        OrderItemStatus::factory()->for($pBorderItemB)->create(['status' => OrderItemStatusEnum::ToPay]);
+        OrderItemStatus::factory()->for($pBorderItemB)->create(['status' => OrderItemStatusEnum::ToShip]);
+
+        OrderItemStatus::factory()->for($pCorderItemA)->create(['status' => OrderItemStatusEnum::ToPay]);
+        OrderItemStatus::factory()->for($pCorderItemA)->create(['status' => OrderItemStatusEnum::ToShip]);
+
+        OrderItemStatus::factory()->for($pCorderItemB)->create(['status' => OrderItemStatusEnum::ToPay]);
+        OrderItemStatus::factory()->for($pCorderItemB)->create(['status' => OrderItemStatusEnum::ToShip]);
+
+        OrderPayment::factory()->for($order)->create(['status' => OrderPaymentStatus::Completed]);
+
+        $this->actingAs($pAVA->user, 'sanctum')
+            ->postJson(route('orders.cancel', $order))
+            ->assertOk();
+        
+        $order->refresh();
+
+        expect($order->orderPayments)->toHaveCount(2);
+        expect($order->orderPayments[0]->status)->toBe(OrderPaymentStatus::Completed);
+        expect($order->latestOrderPayment->status)->toBe(OrderPaymentStatus::PartialRefund);
+
+        expect($order->orderItems)->toHaveCount(6);
+        expect($pAorderItemA->orderItemStatuses)->toHaveCount(3);
+        expect($pAorderItemA->orderItemStatuses[0]->status)->toBe(OrderItemStatusEnum::ToPay);
+        expect($pAorderItemA->orderItemStatuses[1]->status)->toBe(OrderItemStatusEnum::ToShip);
+        expect($pAorderItemA->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::Rejected);
+
+        expect($pAorderItemB->orderItemStatuses)->toHaveCount(3);
+        expect($pAorderItemB->orderItemStatuses[0]->status)->toBe(OrderItemStatusEnum::ToPay);
+        expect($pAorderItemB->orderItemStatuses[1]->status)->toBe(OrderItemStatusEnum::ToShip);
+        expect($pAorderItemB->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::Rejected);
+
+        $this->actingAs($pBVB->user, 'sanctum')
+            ->postJson(route('orders.cancel', $order))
+            ->assertOk();
+
+        $order->refresh();
+
+        expect($order->orderPayments)->toHaveCount(3);
+        expect($order->orderPayments[0]->status)->toBe(OrderPaymentStatus::Completed);
+        expect($order->orderPayments[1]->status)->toBe(OrderPaymentStatus::PartialRefund);
+        expect($order->latestOrderPayment->status)->toBe(OrderPaymentStatus::PartialRefund);
+
+        expect($order->orderItems)->toHaveCount(6);
+        expect($pBorderItemA->orderItemStatuses)->toHaveCount(3);
+        expect($pBorderItemA->orderItemStatuses[0]->status)->toBe(OrderItemStatusEnum::ToPay);
+        expect($pBorderItemA->orderItemStatuses[1]->status)->toBe(OrderItemStatusEnum::ToShip);
+        expect($pBorderItemA->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::Rejected);
+
+        expect($pBorderItemB->orderItemStatuses)->toHaveCount(3);
+        expect($pBorderItemB->orderItemStatuses[0]->status)->toBe(OrderItemStatusEnum::ToPay);
+        expect($pBorderItemB->orderItemStatuses[1]->status)->toBe(OrderItemStatusEnum::ToShip);
+        expect($pBorderItemB->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::Rejected);
+
+        $this->actingAs($pCVC->user, 'sanctum')
+            ->postJson(route('orders.cancel', $order))
+            ->assertOk();
+        
+        $order->refresh();
+
+        expect($order->orderPayments)->toHaveCount(4);
+        expect($order->orderPayments[0]->status)->toBe(OrderPaymentStatus::Completed);
+        expect($order->orderPayments[1]->status)->toBe(OrderPaymentStatus::PartialRefund);
+        expect($order->orderPayments[2]->status)->toBe(OrderPaymentStatus::PartialRefund);
+        expect($order->latestOrderPayment->status)->toBe(OrderPaymentStatus::PartialRefund);
+        
+        expect($order->orderItems)->toHaveCount(6);
+        expect($pCorderItemA->orderItemStatuses)->toHaveCount(3);
+        expect($pCorderItemA->orderItemStatuses[0]->status)->toBe(OrderItemStatusEnum::ToPay);
+        expect($pCorderItemA->orderItemStatuses[1]->status)->toBe(OrderItemStatusEnum::ToShip);
+        expect($pCorderItemA->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::Rejected);
+
+        expect($pCorderItemB->orderItemStatuses)->toHaveCount(3);
+        expect($pCorderItemB->orderItemStatuses[0]->status)->toBe(OrderItemStatusEnum::ToPay);
+        expect($pCorderItemB->orderItemStatuses[1]->status)->toBe(OrderItemStatusEnum::ToShip);
+        expect($pCorderItemB->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::Rejected);
+    });
+    
+    // scenario three
+    test('a multiple items order can be rejected by the entire vendors');
+});
 
 test('a customer can cancel its to_ship paid orders', function () {
     $order = Order::factory()
@@ -23,18 +191,18 @@ test('a customer can cancel its to_ship paid orders', function () {
     $order->refresh();
 
     expect($order->orderPayments)->toHaveCount(2);
-    expect($order->orderPayments[0]->status)->toBe(OrderPaymentStatus::COMPLETED);
-    expect($order->latestOrderPayment->status)->toBe(OrderPaymentStatus::FAILED);
+    expect($order->orderPayments[0]->status)->toBe(OrderPaymentStatus::Completed);
+    expect($order->latestOrderPayment->status)->toBe(OrderPaymentStatus::Failed);
 
     expect($order->orderItems)->toHaveCount(2);
     
     $order->orderItems->each(function ($orderItem) {
         expect($orderItem->orderItemStatuses)->toHaveCount(3);
-        expect($orderItem->orderItemStatuses[0]->status)->toBe(OrderItemStatusEnum::TO_PAY);
-        expect($orderItem->orderItemStatuses[1]->status)->toBe(OrderItemStatusEnum::TO_SHIP);
-        expect($orderItem->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::CANCELLED);
+        expect($orderItem->orderItemStatuses[0]->status)->toBe(OrderItemStatusEnum::ToPay);
+        expect($orderItem->orderItemStatuses[1]->status)->toBe(OrderItemStatusEnum::ToShip);
+        expect($orderItem->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::Cancelled);
     });
-})->only();
+});
 
 test('a customer can cancel its to_pay unpaid orders', function () {
     $order = Order::factory()
@@ -48,16 +216,16 @@ test('a customer can cancel its to_pay unpaid orders', function () {
     $order->refresh();
 
     expect($order->orderPayments)->toHaveCount(1);
-    expect($order->latestOrderPayment->status)->toBe(OrderPaymentStatus::FAILED);
+    expect($order->latestOrderPayment->status)->toBe(OrderPaymentStatus::Failed);
 
     expect($order->orderItems)->toHaveCount(2);
 
     $order->orderItems->each(function ($orderItem) {
         expect($orderItem->orderItemStatuses)->toHaveCount(2);
-        expect($orderItem->orderItemStatuses[0]->status)->toBe(OrderItemStatusEnum::TO_PAY);
-        expect($orderItem->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::CANCELLED);
+        expect($orderItem->orderItemStatuses[0]->status)->toBe(OrderItemStatusEnum::ToPay);
+        expect($orderItem->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::Cancelled);
     });
-})->only();
+});
 
 test('a customer can place its orders with xendit available payment methods', function ($payment) {
     Http::fake([
@@ -149,13 +317,13 @@ test('a customer can place its orders with xendit available payment methods', fu
     expect($order->orderItems)->toHaveCount(3);
     $order->orderItems->each(function ($orderItem) {
         expect($orderItem->orderItemStatuses)->toHaveCount(1);
-        expect($orderItem->orderItemStatuses[0]->status)->toBe(OrderItemStatusEnum::TO_PAY);
-        expect($orderItem->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::TO_PAY);
+        expect($orderItem->orderItemStatuses[0]->status)->toBe(OrderItemStatusEnum::ToPay);
+        expect($orderItem->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::ToPay);
     });
 
     expect($order->orderPayments)->toHaveCount(1);
     expect($order->orderPayments->first())
-        ->status->toBe(OrderPaymentStatus::PENDING)
+        ->status->toBe(OrderPaymentStatus::Pending)
         ->transaction_reference->toBe('pr-test-mock-12345')
         ->payment_method->toBe($payment['channel_code']);
 })->with([
@@ -260,13 +428,13 @@ test('a customer can place its orders with stripe payment', function () {
     expect($order->orderItems)->toHaveCount(3);
     $order->orderItems->each(function ($orderItem) {
         expect($orderItem->orderItemStatuses)->toHaveCount(1);
-        expect($orderItem->orderItemStatuses[0]->status)->toBe(OrderItemStatusEnum::TO_PAY);
-        expect($orderItem->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::TO_PAY);
+        expect($orderItem->orderItemStatuses[0]->status)->toBe(OrderItemStatusEnum::ToPay);
+        expect($orderItem->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::ToPay);
     });
 
     expect($order->orderPayments)->toHaveCount(1);
     expect($order->orderPayments->first())
-        ->status->toBe(OrderPaymentStatus::PENDING)
+        ->status->toBe(OrderPaymentStatus::Pending)
         ->transaction_reference->toBe('pi_test_mock_12345')
         ->payment_method->toBe('stripe');
 });
@@ -341,13 +509,13 @@ test('a customer can place its orders with paypal payment', function () {
     expect($order->orderItems)->toHaveCount(3);
     $order->orderItems->each(function ($orderItem) {
         expect($orderItem->orderItemStatuses)->toHaveCount(1);
-        expect($orderItem->orderItemStatuses[0]->status)->toBe(OrderItemStatusEnum::TO_PAY);
-        expect($orderItem->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::TO_PAY);
+        expect($orderItem->orderItemStatuses[0]->status)->toBe(OrderItemStatusEnum::ToPay);
+        expect($orderItem->latestOrderItemStatus->status)->toBe(OrderItemStatusEnum::ToPay);
     });
 
     expect($order->orderPayments)->toHaveCount(1);
     expect($order->orderPayments->first())
-        ->status->toBe(OrderPaymentStatus::PENDING)
+        ->status->toBe(OrderPaymentStatus::Pending)
         ->transaction_reference->toBe('PAYPAL-ORDER-12345')
         ->payment_method->toBe('paypal');
 });

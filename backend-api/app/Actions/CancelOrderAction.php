@@ -16,7 +16,7 @@ class CancelOrderAction
     {
         $current = $order->latestOrderPayment->status;
 
-        $order->ensureItemsCanTransition(OrderItemStatus::CANCELLED);
+        $order->ensureItemsCanTransition(OrderItemStatus::Cancelled);
 
         $orderCancellation = $this->orderCancellationFactory->make($current);
 

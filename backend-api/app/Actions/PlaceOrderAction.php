@@ -47,7 +47,7 @@ class PlaceOrderAction
             'transaction_reference' => $paymentService->getTransactionReference($response),
             'amount_paid' => $data['order_details']['total_amount'],
             'gateway_reference' => fake()->bothify('GY-initial-#####-??'),
-            'status' => OrderPaymentStatus::PENDING,
+            'status' => OrderPaymentStatus::Pending,
         ]);
     }
 
@@ -57,7 +57,7 @@ class PlaceOrderAction
 
         $orderItems->each(function ($orderItem) use ($customer) {
             $orderItem->orderItemStatuses()->create([
-                'status' => OrderItemStatus::TO_PAY,
+                'status' => OrderItemStatus::ToPay,
                 'changed_by_id' => $customer->user_id,
                 'notes' => 'Waiting for payment.',
             ]);
