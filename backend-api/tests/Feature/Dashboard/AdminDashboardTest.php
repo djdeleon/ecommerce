@@ -1,7 +1,9 @@
 <?php
 
+use App\Enums\UserRole;
+
 test('admin can access their dashboard data', function () {
-    actingAsRole(Roles::Admin)
+    actingAsRole(UserRole::Admin)
         ->getJson(route('admin.dashboard'))
         ->assertStatus(200)
         ->assertJsonStructure([
@@ -14,7 +16,7 @@ test('admin can access their dashboard data', function () {
 });
 
 test('vendors are blocked from the admin dashbaord', function () {
-    actingAsRole(Roles::Vendor)
+    actingAsRole(UserRole::Vendor)
         ->getJson(route('admin.dashboard'))
         ->assertStatus(403);
 });

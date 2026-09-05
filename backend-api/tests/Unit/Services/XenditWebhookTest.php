@@ -2,22 +2,27 @@
 
 use App\Enums\OrderPackagePaymentStatus;
 use App\Enums\OrderPackageStatus;
-use App\Models\Order;
+use Spatie\Permission\Models\Role;
 
-test('stripe webhook successfully transitions payment and order items to paid state', function () {
-    $order = Order::factory()->unpaid()->create();
-    
-    $xenditReferenceId = 'ORD-' . $order->id . '-MOCK';
+beforeEach(function () {
+    Role::firstOrCreate(['name' => 'customer', 'guard_name' => 'web']);
+});
 
+test('xendit webhook successfully transitions payment and order items to paid state', function () {
     $order = OrderTestBuilder::order()
                 ->packages()
                 ->withItems()
                 ->withStatuses()
                 ->withPayments(attributes: [
+                        'payment_method' => 'gcash',
                         'status' => OrderPackagePaymentStatus::Pending,
-                        'transaction_reference' => $xenditReferenceId,
+                        'transaction_reference' => function ($order) {
+                            return 'ORD-' . $order->id . '-MOCK';
+                        },
                     ])
                 ->create();
+                
+    $xenditReferenceId = $order->orderPackages[0]->getLatestOrderPackagePayment->transaction_reference;
 
     $payload = [
         'created' => '2026-09-01T18:46:31.898Z',
@@ -55,10 +60,10 @@ test('stripe webhook successfully transitions payment and order items to paid st
     $response = $this->postJson(route('xendit.webhook'), $payload);
     $response->assertOk();
 
-    $orderPayment = $order->orderPackages[0]->orderPackagePayments[0];
+    $orderPayment = $order->fresh()->orderPackages[0]->orderPackagePayments[0];
 
     expect($orderPayment)
-        ->payment_method->toBe('xendit')
+        ->payment_method->toBe('GCASH')
         ->status->toBe(OrderPackagePaymentStatus::Completed)
         ->gateway_reference->toBe('cptr-2cc743c3-04a9-4317-995e-18ac709327a2');
 

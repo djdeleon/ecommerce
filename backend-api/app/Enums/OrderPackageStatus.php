@@ -9,6 +9,7 @@ enum OrderPackageStatus: string
     case ToReceive = 'to_receive'; // Shipped / In transit / Delivered
     case Completed  = 'completed';  // Delivered & confirmed by customer
     case Cancelled  = 'cancelled';  // Cancelled before shipping
+    case ToReturn   = 'to_return';  // Requested by the customer
     case Rejected   = 'rejected';   // Declined by Vendor
     case Returned   = 'returned';   // Returned
 
@@ -20,8 +21,9 @@ enum OrderPackageStatus: string
         return match($this) {
             self::ToPay     => in_array($target, [self::ToShip, self::Cancelled]),
             self::ToShip    => in_array($target, [self::ToReceive, self::Rejected, self::Cancelled]),
-            self::ToReceive => in_array($target, [self::Completed, self::Returned]),
-            default          => false, // Terminal states: Cancelled, Rejected, Completed, Returned
+            self::ToReceive => in_array($target, [self::Completed, self::ToReturn]),
+            self::ToReturn  =>  in_array($target, [self::Returned, self::Rejected]),
+            default         => false, // Terminal states: Cancelled, Rejected, Completed, Returned
         };
     }
 
@@ -54,6 +56,8 @@ enum OrderPackageStatus: string
 
             self::Rejected => $actor === 'vendor' && $orderPaymentStatus === OrderPackagePaymentStatus::Completed,
             
+            self::ToReturn => $actor === 'customer' && $orderPaymentStatus === OrderPackagePaymentStatus::Completed,
+
             self::Returned => $actor === 'vendor' && $orderPaymentStatus === OrderPackagePaymentStatus::Completed,
 
             default => false,

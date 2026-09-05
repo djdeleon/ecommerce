@@ -11,63 +11,6 @@ use App\Models\Vendor;
 use App\Services\Payments\StripeService;
 use Illuminate\Support\Facades\Http;
 
-/**
- * We can cancel by order OR order package
- * - a customer can cancel its order
- * - - ALL packages in the order will be cancelled, since the customer pays for the entire packages in one payment.
- * 
- * - a vendor can cancel an order package
- */
-
-test('a vendor can cancel its order package', function () {
-    $order = Order::factory()->paid()->create();
-    $orderPackage = $order->orderPackages[0];
-
-    $this->actingAs($orderPackage->vendor->user, 'sanctum')
-        ->postJson(route('orders.vendor.cancel', $orderPackage))
-        ->assertOk();
-
-    $orderPackage->refresh();
-
-    expect($orderPackage->orderPackagePayments)->toHaveCount(2);
-    expect($orderPackage->orderPackagePayments[0]->status)->toBe(OrderPackagePaymentStatus::Completed);
-    expect($orderPackage->getLatestOrderPackagePayment->status)->toBe(OrderPackagePaymentStatus::Refunded);
-    
-    expect($orderPackage->orderPackageItems)->toHaveCount(1);
-});
-
-test('a customer can cancel its to_ship paid orders', function () {
-    $order = Order::factory()->paid()->create();
-    $orderPackage = $order->orderPackages[0];
-
-    $this->actingAs($order->customer->user, 'sanctum')
-        ->postJson(route('orders.customer.cancel', $order))
-        ->assertOk();
-
-    $order->refresh();
-
-    expect($orderPackage->orderPackagePayments)->toHaveCount(2);
-    expect($orderPackage->getLatestOrderPackagePayment->status)->toBe(OrderPackagePaymentStatus::Refunded);
-    
-    expect($orderPackage->orderPackageItems)->toHaveCount(1);
-});
-
-test('a customer can cancel its to_pay unpaid orders', function () {
-    $order = Order::factory()->unpaid()->create();
-    $orderPackage = $order->orderPackages[0];
-
-    $this->actingAs($order->customer->user, 'sanctum')
-        ->postJson(route('orders.customer.cancel', $order))
-        ->assertOk();
-
-    $order->refresh();
-
-    expect($orderPackage->orderPackagePayments)->toHaveCount(1);
-    expect($orderPackage->getLatestOrderPackagePayment->status)->toBe(OrderPackagePaymentStatus::Failed);
-    
-    expect($orderPackage->orderPackageItems)->toHaveCount(1);
-});
-
 test('a customer can place its orders with xendit available payment methods', function ($dataset) {
     Http::fake([
         '*/v3/payment_requests' => Http::response([

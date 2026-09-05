@@ -63,7 +63,7 @@ class OrderPackage extends Model
         $canTransition = $currentPackageStatus->canTransitionWithPayment($target, $currentPaymentStatus, $actorRole);
 
         if (! $canTransition) {
-            throw new Exception("This [{$currentPackageStatus->value}] package cannot transition to cancelled because it is in payment status of [{$currentPaymentStatus->value}].");
+            throw new Exception("This [{$currentPackageStatus->value}] package cannot transition to [{$target->value}] with a payment status of [{$currentPaymentStatus->value}] by the [{$actorRole}].");
         }
 
         return true;

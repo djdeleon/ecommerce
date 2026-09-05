@@ -2,7 +2,16 @@
 
 use App\Enums\OrderPackageStatus;
 use App\Enums\OrderPackagePaymentStatus;
-use App\Models\Order;
+use App\Enums\UserRole;
+use Spatie\Permission\Models\Role;
+
+beforeEach(function () {
+    foreach (UserRole::cases() as $role) {
+        Role::firstOrCreate([
+            'name' => $role->value,
+        ]);
+    }
+});
 
 test('order factory toPay state correctly creates item in ToPay status with delegated records', function () {
     $order = OrderTestBuilder::order()

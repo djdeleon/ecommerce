@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\UserRole;
 use App\Models\Customer;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -27,7 +28,7 @@ class CustomerFactory extends Factory
     public function configure()
     {
         return $this->afterCreating(function (Customer $customer) {
-            $customer->user->assignRole('customer');
+            $customer->user->assignRole(UserRole::Customer);
             $customer->cart()->create();
         });
     }

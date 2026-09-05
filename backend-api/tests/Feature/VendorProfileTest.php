@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Models\User;
 use App\Models\Vendor;
 
@@ -41,7 +42,7 @@ test('a registered customer can upgrade as vendor', function () {
         'business_tin' => 'business 123'
     ];
 
-    actingAsRole(Roles::Customer)
+    actingAsRole(UserRole::Customer)
         ->postJson(route('users.vendor-upgrade'), $vendorPayload)
         ->assertStatus(200)
         ->assertJsonStructure([
@@ -76,7 +77,7 @@ test('a registered vendor is unauthorized to access customer vendor upgrade', fu
 
 describe('validation tests for customer vendor upgrade', function () {
     it('fails if required vendor fields are missing', function () {
-        actingAsRole(Roles::Customer)
+        actingAsRole(UserRole::Customer)
             ->postJson(route('users.vendor-upgrade'), [])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['shop_name', 'business_tin']);

@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Models\Category;
 
 function createCategory(array $attributes = []): Category
@@ -8,7 +9,7 @@ function createCategory(array $attributes = []): Category
 }
 
 beforeEach(function () {
-    actingAsRole(Roles::Admin);
+    actingAsRole(UserRole::Admin);
 });
 
 test('a category can be created', function () {

@@ -56,11 +56,11 @@ class Order extends Model
             $actorRole = request()->user()->roles()->pluck('name')[0];
             $currentPaymentStatus = $item->getLatestOrderPackagePayment->status;
             $currentPackageStatus = $item->getLatestOrderPackageStatus->status;
-    
+
             $canTransition = $currentPackageStatus->canTransitionWithPayment($target, $currentPaymentStatus, $actorRole);
     
             if (! $canTransition) {
-                throw new Exception("This [{$currentPackageStatus->value}] package cannot transition to cancelled because it is in payment status of [{$currentPaymentStatus->value}].");
+            throw new Exception("This [{$currentPackageStatus->value}] package cannot transition to [{$target->value}] with a payment status of [{$currentPaymentStatus->value}] by the [{$actorRole}].");
             }
         });
 

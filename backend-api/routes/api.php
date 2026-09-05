@@ -65,7 +65,13 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
 
     Route::middleware('role:customer|vendor')->group(function () {
         Route::post('order-packages/{orderPackage}/cancel', [OrderController::class, 'cancelAsVendor'])->name('orders.vendor.cancel');
+        Route::post('order-packages/{orderPackage}/to-receive', [OrderController::class, 'toReceive'])->name('orders.vendor.to-receive');
+        Route::post('orders/{orderPackage}/to-return', [OrderController::class, 'toReturn'])->name('orders.to-return');
+        Route::post('order-packages/{orderPackage}/returned', [OrderController::class, 'returned'])->name('orders.vendor.returned');
+        Route::post('order-packages/{orderPackage}/rejected', [OrderController::class, 'rejected'])->name('orders.vendor.rejected');
         Route::post('orders/{order}/cancel', [OrderController::class, 'cancelAsCustomer'])->name('orders.customer.cancel');
+        Route::post('orders/{order}/completed', [OrderController::class, 'completed'])->name('orders.completed');
+        Route::post('orders/{order}/', [OrderController::class, 'returned'])->name('orders.vendor.returned');
     });
 
     Route::middleware('role:admin|vendor')->group(function () {

@@ -24,9 +24,10 @@ test('paypal sandbox integration create token', function () {
  * - and press enter
  */
 test('paypal sandbox integration create order', function () {
-    $order = Order::factory()
-        ->toShip()
-        ->create();
+    $order = OrderTestBuilder::order()
+                            ->packages()
+                            ->withItems()
+                            ->toPay('paypal');
     
     $paypalService = new PaypalService(
         config('services.paypal.sandbox.client_id'),
@@ -63,7 +64,7 @@ test('paypal sandbox integration capture order', function () {
         config('services.paypal.sandbox.secret'),
     );
 
-    $paypalOrderId = '7Y258289420126212';
+    $paypalOrderId = '18954208FY282792C';
 
     $captureData = $paypalService->captureOrder($paypalOrderId);
 

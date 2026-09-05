@@ -33,6 +33,7 @@ class StripeWebhookController extends Controller
 
             $orderPayment = OrderPackagePayment::where('transaction_reference', $paymentIntentId)->first();
 
+            
             if ($orderPayment && $orderPayment->status === OrderPackagePaymentStatus::Pending) {
                 $order = $orderPayment->orderPackage->order;
 
@@ -51,6 +52,7 @@ class StripeWebhookController extends Controller
                             ]);
                     });
                 });
+
             }
         }
 

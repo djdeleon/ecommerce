@@ -1,7 +1,9 @@
 <?php
 
+use App\Enums\UserRole;
+
 test('driver can access their dashboard data', function () {
-    actingAsRole(Roles::Driver)
+    actingAsRole(UserRole::Driver)
         ->getJson(route('drivers.dashboard'))
         ->assertStatus(200)
         ->assertJsonStructure([
@@ -14,7 +16,7 @@ test('driver can access their dashboard data', function () {
 });
 
 test('vendors are blocked from the driver dashboard', function () {
-    actingAsRole(Roles::Vendor)
+    actingAsRole(UserRole::Vendor)
         ->getJson(route('drivers.dashboard'))
         ->assertStatus(403);
 });

@@ -38,9 +38,9 @@ class XenditWebhookController extends Controller
             $order = $orderPayment->orderPackage->order;
             $capture = $data['captures'][0];
 
-            DB::transaction(function () use ($order, $orderPayment, $capture) {
+            DB::transaction(function () use ($order, $orderPayment, $capture, $data) {
                 $orderPayment->update([
-                    'payment_method' => 'xendit',
+                    'payment_method' => $data['channel_code'],
                     'status' => OrderPackagePaymentStatus::Completed,
                     'net_amount' => $capture['capture_amount'],
                     'gateway_reference' => $capture['capture_id'],

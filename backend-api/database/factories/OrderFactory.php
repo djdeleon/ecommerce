@@ -10,6 +10,7 @@ use App\Models\OrderPackage;
 use App\Models\OrderPackageItem;
 use App\Models\OrderPackagePayment;
 use App\Models\OrderPackageStatus;
+use App\Models\User;
 use App\Models\Variant;
 use App\Models\Vendor;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -67,6 +68,60 @@ class OrderFactory extends Factory
             $payment = OrderPackagePayment::factory()->for($orderPackage)->create();
             $payment->update(['status' => OrderPackagePaymentStatus::Completed]);
         });
+    }
+
+    public function toReceive()
+    {
+        return $this->afterCreating(function (Order $order) {
+            $orderPackage = OrderPackage::factory()->for($order)->create();
+
+            OrderPackageItem::factory()->for($orderPackage)->create();
+
+            OrderPackageStatus::factory()->for($orderPackage)->create();
+            OrderPackageStatus::factory()->for($orderPackage)->create([
+                'status' => EnumsOrderPackageStatus::ToShip,
+                'changed_by_id' => $order->customer->user_id,
+                'notes' => 'Order has been paid.',
+            ]);
+            OrderPackageStatus::factory()->for($orderPackage)->create([
+                'status' => EnumsOrderPackageStatus::ToReceive,
+                'changed_by_id' => $orderPackage->vendor->user_id,
+                'notes' => 'Order is now being shipped.',
+            ]);
+
+            $payment = OrderPackagePayment::factory()->for($orderPackage)->create();
+            $payment->update(['status' => OrderPackagePaymentStatus::Completed]);
+        });
+    }
+
+    public function toReturn()
+    {
+        return $this->afterCreating(function (Order $order) {
+            $orderPackage = OrderPackage::factory()->for($order)->create();
+
+            OrderPackageItem::factory()->for($orderPackage)->create();
+
+            OrderPackageStatus::factory()->for($orderPackage)->create();
+            OrderPackageStatus::factory()->for($orderPackage)->create([
+                'status' => EnumsOrderPackageStatus::ToShip,
+                'changed_by_id' => $order->customer->user_id,
+                'notes' => 'Order has been paid.',
+            ]);
+            OrderPackageStatus::factory()->for($orderPackage)->create([
+                'status' => EnumsOrderPackageStatus::ToReceive,
+                'changed_by_id' => $orderPackage->vendor->user_id,
+                'notes' => 'Order is now being shipped.',
+            ]);
+            OrderPackageStatus::factory()->for($orderPackage)->create([
+                'status' => EnumsOrderPackageStatus::ToReturn,
+                'changed_by_id' => $order->customer->user_id,
+                'notes' => 'Returning of order is now being processed.',
+            ]);
+
+            $payment = OrderPackagePayment::factory()->for($orderPackage)->create();
+            $payment->update(['status' => OrderPackagePaymentStatus::Completed]);
+        });
+
     }
 
     public function toPay(int $count = 1, ?string $paymentMethod = 'paypal'): static

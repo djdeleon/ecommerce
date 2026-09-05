@@ -33,7 +33,9 @@ test('validation of cross-domain order item transitions with payment status and 
 
     expect(OrderPackageStatus::ToReceive->canTransitionWithPayment(OrderPackageStatus::Completed, OrderPackagePaymentStatus::Completed, 'customer'))->toBeTrue();
     expect(OrderPackageStatus::ToReceive->canTransitionWithPayment(OrderPackageStatus::Completed, OrderPackagePaymentStatus::Completed, 'system'))->toBeTrue();
-    expect(OrderPackageStatus::ToReceive->canTransitionWithPayment(OrderPackageStatus::Returned, OrderPackagePaymentStatus::Completed, 'vendor'))->toBeTrue();
+    expect(OrderPackageStatus::ToReceive->canTransitionWithPayment(OrderPackageStatus::ToReturn, OrderPackagePaymentStatus::Completed, 'customer'))->toBeTrue();
+
+    expect(OrderPackageStatus::ToReturn->canTransitionWithPayment(OrderPackageStatus::Returned, OrderPackagePaymentStatus::Completed, 'vendor'))->toBeTrue();
 });
 
 

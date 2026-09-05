@@ -7,17 +7,21 @@ use Illuminate\Support\Facades\Http;
 use Stripe\Event;
 
 test('stripe webhook successfully transitions payment and order items to paid state', function () {
-    $paymentIntentId = 'pl_test_mock_12345';
-
     $order = OrderTestBuilder::order()
                 ->packages()
                 ->withItems()
                 ->withStatuses()
                 ->withPayments(attributes: [
+                        'payment_method' => 'stripe',
                         'status' => OrderPackagePaymentStatus::Pending,
-                        'transaction_reference' => $paymentIntentId,
+                        'transaction_reference' => function ($order) {
+                            return 'pl_' . $order->id . '_test_mock_12345';
+                        },
                     ])
                 ->create();
+
+    
+    $paymentIntentId = $order->orderPackages[0]->getLatestOrderPackagePayment->transaction_reference;
 
     $payload = [
         'id' => 'evt_test_webhook_123',
@@ -41,7 +45,7 @@ test('stripe webhook successfully transitions payment and order items to paid st
         'Stripe-Signature' => 'mocked_signature_header'
     ])->assertOk();
 
-    $orderPackagePayment = $order->orderPackages[0]->getLatestOrderPackagePayment;
+    $orderPackagePayment = $order->fresh()->orderPackages[0]->getLatestOrderPackagePayment;
 
     expect($orderPackagePayment)
         ->status->toBe(OrderPackagePaymentStatus::Completed)

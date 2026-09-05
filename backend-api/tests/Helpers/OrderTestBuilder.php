@@ -49,6 +49,10 @@ class OrderTestBuilder
     public function withPayments(int $count = 1, array $attributes = []): static
     {
         self::$orderPackages->each(function ($package) use ($count, $attributes) {
+            if (isset($attributes['transaction_reference']) && is_callable($attributes['transaction_reference'])) {
+                $attributes = array_merge($attributes, ['transaction_reference' => $attributes['transaction_reference'](self::$order)]);
+            }
+
             OrderPackagePayment::factory($count)->for($package)->create($attributes);
         });
 
