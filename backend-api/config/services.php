@@ -13,6 +13,29 @@ return [
     | a conventional file to locate the various service credentials.
     |
     */
+    'paypal' => [
+        'mode' => env('PAYPAL_MODE', 'sandbox'),
+        'sandbox' => [
+            'client_id' => env('PAYPAL_CLIENT_ID'),
+            'secret'    => env('PAYPAL_SECRET_KEY'),
+            'api_url'   => 'https://api-m.sandbox.paypal.com'
+        ],
+        'live' => [
+            'api_url'  => 'https://api-m.paypal.com'
+        ]
+    ],
+
+    'stripe' => [
+        'sandbox' => [
+            'secret' => env('STRIPE_SECRET'),
+            'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        ]
+    ],
+
+    'xendit' => [
+        'secret' => env('XENDIT_SECRET_KEY'),
+        'api_url' => 'https://api.xendit.co',
+    ],
 
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),

@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
@@ -16,16 +17,21 @@ use Tests\TestCase;
 |
 */
 
+// 1. Configure Feature tests (They need the DB, Laravel App, and Roles)
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->beforeEach(function () {
-        foreach (Roles::cases() as $role) {
+        foreach (UserRole::cases() as $role) {
             Role::firstOrCreate([
                 'name' => $role->value,
             ]);
         }
     })
-    ->in('Feature');
+    ->in('Feature'); // ONLY apply this to Feature tests
+
+// 2. Configure Unit tests (Keep them pure, no DB, no heavy extension)
+pest()->extend(TestCase::class)
+    ->in('Unit'); // ONLY apply this to Unit tests
 
 /*
 |--------------------------------------------------------------------------
@@ -53,32 +59,37 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-enum Roles: string
+function getUserWithRole(UserRole $role): User
 {
-    case Admin = 'admin';
-    case Customer = 'customer';
-    case Vendor = 'vendor';
-    case Driver = 'driver';
-}
-
-function getUserWithRole(Roles $role)
-{
-    $data = [
+    $user = User::factory()->create([
         'name'     => "{$role->name} Joe",
         'email'    => "{$role->value}@example.com",
         'password' => 'securePassword123',
-    ];
+    ]);
 
-    $data = array_merge($data, $role->value !== 'Customer' ? ['role' => $role->value] : []);
+    if ($role === UserRole::Admin) {
+        return $user->assignRole($role);
+    }
 
-    test()->postJson(route('register'), $data);
+    $model = "App\\Models\\{$role->name}";
 
-    $user = User::where('email', "{$role->value}@example.com")->first();
+    $model::factory()->for($user)->create();
 
     return $user;
 }
 
-function actingAsRole(Roles $role)
+function actingAsRole(UserRole $role)
 {
     return test()->actingAs(getUserWithRole($role), 'sanctum');
+}
+
+function pause(string $message = 'If approval of payment is successful, copy the PayPal Order ID from the Paypal Order ID terminal and paste it in the capture order test case $paypalOrderId and Press Enter to continue and move on to it...'): void 
+{
+    // Write directly to standard error output to bypass Pest's buffered runner output
+    fwrite(STDERR, "\n\n💡 [PAUSED] " . $message);
+    
+    // Open the direct keyboard input stream and wait for newline
+    $stream = fopen('php://stdin', 'r');
+    fgets($stream);
+    fclose($stream);
 }

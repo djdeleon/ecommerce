@@ -73,6 +73,10 @@ This project is built using Agile SDLC methodologies, tracked via GitHub Issues,
     *   **Focus:** Self-referencing category trees, vendor storefront profiles, product variants with SKU management, and PostgreSQL trigger-driven immutable price ledgers.
 *   **[Sprint 03: Warehouse Facilities & Inventory Management (Completed)](docs/sprints/SPRINT-03.md)**
     *   **Focus:** Merchant warehouses and platform fulfillment hubs, polymorphic multi-facility stock management, reserved vs available quantity reservation logic, append-only inventory audit ledgers with database triggers, and vendor tenancy REST API security.
+*   **[Sprint 04: Shipments & Logistics Domain (Planned / Deferred)](docs/sprints/SPRINT-04.md)**
+    *   **Focus:** Driver and vehicle registration, multi-stage shipment leg routing with polymorphic origins/destinations, append-only transit status logging, and public track-and-trace tracking APIs.
+*   **[Sprint 05: Order Processing & Checkout Domain (Active)](docs/sprints/SPRINT-05.md)**
+    *   **Focus:** Multi-vendor checkout deconstruction, snapshot pricing immutability, atomic transaction-wrapped inventory reservations, order status state machine transitions, and escrow-payout calculations.
 ---
 
 ## ⚡ Quick Start (Local Docker Infrastructure)

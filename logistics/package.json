@@ -1,0 +1,20 @@
+{
+  "name": "logistics-microservice",
+  "version": "1.0.0",
+  "description": "Mock 3PL & Barcode Scanner Microservice",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts"
+  },
+  "dependencies": {
+    "@fastify/cors": "^9.0.1",
+    "fastify": "^4.26.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.19",
+    "tsx": "^4.7.1",
+    "typescript": "^5.3.3"
+  }
+}

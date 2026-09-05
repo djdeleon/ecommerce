@@ -2,16 +2,24 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\CartController;
+use App\Http\Controllers\Api\CartItemController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\VendorController;
 use App\Http\Controllers\Api\DriverController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\FulfillmentHubController;
 use App\Http\Controllers\Api\InventoryStockController;
+use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\PayPalWebhookController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\StripeWebhookController;
+use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VariantController;
 use App\Http\Controllers\Api\VehicleController;
 use App\Http\Controllers\Api\WarehouseController;
+use App\Http\Controllers\Api\XenditWebhookController;
 use App\Http\Middleware\SetPostgreUserContext;
 use Illuminate\Support\Facades\Route;
 
@@ -21,6 +29,8 @@ Route::prefix('auth')->group(function () {
 
     Route::post('vendor/register', [VendorController::class, 'register'])->name('vendor.register');
     Route::post('drivers/register', [DriverController::class, 'register'])->name('drivers.register');
+
+    Route::post('customers/register', [CustomerController::class, 'register'])->name('customers.register');
     
     Route::get('fulfillment-hub', [FulfillmentHubController::class, 'index'])->name('fulfillment-hubs.index');
 });
@@ -43,7 +53,25 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
     Route::middleware('role:customer')->group(function () {
         Route::get('customer/dashboard', [CustomerController::class, 'dashboard'])->name('customer.dashboard');
 
-        Route::post('customer/vendors', [CustomerController::class, 'upgrade'])->name('customer.vendor-upgrade');
+        Route::post('users/vendors/upgrade', [UserController::class, 'upgrade'])->name('users.vendor-upgrade');
+
+        Route::get('carts', [CartController::class, 'index'])->name('carts.index');
+        Route::post('cart-items', [CartItemController::class, 'store'])->name('cart-items.store');
+
+        Route::post('checkouts', [CheckoutController::class, 'store'])->name('checkouts.store');
+
+        Route::post('orders/place', [OrderController::class, 'place'])->name('orders.place');
+    });
+
+    Route::middleware('role:customer|vendor')->group(function () {
+        Route::post('order-packages/{orderPackage}/cancel', [OrderController::class, 'cancelAsVendor'])->name('orders.vendor.cancel');
+        Route::post('order-packages/{orderPackage}/to-receive', [OrderController::class, 'toReceive'])->name('orders.vendor.to-receive');
+        Route::post('orders/{orderPackage}/to-return', [OrderController::class, 'toReturn'])->name('orders.to-return');
+        Route::post('order-packages/{orderPackage}/returned', [OrderController::class, 'returned'])->name('orders.vendor.returned');
+        Route::post('order-packages/{orderPackage}/rejected', [OrderController::class, 'rejected'])->name('orders.vendor.rejected');
+        Route::post('orders/{order}/cancel', [OrderController::class, 'cancelAsCustomer'])->name('orders.customer.cancel');
+        Route::post('orders/{order}/completed', [OrderController::class, 'completed'])->name('orders.completed');
+        Route::post('orders/{order}/', [OrderController::class, 'returned'])->name('orders.vendor.returned');
     });
 
     Route::middleware('role:admin|vendor')->group(function () {
@@ -78,3 +106,7 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
         });
     });
 });
+
+Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle'])->name('stripe.webhook');
+Route::post('/xendit/webhook', [XenditWebhookController::class, 'handle'])->name('xendit.webhook');
+Route::post('/paypal/webhook', [PayPalWebhookController::class, 'handle'])->name('paypal.webhook');
