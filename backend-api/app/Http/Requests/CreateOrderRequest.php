@@ -23,6 +23,9 @@ class CreateOrderRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'customer_address_id' => [
+                'required',
+            ],
             'order_details' => [
                 'required',
                 'array',

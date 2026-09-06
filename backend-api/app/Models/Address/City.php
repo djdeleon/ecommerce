@@ -8,6 +8,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class City extends Model
 {
+    protected $fillable = [
+        'code',
+        'correspondence_code',
+        'name',
+    ];
+
     public function province(): BelongsTo
     {
         return $this->belongsTo(Province::class);

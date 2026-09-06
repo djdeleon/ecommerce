@@ -7,6 +7,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Barangay extends Model
 {
+    protected $fillable = [
+        'code',
+        'correspondence_code',
+        'name',
+    ];
+
     public function city(): BelongsTo
     {
         return $this->belongsTo(City::class);
