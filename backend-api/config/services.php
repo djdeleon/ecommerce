@@ -13,6 +13,12 @@ return [
     | a conventional file to locate the various service credentials.
     |
     */
+    'logistic' => [
+        'url' => env('LOGISTICS_SERVICE_URL'),
+        'key' => env('LOGISTICS_KEY'),
+        'default' => env('LOGISTIC_DEFAULT'),
+    ],
+
     'paypal' => [
         'mode' => env('PAYPAL_MODE', 'sandbox'),
         'sandbox' => [

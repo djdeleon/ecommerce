@@ -7,6 +7,7 @@ use App\Http\Requests\CreateCheckoutRequest;
 use App\Models\Variant;
 use App\Traits\HttpResponses;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Http;
 use Money\Currency;
 use Money\Money;
 
@@ -16,6 +17,21 @@ class CheckoutController extends Controller
 
     public function store(CreateCheckoutRequest $request): JsonResponse
     {
+        $baseUrl = config('services.logistic.url');
+        $key = config('services.logistic.key');
+
+        $response = Http::withToken($key)->post("{$baseUrl}/jnt/sample", [
+            'origin_region' => 'region_4a',
+            'destination_region' => 'region_13',
+            'weight_kg' => 2.5,
+        ]);
+
+        if ($response->failed()) {
+            dd($response->body());
+        }
+
+        dd($response->json());
+
         $variants = Variant::whereIn('id', $request['selected_items'])
         ->with(['product.vendor', 'cartItem']) 
         ->get();
