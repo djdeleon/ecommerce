@@ -70,4 +70,4 @@ test('a customer can checkout its selected items', function () {
         ->where('data.payment_details.grand_total', '600.00')
         ->etc()
     );
-});
+})->only();

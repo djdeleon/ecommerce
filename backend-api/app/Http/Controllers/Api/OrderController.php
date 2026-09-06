@@ -124,8 +124,6 @@ class OrderController extends Controller
         );
     }
 
-
-
     public function cancelAsVendor(OrderPackage $orderPackage, CancelOrderAction $action): JsonResponse
     {
         $action->execute($orderPackage);

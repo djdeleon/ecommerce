@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\PayPalWebhookController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\StripeWebhookController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\V1\AddressController;
 use App\Http\Controllers\Api\VariantController;
 use App\Http\Controllers\Api\VehicleController;
 use App\Http\Controllers\Api\WarehouseController;
@@ -110,3 +111,9 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
 Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle'])->name('stripe.webhook');
 Route::post('/xendit/webhook', [XenditWebhookController::class, 'handle'])->name('xendit.webhook');
 Route::post('/paypal/webhook', [PayPalWebhookController::class, 'handle'])->name('paypal.webhook');
+
+Route::prefix('v1')->group(function () {
+    Route::prefix('locations')->group(function () {
+        Route::get('/regions', [AddressController::class, 'regions'])->name('locations.regions');
+    });
+});
