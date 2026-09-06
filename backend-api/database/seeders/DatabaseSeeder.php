@@ -32,6 +32,8 @@ class DatabaseSeeder extends Seeder
         $barangay = Barangay::find(1);
         $barangayCity = $barangay->city;
 
+        dd(Region::count(), Province::count(), City::count(), Barangay::count());
+
         $this->call([
             // RoleSeeder::class,
             // UserSeeder::class,

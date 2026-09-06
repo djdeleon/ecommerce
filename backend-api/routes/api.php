@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\VariantController;
 use App\Http\Controllers\Api\VehicleController;
 use App\Http\Controllers\Api\WarehouseController;
 use App\Http\Controllers\Api\XenditWebhookController;
+use App\Http\Controllers\CustomerAddressController;
 use App\Http\Middleware\SetPostgreUserContext;
 use Illuminate\Support\Facades\Route;
 
@@ -53,6 +54,8 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
 
     Route::middleware('role:customer')->group(function () {
         Route::get('customer/dashboard', [CustomerController::class, 'dashboard'])->name('customer.dashboard');
+
+        Route::post('customer-addresses', [CustomerAddressController::class, 'store'])->name('customer-addresses.store');
 
         Route::post('users/vendors/upgrade', [UserController::class, 'upgrade'])->name('users.vendor-upgrade');
 

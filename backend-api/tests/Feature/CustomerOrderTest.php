@@ -2,14 +2,59 @@
 
 use App\Enums\OrderPackagePaymentStatus;
 use App\Enums\OrderPackageStatus as OrderPackageStatusEnum;
+use App\Models\Address\Region;
 use App\Models\CartItem;
 use App\Models\Customer;
-use App\Models\Order;
+use App\Models\CustomerAddress;
 use App\Models\Product;
 use App\Models\Variant;
 use App\Models\Vendor;
 use App\Services\Payments\StripeService;
 use Illuminate\Support\Facades\Http;
+
+beforeEach(function () {
+    $region = Region::create([
+        'code' => '0700000000',
+        'correspondence_code' => '070000000',
+        'name' => 'Central Visayas',
+    ]);
+
+    $province = $region->provinces()->create([
+        'code' => '0722000000',
+        'correspondence_code' => '072200000',
+        'name' => 'Cebu',
+    ]);
+
+
+    $city = $province->cities()->create([
+        'code' => '0722170000',
+        'correspondence_code' => '072217000',
+        'name' => 'Cebu City',
+    ]);
+
+    $barangay = $city->barangays()->create([
+        'code' => '0722170010',
+        'correspondence_code' => '072217001',
+        'name' => 'Lahug',
+    ]);
+
+    $payload = [
+        'recipient_name' => 'John Doe',
+        'phone_number'   => '09171234567',
+        'region_id'      => $region->id,
+        'province_id'    => $province->id,
+        'city_id'        => $city->id,
+        'barangay_id'    => $barangay->id,
+        'street_address' => 'Apas St, near IT Park',
+        'zip_code'       => '6000',
+        'is_default'     => true,
+        'label'          => 'Home',
+    ];
+
+    $customer = Customer::factory()->create();
+
+    $customer->customerAddresses()->create($payload);
+});
 
 test('a customer can place its orders with xendit available payment methods', function ($dataset) {
     Http::fake([
@@ -48,7 +93,7 @@ test('a customer can place its orders with xendit available payment methods', fu
     $vendorA = $vendors[0];
     $vendorB = $vendors[1];
 
-    $customer = Customer::factory()->create();
+    $customer = Customer::first();
     $cart = $customer->cart;
 
     $product = Product::factory()->for($vendorA)->create();
@@ -80,6 +125,7 @@ test('a customer can place its orders with xendit available payment methods', fu
     }, $selectedCartItems);
 
     $payload = [
+        'customer_address_id' => $customer->customerAddresses[0]->id,
         'order_details' => [
             'total_amount' => "100.00",
             'shipping_address' => '123 Main St',
@@ -165,41 +211,42 @@ test('a customer can place its orders with stripe payment', function () {
     });
     
     $vendors = Vendor::factory(3)->create();
-        $vendorA = $vendors[0];
-        $vendorB = $vendors[1];
+    $vendorA = $vendors[0];
+    $vendorB = $vendors[1];
 
-        $customer = Customer::factory()->create();
-        $cart = $customer->cart;
+    $customer = Customer::first();
+    $cart = $customer->cart;
 
-        $product = Product::factory()->for($vendorA)->create();
-        $variants = Variant::factory(3)->for($product)->create();
-        $vendorAVariantA = $variants[0];
-        $vendorAVariantB = $variants[1];
+    $product = Product::factory()->for($vendorA)->create();
+    $variants = Variant::factory(3)->for($product)->create();
+    $vendorAVariantA = $variants[0];
+    $vendorAVariantB = $variants[1];
 
-        $product = Product::factory()->for($vendorB)->create();
-        $variants = Variant::factory(3)->for($product)->create();
-        $vendorBVariantA = $variants[0];
+    $product = Product::factory()->for($vendorB)->create();
+    $variants = Variant::factory(3)->for($product)->create();
+    $vendorBVariantA = $variants[0];
 
-        CartItem::factory()->for($cart)->create(['variant_id' => $vendorAVariantA->id]);
-        CartItem::factory()->for($cart)->create(['variant_id' => $vendorAVariantB->id]);
-        CartItem::factory()->for($cart)->create(['variant_id' => $vendorBVariantA->id]);
+    CartItem::factory()->for($cart)->create(['variant_id' => $vendorAVariantA->id]);
+    CartItem::factory()->for($cart)->create(['variant_id' => $vendorAVariantB->id]);
+    CartItem::factory()->for($cart)->create(['variant_id' => $vendorBVariantA->id]);
 
-        $selectedCartItems = [
-            $cart->cartItems[0],
-            $cart->cartItems[1],
-            $cart->cartItems[2],
+    $selectedCartItems = [
+        $cart->cartItems[0],
+        $cart->cartItems[1],
+        $cart->cartItems[2],
+    ];
+
+    $orderedCartItems = array_map(function ($item) {
+        return [
+            'vendor_id' => $item->variant->product->vendor_id,
+            'variant_id' => $item->variant()->first()->id,
+            'quantity_ordered' => $item->quantity,
+            'price_at_purchased' => bcdiv($item->variant()->first()->price->getAmount(), 10000, 4),
         ];
-
-        $orderedCartItems = array_map(function ($item) {
-            return [
-                'vendor_id' => $item->variant->product->vendor_id,
-                'variant_id' => $item->variant()->first()->id,
-                'quantity_ordered' => $item->quantity,
-                'price_at_purchased' => bcdiv($item->variant()->first()->price->getAmount(), 10000, 4),
-            ];
-        }, $selectedCartItems);
+    }, $selectedCartItems);
 
     $payload = [
+        'customer_address_id' => $customer->customerAddresses[0]->id,
         'order_details' => [
             'total_amount' => "100.00",
             'shipping_address' => '123 Main St',
@@ -258,7 +305,7 @@ test('a customer can place its orders with paypal payment', function () {
         $vendorA = $vendors[0];
         $vendorB = $vendors[1];
 
-        $customer = Customer::factory()->create();
+        $customer = Customer::first();
         $cart = $customer->cart;
 
         $product = Product::factory()->for($vendorA)->create();
@@ -290,6 +337,7 @@ test('a customer can place its orders with paypal payment', function () {
         }, $selectedCartItems);
 
         $payload = [
+            'customer_address_id' => $customer->customerAddresses[0]->id,
             'order_details' => [
                 'total_amount' => "100.00",
                 'shipping_address' => '123 Main St',
