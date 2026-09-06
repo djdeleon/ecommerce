@@ -4,8 +4,8 @@ namespace App\Providers;
 
 use App\Services\AuthService;
 use App\Services\Contracts\AuthServiceInterface;
+use App\Services\Logistic\LogisticManager;
 use App\Services\Payments\PaypalService;
-use Illuminate\Support\Facades\Request;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -22,6 +22,10 @@ class AppServiceProvider extends ServiceProvider
                 config('services.paypal.sandbox.client_id'), 
                 config('services.paypal.sandbox.secret')
             );
+        });
+
+        $this->app->singleton('logistic', function ($app) {
+            return new LogisticManager($app);
         });
 
         /**

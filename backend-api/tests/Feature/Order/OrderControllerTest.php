@@ -3,9 +3,6 @@
 use App\Enums\OrderPackagePaymentStatus;
 use App\Enums\OrderPackageStatus;
 use App\Models\Order;
-use App\Models\User;
-use App\Models\Vendor;
-use Spatie\Permission\Models\Role;
 
 /**
  * Test Cases base from Order Transition

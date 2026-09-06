@@ -20,6 +20,8 @@ class CheckoutController extends Controller
         $baseUrl = config('services.logistic.url');
         $key = config('services.logistic.key');
 
+        // TODO: customer registers with the right address locations
+
         $response = Http::withToken($key)->post("{$baseUrl}/jnt/sample", [
             'origin_region' => 'region_4a',
             'destination_region' => 'region_13',

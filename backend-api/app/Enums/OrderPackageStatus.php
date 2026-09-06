@@ -14,6 +14,21 @@ enum OrderPackageStatus: string
     case Returned   = 'returned';   // Returned
 
     /**
+     * New Features
+     * ToReceive should be marked BY 3PL (> 10 Orders) or Fulfillment Hub Centers (< 10 Orders when the vendor goes to the hub itself to drop-off the orders)
+     * in the ToReceive order is where the Shipment Logs should be handled.
+     * 
+     * This is also going to be part of Checkout System
+     * 
+     * We can then implement shipping fee coupons to easily deduct shipping fee in the cart items page.
+     * 
+     * This should ba paired with the PH Geographic. 
+     * 
+     * How to implement:
+     * 
+     */
+
+    /**
      * Legal Transition State
      */
     public function canTransitionTo(self $target): bool

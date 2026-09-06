@@ -11,6 +11,7 @@
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
         "moneyphp/money": "^3.3",
+        "rap2hpoutre/fast-excel": "^5.16",
         "spatie/laravel-permission": "^8.3",
         "stripe/stripe-php": "*"
     },
