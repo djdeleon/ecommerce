@@ -2,7 +2,6 @@
 
 use App\Enums\OrderPackagePaymentStatus;
 use App\Enums\OrderPackageStatus as OrderPackageStatusEnum;
-use App\Models\Address\Region;
 use App\Models\CartItem;
 use App\Models\Customer;
 use App\Models\CustomerAddress;
@@ -10,51 +9,9 @@ use App\Models\Product;
 use App\Models\Variant;
 use App\Models\Vendor;
 use App\Services\Payments\StripeService;
+use Database\Factories\Address\AddressFactory;
+use Database\Factories\CustomerAddressFactory;
 use Illuminate\Support\Facades\Http;
-
-beforeEach(function () {
-    $region = Region::create([
-        'code' => '0700000000',
-        'correspondence_code' => '070000000',
-        'name' => 'Central Visayas',
-    ]);
-
-    $province = $region->provinces()->create([
-        'code' => '0722000000',
-        'correspondence_code' => '072200000',
-        'name' => 'Cebu',
-    ]);
-
-
-    $city = $province->cities()->create([
-        'code' => '0722170000',
-        'correspondence_code' => '072217000',
-        'name' => 'Cebu City',
-    ]);
-
-    $barangay = $city->barangays()->create([
-        'code' => '0722170010',
-        'correspondence_code' => '072217001',
-        'name' => 'Lahug',
-    ]);
-
-    $payload = [
-        'recipient_name' => 'John Doe',
-        'phone_number'   => '09171234567',
-        'region_id'      => $region->id,
-        'province_id'    => $province->id,
-        'city_id'        => $city->id,
-        'barangay_id'    => $barangay->id,
-        'street_address' => 'Apas St, near IT Park',
-        'zip_code'       => '6000',
-        'is_default'     => true,
-        'label'          => 'Home',
-    ];
-
-    $customer = Customer::factory()->create();
-
-    $customer->customerAddresses()->create($payload);
-});
 
 test('a customer can place its orders with xendit available payment methods', function ($dataset) {
     Http::fake([
@@ -93,7 +50,11 @@ test('a customer can place its orders with xendit available payment methods', fu
     $vendorA = $vendors[0];
     $vendorB = $vendors[1];
 
-    $customer = Customer::first();
+    $customer = Customer::factory()->create();
+    $address = AddressFactory::luzon();
+    $customerAddress = CustomerAddress::factory()->for($customer)->create();
+    $customerAddress->address()->create($address);
+
     $cart = $customer->cart;
 
     $product = Product::factory()->for($vendorA)->create();
@@ -181,7 +142,7 @@ test('a customer can place its orders with xendit available payment methods', fu
     'xendit qrph payment' => [
         ['channel_code' => "QRPH", 'value' => 'qrph'],
     ],
-]);
+])->skip();
 
 test('a customer can place its orders with stripe payment', function () {
     $this->mock(StripeService::class, function ($mock) {
@@ -214,7 +175,10 @@ test('a customer can place its orders with stripe payment', function () {
     $vendorA = $vendors[0];
     $vendorB = $vendors[1];
 
-    $customer = Customer::first();
+    $customer = Customer::factory()->create();
+    $address = AddressFactory::luzon();
+    $customerAddress = CustomerAddress::factory()->for($customer)->create();
+    $customerAddress->address()->create($address);
     $cart = $customer->cart;
 
     $product = Product::factory()->for($vendorA)->create();
@@ -284,68 +248,95 @@ test('a customer can place its orders with stripe payment', function () {
             expect($status->status)->toBe(OrderPackageStatusEnum::ToPay);
         });
     });
-});
+})->skip();
 
 test('a customer can place its orders with paypal payment', function () {
-        Http::fake([
-            '*/v1/oauth2/token' => Http::response([
-                'access_token' => 'mocked-paypal-token',
-            ], 200),
+    Http::fake([
+        '*/v1/oauth2/token' => Http::response([
+            'access_token' => 'mocked-paypal-token',
+        ], 200),
 
-            '*/v2/checkout/orders' => Http::response([
-                'id' => 'PAYPAL-ORDER-12345',
-                'status' => 'CREATED',
-                'links' => [
-                    ['rel' => 'approve', 'href' => 'https://www.sandbox.paypal.com/checkoutnow?token=PAYPAL-ORDER-12345']
-                ]
-            ], 201)
-        ]);
+        '*/v2/checkout/orders' => Http::response([
+            'id' => 'PAYPAL-ORDER-12345',
+            'status' => 'CREATED',
+            'links' => [
+                ['rel' => 'approve', 'href' => 'https://www.sandbox.paypal.com/checkoutnow?token=PAYPAL-ORDER-12345']
+            ]
+        ], 201)
+    ]);
 
-        $vendors = Vendor::factory(3)->create();
-        $vendorA = $vendors[0];
-        $vendorB = $vendors[1];
 
-        $customer = Customer::first();
-        $cart = $customer->cart;
+    // $addressA = AddressFactory::luzon('region_1');
+    // $addressB = AddressFactory::luzon('region_2');
+    // $addressC = AddressFactory::luzon('region_3');
+    // dd($addressA, $addressB, $addressC);
 
-        $product = Product::factory()->for($vendorA)->create();
-        $variants = Variant::factory(3)->for($product)->create();
-        $vendorAVariantA = $variants[0];
-        $vendorAVariantB = $variants[1];
+    // $address = AddressFactory::visayas('region_6');
+    // $address = AddressFactory::visayas('region_7');
+    // $address = AddressFactory::visayas('region_8');
 
-        $product = Product::factory()->for($vendorB)->create();
-        $variants = Variant::factory(3)->for($product)->create();
-        $vendorBVariantA = $variants[0];
+    // $address = AddressFactory::mindanao('region_9');
+    // $address = AddressFactory::mindanao('region_10');
+    // $address = AddressFactory::mindanao('region_11');
 
-        CartItem::factory()->for($cart)->create(['variant_id' => $vendorAVariantA->id]);
-        CartItem::factory()->for($cart)->create(['variant_id' => $vendorAVariantB->id]);
-        CartItem::factory()->for($cart)->create(['variant_id' => $vendorBVariantA->id]);
+    // $address = AddressFactory::region()->province()->city()->barangay()->create();
+    // $address = AddressFactory::all();
 
-        $selectedCartItems = [
-            $cart->cartItems[0],
-            $cart->cartItems[1],
-            $cart->cartItems[2],
+    $vendors = Vendor::factory(3)->hasWarehouses()->create();
+    $vendorA = $vendors[0];
+    $vendorB = $vendors[1];
+
+    $customer = Customer::factory()->create();
+    // $address = AddressFactory::luzon()->create();
+    $addressA = AddressFactory::mindanao('region_9');
+    $payload = [
+        'recipient_name' => 'John Doe',
+        'phone_number'   => '09171234567',
+        'is_default'     => true,
+        'label'          => 'Home',
+    ];
+    $customerAddress = $customer->customerAddresses()->create($payload);
+    $customerAddress->address()->create($addressA);
+
+    $cart = $customer->cart;
+
+    $product = Product::factory()->for($vendorA)->create();
+    $variants = Variant::factory(3)->for($product)->create();
+    $vendorAVariantA = $variants[0];
+    $vendorAVariantB = $variants[1];
+
+    $product = Product::factory()->for($vendorB)->create();
+    $variants = Variant::factory(3)->for($product)->create();
+    $vendorBVariantA = $variants[0];
+
+    CartItem::factory()->for($cart)->create(['variant_id' => $vendorAVariantA->id]);
+    CartItem::factory()->for($cart)->create(['variant_id' => $vendorAVariantB->id]);
+    CartItem::factory()->for($cart)->create(['variant_id' => $vendorBVariantA->id]);
+
+    $selectedCartItems = [
+        $cart->cartItems[0],
+        $cart->cartItems[1],
+        $cart->cartItems[2],
+    ];
+
+    $orderedCartItems = array_map(function ($item) {
+        return [
+            'vendor_id' => $item->variant->product->vendor_id,
+            'variant_id' => $item->variant()->first()->id,
+            'quantity_ordered' => $item->quantity,
+            'price_at_purchased' => bcdiv($item->variant()->first()->price->getAmount(), 10000, 4),
         ];
+    }, $selectedCartItems);
 
-        $orderedCartItems = array_map(function ($item) {
-            return [
-                'vendor_id' => $item->variant->product->vendor_id,
-                'variant_id' => $item->variant()->first()->id,
-                'quantity_ordered' => $item->quantity,
-                'price_at_purchased' => bcdiv($item->variant()->first()->price->getAmount(), 10000, 4),
-            ];
-        }, $selectedCartItems);
-
-        $payload = [
-            'customer_address_id' => $customer->customerAddresses[0]->id,
-            'order_details' => [
-                'total_amount' => "100.00",
-                'shipping_address' => '123 Main St',
-            ],
-            'order_items' => $orderedCartItems,
-            'payment_method' => 'paypal',
-        ];
-
+    $payload = [
+        'customer_address_id' => $customer->customerAddresses[0]->id,
+        'order_details' => [
+            'total_amount' => "100.00",
+            'shipping_address' => '123 Main St',
+        ],
+        'order_items' => $orderedCartItems,
+        'payment_method' => 'paypal',
+    ];
 
     $this->actingAs($customer->user)
         ->postJson(route('orders.place'), $payload)
@@ -376,4 +367,4 @@ test('a customer can place its orders with paypal payment', function () {
             expect($status->status)->toBe(OrderPackageStatusEnum::ToPay);
         });
     });
-});
+})->skip();

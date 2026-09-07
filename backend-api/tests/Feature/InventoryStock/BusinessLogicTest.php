@@ -9,8 +9,8 @@ use App\Models\Vendor;
 use App\Models\Warehouse;
 
 test('a vendor can view a complete and strictly isolated stock control tree', function () {
-    $vendor1 = Vendor::factory()->hasWarehouses(1, ['address' => 'Vendor 1 Warehouse'])->create();
-    $vendor2 = Vendor::factory()->hasWarehouses(1, ['address' => 'Secret Competitor Warehouse'])->create();
+    $vendor1 = Vendor::factory()->hasWarehouses()->create();
+    $vendor2 = Vendor::factory()->hasWarehouses()->create();
 
     $product1 = Product::factory()->for($vendor1)->create(['name' => 'Vendor 1 Product']);
     $variant1 = Variant::factory()->for($product1)->create(['sku' => 'SKU-V1']);
@@ -37,8 +37,7 @@ test('a vendor can view a complete and strictly isolated stock control tree', fu
 
     $response->assertJsonFragment(['name' => 'Vendor 1 Product'])
              ->assertJsonFragment(['sku' => 'SKU-V1'])
-             ->assertJsonFragment(['quantity_available' => 50])
-             ->assertJsonFragment(['address' => 'Vendor 1 Warehouse']);
+             ->assertJsonFragment(['quantity_available' => 50]);
 
     $response->assertJsonMissing(['name' => 'Hidden Competitor Product'])
              ->assertJsonMissing(['sku' => 'SKU-V2-PRIVATE'])

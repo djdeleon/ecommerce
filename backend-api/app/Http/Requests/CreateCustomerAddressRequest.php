@@ -23,60 +23,66 @@ class CreateCustomerAddressRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'recipient_name' => [
+            'detail_address' => [
+                'required',
+                'array',
+                'min:1',
+            ],
+            'detail_address.recipient_name' => [
                 'required', 
                 'string', 
                 'max:255'
             ],
-            
-            // Validates PH mobile formats (e.g., 09171234567 or +639171234567)
-            'phone_number' => [
+            'detail_address.phone_number' => [
                 'required', 
                 'string', 
                 'regex:/^(09|\+639)\d{9}$/'
             ],
-            
-            'region_id' => [
-                'required', 
-                'exists:regions,id'
-            ],
-            
-            // Nullable because NCR cities do not belong to a province
-            'province_id' => [
-                'nullable', 
-                'exists:provinces,id'
-            ],
-            
-            'city_id' => [
-                'required', 
-                'exists:cities,id'
-            ],
-
-            'barangay_id' => [
-                'required', 
-                'exists:barangays,id'
-            ],
-            
-            'street_address' => [
-                'required', 
-                'string', 
-                'max:500'
-            ],
-
-            'zip_code' => [
-                'required', 
-                'string', 
-                'max:10'
-            ],
-
-            'is_default' => [
+            'detail_address.is_default' => [
                 'boolean'
             ],
-            
-            'label' => [
+            'detail_address.label' => [
                 'nullable', 
                 'string', 
                 'max:50'
+            ],
+
+            'address' => [
+                'required',
+                'array',
+                'min:1',
+            ],
+            'address.region_id' => [
+                'required', 
+                'exists:regions,id'
+            ],
+            'address.province_id' => [
+                'nullable', 
+                'exists:provinces,id'
+            ],
+            'address.city_id' => [
+                'required', 
+                'exists:cities,id'
+            ],
+            'address.barangay_id' => [
+                'required', 
+                'exists:barangays,id'
+            ],
+            'address.street_address' => [
+                'nullable', 
+                'string', 
+                'max:500'
+            ],
+            'address.zip_code' => [
+                'nullable', 
+                'string', 
+                'max:10'
+            ],
+            'address.latitude' => [
+                'max:10'
+            ],
+            'address.longitude' => [
+                'max:11'
             ],
         ];
     }

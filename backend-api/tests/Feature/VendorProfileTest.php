@@ -1,8 +1,66 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Models\Address\Region;
 use App\Models\User;
 use App\Models\Vendor;
+
+/**
+ * need a VendorAddress as well?
+ * - I think WarehouseAddress
+ * - we can apply polymorphism
+ * - I think for the warehouses, it is going to be a one-to-one
+ * - - we are just going to put all the details about address in a warehouse_addresses table
+ * - - because a vendor can already have multiple warehouses
+ */
+
+test('a vendor can have multiple warehouses with full psgc addresses', function () {
+    $vendor = Vendor::factory()->hasWarehouses()->create();
+
+    $region = Region::create([
+        'code' => '0700000000',
+        'correspondence_code' => '070000000',
+        'name' => 'Central Visayas',
+        'slug' => 'region_7',
+    ]);
+
+    $province = $region->provinces()->create([
+        'code' => '0722000000',
+        'correspondence_code' => '072200000',
+        'name' => 'Cebu',
+    ]);
+
+
+    $city = $province->cities()->create([
+        'code' => '0722170000',
+        'correspondence_code' => '072217000',
+        'name' => 'Cebu City',
+    ]);
+
+    $barangay = $city->barangays()->create([
+        'code' => '0722170010',
+        'correspondence_code' => '072217001',
+        'name' => 'Lahug',
+    ]);
+
+    $payload = [
+        'recipient_name' => 'John Doe',
+        'phone_number'   => '09171234567',
+        'region_id'      => $region->id,
+        'province_id'    => $province->id,
+        'city_id'        => $city->id,
+        'barangay_id'    => $barangay->id,
+        'street_address' => 'Apas St, near IT Park',
+        'zip_code'       => '6000',
+        'is_default'     => true,
+        'label'          => 'Home',
+    ];
+
+    $vendor->warehouses[0]->warehouseAddress()->create($payload);
+
+
+    dd($vendor->warehouses[0]->warehouseAddress->addressable->warehouseAddress);
+})->skip();
 
 test('an unauthenticated user can register as vendor', function () {
     $vendorPayload = [

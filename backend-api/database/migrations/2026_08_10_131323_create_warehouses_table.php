@@ -18,7 +18,8 @@ return new class extends Migration
                 ->references('id')
                 ->on('vendors')
                 ->onDelete('cascade');
-            $table->string('address');
+            $table->string('name');
+            $table->string('contact_number');
             $table->timestamps();
         });
     }

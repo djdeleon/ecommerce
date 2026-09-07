@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('fulfillment_hubs', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->string('contact_number');
             $table->timestamps();
         });
     }

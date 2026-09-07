@@ -112,6 +112,8 @@ fastify.post<{ Body: JntRatesBody}>('/jnt/sample', async (req, rep) => {
     return { status: 200, islandOriginRegion, islandDestinationRegion, baseRatings, shippingFee }
 })
 
+// fastify.post('/api/v1/jnt/waybill')
+
 const start = async () => {
   try {
     await fastify.listen({ port: 8000, host: '0.0.0.0' });

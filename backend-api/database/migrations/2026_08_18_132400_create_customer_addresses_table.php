@@ -20,26 +20,8 @@ return new class extends Migration
                 ->restrictOnDelete();
             $table->string('recipient_name')->nullable();
             $table->string('phone_number');
-            $table->unsignedTinyInteger('region_id');
-            $table->foreign('region_id')
-                ->references('id')
-                ->on('regions');
-            $table->unsignedTinyInteger('province_id')->nullable();
-            $table->foreign('province_id')
-                ->references('id')
-                ->on('provinces');
-            $table->unsignedSmallInteger('city_id');
-            $table->foreign('city_id')
-                ->references('id')
-                ->on('cities');
-            $table->unsignedMediumInteger('barangay_id');
-            $table->foreign('barangay_id')
-                ->references('id')
-                ->on('barangays');
-            $table->string('street_address');
-            $table->string('zip_code')->nullable();
-            $table->boolean('is_default')->default(false);
-            $table->string('label')->default('home');
+            $table->boolean('is_default')->default(true);
+            $table->string('label')->default('Home');
             $table->timestamps();
         });
     }

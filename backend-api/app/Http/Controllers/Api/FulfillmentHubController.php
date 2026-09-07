@@ -24,7 +24,12 @@ class FulfillmentHubController extends Controller
 
     public function store(CreateFulfillmentHubRequest $request): JsonResponse
     {
-        $fulfillmentHub = FulfillmentHub::create($request->validated());
+        $data = $request->validated();
+
+        $fulfillmentHub = FulfillmentHub::create($data['detail_address']);
+        $fulfillmentHub->address()->create($data['address']);
+
+        $fulfillmentHub->load('address');
 
         return $this->success(
             $fulfillmentHub,

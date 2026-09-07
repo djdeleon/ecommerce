@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('code', 10)->unique();
             $table->string('correspondence_code', 10);
             $table->string('name');
+            $table->string('slug', 15)->nullable();
             $table->timestamps();
         });
 

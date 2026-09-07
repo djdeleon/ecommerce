@@ -30,7 +30,7 @@ class InventoryStockController extends Controller
                         $q->select('id', 'variant_id', 'quantity_available', 'quantity_reserved', 'inventorable_id', 'inventorable_type')
                             ->with(['inventorable' => function (MorphTo $morphTo) {
                                 $morphTo->constrain([
-                                    Warehouse::class => fn($q) => $q->select('id', 'address'),
+                                    Warehouse::class => fn($q) => $q->select('id', 'name', 'contact_number')->with(['address']),
                                     FulfillmentHub::class => fn($q) => $q->select('id', 'name'),
                                 ]);
                             }]);
@@ -44,7 +44,7 @@ class InventoryStockController extends Controller
                             $q->select('id', 'variant_id', 'quantity_available', 'quantity_reserved', 'inventorable_id', 'inventorable_type')
                                 ->with(['inventorable' => function (MorphTo $morphTo) {
                                     $morphTo->constrain([
-                                        Warehouse::class => fn($q) => $q->select('id', 'address'),
+                                        Warehouse::class => fn($q) => $q->select('id', 'name', 'contact_number')->with(['address']),
                                         FulfillmentHub::class => fn($q) => $q->select('id', 'name'),
                                     ]);
                                 }]);
