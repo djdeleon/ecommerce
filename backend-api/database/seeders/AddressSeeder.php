@@ -25,8 +25,6 @@ class AddressSeeder extends Seeder
 
         $this->command->info('Starting PSGC Seeding...');
 
-        $this->command->info('Seeding Regions...');
-
         $regionMap = [];
         $provinceMap = [];
         $cityMap = [];
@@ -36,17 +34,25 @@ class AddressSeeder extends Seeder
             $code = $line['10-digit PSGC'];
             $type = $line['Geographic Level'];
             
+            // -------------------------------------------------------------
+            // 1. REGIONS
+            // -------------------------------------------------------------
             if ($type === 'Reg') {
+                $regionPrefixCode = substr($code, 0, 2);
+
                 $region = Region::create([
                     'code' => $code,
                     'correspondence_code' => $line['Correspondence Code'],
-                    'name' => $line['Name']
+                    'name' => $line['Name'],
+                    'slug' => $this->getSlug($regionPrefixCode),
                 ]);
 
-                $regionPrefixCode = substr($code, 0, 2);
                 $regionMap[$regionPrefixCode] = $region->id;
             }
 
+            // -------------------------------------------------------------
+            // 2. PROVINCES
+            // -------------------------------------------------------------
             if ($type === 'Prov') {
                 $regionPrefixCode = substr($code, 0, 2);
                 $parentId = $regionMap[$regionPrefixCode] ?? null;
@@ -62,9 +68,11 @@ class AddressSeeder extends Seeder
                     $provincePrefixCode = substr($code, 0, 5);
                     $provinceMap[$provincePrefixCode] = $province->id;
                 }
-
             }
 
+            // -------------------------------------------------------------
+            // 3. CITIES & MUNICIPALITIES
+            // -------------------------------------------------------------
             if ($type === 'City' || $type === 'Mun') {
                 $provincePrefixCode = substr($code, 0, 5);
                 $parentId = $provinceMap[$provincePrefixCode] ?? null;
@@ -82,6 +90,9 @@ class AddressSeeder extends Seeder
                 }
             }
 
+            // -------------------------------------------------------------
+            // 4. BARANGAYS (Batch Insert in Chunks of 1,000)
+            // -------------------------------------------------------------
             if ($type === 'Bgy') {
                 $cityPrefixCode = substr($code, 0, 7);
                 $parentId = $cityMap[$cityPrefixCode] ?? null;
@@ -107,6 +118,30 @@ class AddressSeeder extends Seeder
         if (! empty($barangayBuffer)) {
             DB::table('barangays')->insert($barangayBuffer);
         }
+    }
+
+    private function getSlug(string $code): string
+    {
+        return match($code) {
+            '13' => 'ncr',
+            '14' => 'car',
+            '01' => 'region_1',
+            '02' => 'region_2',
+            '03' => 'region_3',
+            '04' => 'region_4a',
+            '17' => 'mimaropa',
+            '05' => 'region_5',
+            '06' => 'region_6',
+            '07' => 'region_7',
+            '08' => 'region_8',
+            '09' => 'region_9',
+            '10' => 'region_10',
+            '11' => 'region_11',
+            '12' => 'region_12',
+            '16' => 'region_13',
+            '19' => 'barmm',
+            default => 'region_4a', // Safe fallback
+        };
     }
 }
 

@@ -47,4 +47,9 @@ class Variant extends Model
     {
         return $this->hasOne(CartItem::class);
     }
+
+    public function getAllAvailableStocks(): int
+    {
+        return $this->inventoryStocks->pluck('quantity_available')->sum();
+    }
 }

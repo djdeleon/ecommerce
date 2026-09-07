@@ -1,9 +1,9 @@
 <?php
 
-use App\Models\Address\Region;
 use App\Models\CartItem;
 use App\Models\Customer;
 use App\Models\User;
+use Database\Factories\Address\AddressFactory;
 
 test('a customer can register without filling out an address', function () {
     $user = [
@@ -46,45 +46,19 @@ test('a customer is required to add at least one address upon placing an order',
         ->assertJsonValidationErrors(['customer_address_id']);
 });
 
-test('a customer can have multiple address with full psgc addresses upon successful registration', function () {
+test('a customer can have multiple address with full psgc addresses upon successful registration with Geolocation Coordinates', function () {
     $customer = Customer::factory()->create();
 
-    $region = Region::create([
-        'code' => '0700000000',
-        'correspondence_code' => '070000000',
-        'name' => 'Central Visayas',
-    ]);
-
-    $province = $region->provinces()->create([
-        'code' => '0722000000',
-        'correspondence_code' => '072200000',
-        'name' => 'Cebu',
-    ]);
-
-
-    $city = $province->cities()->create([
-        'code' => '0722170000',
-        'correspondence_code' => '072217000',
-        'name' => 'Cebu City',
-    ]);
-
-    $barangay = $city->barangays()->create([
-        'code' => '0722170010',
-        'correspondence_code' => '072217001',
-        'name' => 'Lahug',
-    ]);
+    $address = AddressFactory::luzon();
 
     $payload = [
-        'recipient_name' => 'John Doe',
-        'phone_number'   => '09171234567',
-        'region_id'      => $region->id,
-        'province_id'    => $province->id,
-        'city_id'        => $city->id,
-        'barangay_id'    => $barangay->id,
-        'street_address' => 'Apas St, near IT Park',
-        'zip_code'       => '6000',
-        'is_default'     => true,
-        'label'          => 'Home',
+        'detail_address' => [
+            'recipient_name' => 'John Doe',
+            'phone_number'   => '09171234567',
+            'is_default'     => true,
+            'label'          => 'Home',
+        ],
+        'address' => $address,
     ];
 
     $this->actingAs($customer->user, 'sanctum')
@@ -95,4 +69,7 @@ test('a customer can have multiple address with full psgc addresses upon success
 
     expect($customer->customerAddresses)->toHaveCount(1);
     expect($customer->customerAddresses[0]->recipient_name)->toBe('John Doe');
+    expect($customer->customerAddresses[0]->address)
+        ->latitude->toBeString()
+        ->longitude->toBeString();
 });

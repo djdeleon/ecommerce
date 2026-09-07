@@ -31,10 +31,21 @@ class WarehouseController extends Controller
     public function store(CreateWarehouseRequest $request): JsonResponse
     {
         $user = $request->user();
+        $data = $request->validated();
 
-        $warehouse = $user->hasRole('admin')
-            ? Vendor::find($request['vendor_id'])->warehouses()->create($request->validated())
-            : $user->vendor->warehouses()->create($request->validated());
+        if ($user->hasRole('admin')) {
+            $vendor = Vendor::findOrFail($data['detail_address']['vendor_id']);
+
+            $warehouse = $vendor->warehouses()->create($data['detail_address']);
+
+            $warehouse->address()->create($data['address']);
+        } else {
+            $warehouse = $user->vendor->warehouses()->create($data['detail_address']);
+
+            $warehouse->address()->create($data['address']);
+        }
+
+        $warehouse->load('address');
 
         return $this->success(
             $warehouse,

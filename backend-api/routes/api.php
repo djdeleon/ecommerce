@@ -116,7 +116,7 @@ Route::post('/xendit/webhook', [XenditWebhookController::class, 'handle'])->name
 Route::post('/paypal/webhook', [PayPalWebhookController::class, 'handle'])->name('paypal.webhook');
 
 Route::prefix('v1')->group(function () {
-    Route::prefix('locations')->group(function () {
-        Route::get('/regions', [AddressController::class, 'regions'])->name('locations.regions');
+    Route::prefix('addresses')->group(function () {
+        Route::get('/regions', [AddressController::class, 'regions'])->name('addresses.regions');
     });
 });

@@ -1,8 +1,11 @@
 <?php
 
+use App\Models\Address\Region;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Models\Warehouse;
+use Database\Factories\Address\AddressFactory;
+use Illuminate\Testing\Fluent\AssertableJson;
 
 test('unauthorized users cannot view or manage warehouses', function (string $role) {
     $randomUser = User::factory()->create();
@@ -40,12 +43,19 @@ describe('admin warehouse management', function () {
         $admin->assignRole('admin');
 
         $vendor = Vendor::factory()->create();
+        $address = AddressFactory::luzon();
+
+        $payload = [
+            'detail_address' => [
+                'vendor_id' => $vendor->id,
+                'name' => 'Vendor Warehouse A',
+                'contact_number'   => '09171234567',
+            ],
+            'address' => $address,
+        ];
 
         $this->actingAs($admin, 'sanctum')
-            ->postJson(route('warehouses.store'), [
-                'vendor_id' => $vendor->id,
-                'address' => 'Warehouse 123 St.'
-            ])
+            ->postJson(route('warehouses.store'), $payload)
             ->assertCreated();
         
         expect($vendor->warehouses->count())->toBe(1);
@@ -57,7 +67,7 @@ describe('vendor warehouse management', function () {
         $vendor = Vendor::factory()
             ->hasWarehouses(20)
             ->create();
-        
+
         $otherWarehouse = Warehouse::factory()->create();
 
         $this->actingAs($vendor->user, 'sanctum')
@@ -72,12 +82,42 @@ describe('vendor warehouse management', function () {
     it('can create its own warehouse', function () {
         $vendor = Vendor::factory()->create();
 
+        $address = AddressFactory::luzon();
+
+        $payload = [
+            'detail_address' => [
+                'vendor_id' => $vendor->id,
+                'name' => 'Vendor Warehouse A',
+                'contact_number'   => '09171234567',
+            ],
+            'address' => $address,
+        ];
+
         $this->actingAs($vendor->user, 'sanctum')
-            ->postJson(route('warehouses.store'), [
-                'address' => 'Warehouse 123 St.'
-            ])
-            ->assertCreated();
-        
-        $this->assertDatabaseHas('warehouses', ['address' => $vendor->warehouses()->first()->address]);
+            ->postJson(route('warehouses.store'), $payload)
+            ->assertCreated()
+            ->assertJson(fn (AssertableJson $json) => 
+                $json->has('data', fn (AssertableJson $json) => 
+                    $json->where('name', 'Vendor Warehouse A')
+                        ->where('vendor_id', $vendor->id)
+                        ->where('id', $vendor->warehouses[0]->id)
+                        ->where('contact_number', '09171234567')
+                        ->has('address', fn (AssertableJson $json) => 
+                            $json->where('id', $vendor->warehouses[0]->address->id)
+                                ->where('addressable_type', 'App\\Models\\Warehouse')
+                                ->where('addressable_id', $vendor->warehouses[0]->id)
+                                ->where('region_id', $vendor->warehouses[0]->address->region_id)
+                                ->where('province_id', $vendor->warehouses[0]->address->province_id)
+                                ->where('city_id', $vendor->warehouses[0]->address->city_id)
+                                ->where('barangay_id', $vendor->warehouses[0]->address->barangay_id)
+                                ->etc() // Ignores timestamps like created_at/updated_at if they fluctuate
+                        )
+                        ->etc()
+                )
+                ->where('message', 'Warehouse created')
+                ->etc()
+            );
+
+        expect($vendor->warehouses)->toHaveCount(1);
     });
 });

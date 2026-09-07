@@ -21,6 +21,7 @@ class FulfillmentHubFactory extends Factory
 
         return [
             'name' => fake()->city() . ' ' . fake()->randomElement($types),
+            'contact_number'   => '09' . fake()->numerify('#########'),
         ];
     }
 }
