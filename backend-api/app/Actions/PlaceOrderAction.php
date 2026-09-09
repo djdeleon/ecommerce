@@ -2,9 +2,11 @@
 
 namespace App\Actions;
 
+use App\DataObjects\Coordinate;
 use App\Enums\OrderPackagePaymentStatus;
 use App\Enums\OrderPackageStatus;
 use App\Models\Customer;
+use App\Models\EntityAddress;
 use App\Models\FulfillmentHub;
 use App\Models\InventoryStock;
 use App\Models\Order;
@@ -13,6 +15,7 @@ use App\Models\Variant;
 use App\Models\Vendor;
 use App\Models\Warehouse;
 use App\Services\Contracts\PaymentServiceInterface;
+use App\Services\GeolocationService;
 use App\Services\Payments\PaymentServiceFactory;
 use Database\Factories\Address\AddressFactory;
 use Exception;
@@ -24,6 +27,11 @@ class PlaceOrderAction
         protected PaymentServiceFactory $paymentFactory
     ) {}
 
+    /**
+     * WE ARE NOW IMPLEMENTING A LOT OF SERVICES IN THE ACTION, 
+     * WE WERE ABLE TO ABSTRACT THE LOGIC FROM THE CONTROLLER BUT NOW THE ACTION IS GETTING BLOATED,
+     * HOW DO WE DEAL WITH ACTIONS EXECUTING A LOT OF METHODS FROM DIFFERENT SERVICES?
+     */
     public function execute(Customer $customer, array $data): array
     {
         return DB::transaction(function () use ($customer, $data) {
@@ -47,7 +55,7 @@ class PlaceOrderAction
 
     private function getVendorWithVariantWithMultipleWarehouses($customer)
     {
-        $customerAddress = $customer->customerAddresses[0]->address;
+        $customerAddress = $customer->customerAddresses[0];
 
         $vendor = vendor::factory()->create();
 
@@ -56,21 +64,21 @@ class PlaceOrderAction
             'contact_number' => '09171234567',
         ]);
         $address = AddressFactory::luzon('region_2');
-        $warehouseA->warehouseAddress()->create($address);
+        $warehouseA->address()->create($address);
 
         $warehouseB = $vendor->warehouses()->create([
             'name' => 'Warehouse B',
             'contact_number' => '09171232227',
         ]);
         $address = AddressFactory::visayas('region_7');
-        $warehouseB->warehouseAddress()->create($address);
+        $warehouseB->address()->create($address);
 
         $warehouseC = $vendor->warehouses()->create([
             'name' => 'Warehouse C',
             'contact_number' => '09171231239',
         ]);
         $address = AddressFactory::mindanao('region_10');
-        $warehouseC->warehouseAddress()->create($address);
+        $warehouseC->address()->create($address);
 
         // dd($vendor->warehouses);
 
@@ -96,20 +104,13 @@ class PlaceOrderAction
             'quantity_available' => 15,
             'quantity_reserved' => 0,
         ]);
-        $getCustomerCoordinates = [
-            'lat' => $customerAddress->latitude,
-            'lon' => $customerAddress->longitude,
-        ];
 
         $getVariantWarehouseHubs = [];
         $getVariantFulfillmentHubs = [];
 
         $variant->inventoryStocks->each(function ($stock) use (&$getVariantWarehouseHubs, &$getVariantFulfillmentHubs) {
             if ($stock->inventorable_type === Warehouse::class) {
-                $getVariantWarehouseHubs[$stock->inventorable->id] = [
-                    'lat' => $stock->inventorable->warehouseAddress->latitude,
-                    'lon' => $stock->inventorable->warehouseAddress->longitude,
-                ];
+                $getVariantWarehouseHubs[$stock->inventorable->address->id] = new Coordinate($stock->inventorable->address->latitude, $stock->inventorable->address->longitude);
             }
 
             if ($stock->inventorable_type === FulfillmentHub::class) {
@@ -121,9 +122,10 @@ class PlaceOrderAction
 
         // dd($variant->inventoryStocks[0]->inventorable->warehouseAddress);
 
-        $warehouseId = $this->findNearestWarehouse($getCustomerCoordinates, $getVariantWarehouseHubs);
+        $geoService = new GeolocationService();
+        $warehouseId = $geoService->nearestFromMultipleLocations($customerAddress->coordinates(), $getVariantWarehouseHubs);
 
-        $warehouse = Warehouse::findOrFail($warehouseId);
+        $warehouse = EntityAddress::findOrFail($warehouseId);
 
         /**
          * Let's pause for some time and do a clean up 
@@ -133,51 +135,14 @@ class PlaceOrderAction
          * - Refactor the Test Cases
          * - Dedicated service for getting the lat and lon
          * 
+         * 
          * Then we focus on the Fastify shipping fee calculation.
          * - we need to deal with the weight and dimension as well for more realistic J&T shipping fee calculation.
          * - - but settle with region to zone shipping calculation for now, and lay out other features like tracking number, webhook, barcode scanner.
          * 
          * 
          */
-        dd($customerAddress->region, $warehouse->warehouseAddress->region);
-    }
-
-    private function findNearestWarehouse(array $customerCoords, array $warehouseHubs): int
-    {
-        $nearestWarehouseId = null;
-        $shortestDistance = PHP_FLOAT_MAX;
-
-        foreach ($warehouseHubs as $warehouseId => $coords) {
-            $distance = $this->calculateHaversineDistance(
-                $customerCoords['lat'],
-                $customerCoords['lon'],
-                $coords['lat'],
-                $coords['lon'],
-            );
-
-            if ($distance < $shortestDistance) {
-                $shortestDistance = $distance;
-                $nearestWarehouseId = $warehouseId;
-            }
-        }
-
-        return $nearestWarehouseId;
-    }
-
-    private function calculateHaversineDistance($lat1, $lon1, $lat2, $lon2): float
-    {
-        $earthRadius = 6371; // Radius of earth in kilometers
-
-        $dLat = deg2rad($lat2 - $lat1);
-        $dLon = deg2rad($lon2 - $lon1);
-
-        $a = sin($dLat / 2) * sin($dLat / 2) +
-            cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
-            sin($dLon / 2) * sin($dLon / 2);
-            
-        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
-
-        return $earthRadius * $c; // Distance in KM
+        dd($customerAddress->address->region, $warehouse->region);
     }
 
     private function packOrders(Order $order, array $response, PaymentServiceInterface $paymentService, array $data, Customer $customer): void
@@ -274,6 +239,8 @@ class PlaceOrderAction
             $orderPackage = $order->orderPackages()->create(['vendor_id' => $key]);
 
             $orderPackage->orderPackageItems()->createmany($items);
+
+            // Order Package is where we gonna put the Shipping Fee right...
 
             $orderPackage->orderPackageStatuses()->create([
                 'status' => OrderPackageStatus::ToPay,

@@ -4,6 +4,7 @@ use App\Enums\OrderPackagePaymentStatus;
 use App\Enums\OrderPackageStatus;
 use App\Services\Payments\StripeService;
 use Illuminate\Support\Facades\Http;
+use Spatie\Permission\Models\Role;
 use Stripe\Event;
 
 test('stripe webhook successfully transitions payment and order items to paid state', function () {

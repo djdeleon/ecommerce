@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\DataObjects\Coordinate;
 use Database\Factories\WarehouseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -32,5 +33,22 @@ class Warehouse extends Model
     public function address(): MorphOne
     {
         return $this->morphOne(EntityAddress::class, 'addressable');
+    }
+
+    public function fullAddress(): string
+    {
+        $addressQuery = array_filter([
+            $this->address->street_address,
+            $this->address->city->name,
+            $this->address->province->name,
+            'Philippines'
+        ]);
+
+        return implode(', ', $addressQuery);
+    }
+
+    public function coordinates(): Coordinate
+    {
+        return new Coordinate($this->address->latitude, $this->address->longitude);
     }
 }

@@ -18,6 +18,10 @@ class Variant extends Model
     protected $fillable = [
         'sku',
         'price',
+        'actual_weight_kg',
+        'package_height_cm',
+        'package_length_cm',
+        'package_width_cm',
     ];
 
     protected function casts(): array

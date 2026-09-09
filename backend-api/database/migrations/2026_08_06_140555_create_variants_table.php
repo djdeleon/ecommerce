@@ -20,6 +20,10 @@ return new class extends Migration
                 ->onDelete('cascade');
             $table->string('sku')->unique();
             $table->decimal('price', 12, 4);
+            $table->decimal('actual_weight_kg', 10, 3)->default(0.000);
+            $table->decimal('package_height_cm', 8, 2)->default(0.00);
+            $table->decimal('package_length_cm', 8, 2)->default(0.00);
+            $table->decimal('package_width_cm', 8, 2)->default(0.00);
             $table->timestamps();
         });
     }

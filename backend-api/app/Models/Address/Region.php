@@ -17,6 +17,7 @@ class Region extends Model
         'correspondence_code',
         'name',
         'slug',
+        'zone',
     ];
 
     public function provinces(): HasMany
