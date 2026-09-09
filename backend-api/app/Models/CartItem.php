@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\DataObjects\Coordinate;
+use App\Services\GeolocationService;
 use Database\Factories\CartItemFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;

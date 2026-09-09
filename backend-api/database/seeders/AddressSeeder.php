@@ -45,6 +45,7 @@ class AddressSeeder extends Seeder
                     'correspondence_code' => $line['Correspondence Code'],
                     'name' => $line['Name'],
                     'slug' => $this->getSlug($regionPrefixCode),
+                    'zone' => $this->getZone($regionPrefixCode),
                 ]);
 
                 $regionMap[$regionPrefixCode] = $region->id;
@@ -132,6 +133,7 @@ class AddressSeeder extends Seeder
             '17' => 'mimaropa',
             '05' => 'region_5',
             '06' => 'region_6',
+            '18' => 'nir',
             '07' => 'region_7',
             '08' => 'region_8',
             '09' => 'region_9',
@@ -141,6 +143,31 @@ class AddressSeeder extends Seeder
             '16' => 'region_13',
             '19' => 'barmm',
             default => 'region_4a', // Safe fallback
+        };
+    }
+
+    private function getZone(string $code): string
+    {
+        return match($code) {
+            '13' => 'metro_manila',
+            '14' => 'north_luzon',
+            '01' => 'north_luzon',
+            '02' => 'north_luzon',
+            '03' => 'north_luzon',
+            '04' => 'south_luzon',
+            '17' => 'south_luzon',
+            '05' => 'south_luzon',
+            '06' => 'visayas',
+            '18' => 'visayas',
+            '07' => 'visayas',
+            '08' => 'visayas',
+            '09' => 'mindanao',
+            '10' => 'mindanao',
+            '11' => 'mindanao',
+            '12' => 'mindanao',
+            '16' => 'mindanao',
+            '19' => 'mindanao',
+            default => 'metro_manila', // Safe fallback
         };
     }
 }

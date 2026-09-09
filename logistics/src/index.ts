@@ -17,65 +17,156 @@ fastify.addHook('preHandler', async (req, rep) => {
 })
 
 const REGION_TO_ZONE_MAP: Record<string, string> = {
-  // 1. National Capital Region (NCR) -> METRO_MANILA
-  'ncr': 'METRO_MANILA',
+  // Luzon Zones
+  // METRO_MANILA
+  'ncr': 'metro_manila',
+  // North Luzon
+  'car': 'north_luzon',          // Cordillera Administrative Region
+  'region_1': 'north_luzon',     // Ilocos Region
+  'region_2': 'north_luzon',     // Cagayan Valley
+  'region_3': 'north_luzon',     // Central Luzon
+  // South Luzon
+  'region_4a': 'south_luzon',    // CALABARZON
+  'region_4b': 'south_luzon',    // MIMAROPA (Region IV-B)
+  'region_5': 'south_luzon',     // Bicol Region
 
-  // 2. Luzon Regions
-  'car': 'LUZON',          // Cordillera Administrative Region
-  'region_1': 'LUZON',     // Ilocos Region
-  'region_2': 'LUZON',     // Cagayan Valley
-  'region_3': 'LUZON',     // Central Luzon
-  'region_4a': 'LUZON',    // CALABARZON
-  'mimaropa': 'LUZON',     // MIMAROPA (Region IV-B)
-  'region_5': 'LUZON',     // Bicol Region
+  // Visayas Zones
+  'region_6': 'visayas',        // Western Visayas
+  'region_7': 'visayas',        // Central Visayas
+  'region_8': 'visayas',        // Eastern Visayas
+  'nir': 'visayas',             // Visayas
 
-  // 3. Visayas Regions
-  'region_6': 'VISAYAS',    // Western Visayas
-  'region_7': 'VISAYAS',    // Central Visayas
-  'region_8': 'VISAYAS',    // Eastern Visayas
-
-  // 4. Mindanao Regions
-  'region_9': 'MINDANAO',   // Zamboanga Peninsula
-  'region_10': 'MINDANAO',  // Northern Mindanao
-  'region_11': 'MINDANAO',  // Davao Region
-  'region_12': 'MINDANAO',  // SOCCSKSARGEN
-  'region_13': 'MINDANAO',  // Caraga
-  'barmm': 'MINDANAO'       // Bangsamoro Autonomous Region in Muslim Mindanao
+  // Mindanao Zones
+  'region_9': 'mindanao',       // Zamboanga Peninsula
+  'region_10': 'mindanao',      // Northern Mindanao
+  'region_11': 'mindanao',      // Davao Region
+  'region_12': 'mindanao',      // SOCCSKSARGEN
+  'region_13': 'mindanao',      // Caraga
+  'barmm': 'mindanao'           // Bangsamoro Autonomous Region in Muslim Mindanao
 };
 
-async function getBaseRatings(islandOrigin: string, islandDestination: string) {
+// const REGION_TO_ZONE_MAP: Record<string, string> = {
+//   // 1. National Capital Region (NCR) -> METRO_MANILA
+//   'ncr': 'METRO_MANILA',
+
+//   // 2. Luzon Regions
+//   'car': 'LUZON',          // Cordillera Administrative Region
+//   'region_1': 'LUZON',     // Ilocos Region
+//   'region_2': 'LUZON',     // Cagayan Valley
+//   'region_3': 'LUZON',     // Central Luzon
+//   'region_4a': 'LUZON',    // CALABARZON
+//   'region_4b': 'LUZON',     // MIMAROPA (Region IV-B)
+//   'region_5': 'LUZON',     // Bicol Region
+
+//   // 3. Visayas Regions
+//   'region_6': 'VISAYAS',    // Western Visayas
+//   'region_7': 'VISAYAS',    // Central Visayas
+//   'region_8': 'VISAYAS',    // Eastern Visayas
+
+//   // 4. Mindanao Regions
+//   'region_9': 'MINDANAO',   // Zamboanga Peninsula
+//   'region_10': 'MINDANAO',  // Northern Mindanao
+//   'region_11': 'MINDANAO',  // Davao Region
+//   'region_12': 'MINDANAO',  // SOCCSKSARGEN
+//   'region_13': 'MINDANAO',  // Caraga
+//   'barmm': 'MINDANAO'       // Bangsamoro Autonomous Region in Muslim Mindanao
+// };
+
+async function getBaseRatings(zoneOrigin: string, zoneDestination: string) {
     let baseRate = 0;
     let baseRatePerExtraKilo = 0;
 
-    // for LUZON island origin
-    if (islandOrigin === 'LUZON' && islandDestination === 'LUZON') {
-        baseRate = 75.00
-        baseRatePerExtraKilo = 25.00 
-    } else if (islandOrigin === 'LUZON' && islandDestination === 'VISAYAS' || islandDestination === 'MINDANAO') {
-        baseRate = 120.00
-        baseRatePerExtraKilo = 45.00 
+    if (zoneOrigin === 'metro_manila' && (zoneDestination === 'metro_manila' || zoneDestination === 'north_luzon' || zoneDestination === 'south_luzon')) {
+        baseRate = 45.00
+        baseRatePerExtraKilo = 10.00 
+    } else if (zoneOrigin === 'metro_manila' && zoneDestination === 'visayas') {
+        baseRate = 65.00
+        baseRatePerExtraKilo = 20.00 
+    } else if (zoneOrigin === 'metro_manila' && zoneDestination === 'mindanao') {
+        baseRate = 85.00
+        baseRatePerExtraKilo = 30.00 
     }
 
-    // for VISAYAS island origin
-    if (islandOrigin === 'VISAYAS' && islandDestination === 'VISAYAS') {
-        baseRate = 75.00
-        baseRatePerExtraKilo = 25.00 
-    } else if (islandOrigin === 'VISAYAS' && (islandDestination === 'LUZON' || islandDestination === 'MINDANAO')) {
-        baseRate = 120.00
-        baseRatePerExtraKilo = 45.00 
+    if (zoneOrigin === 'north_luzon' && (zoneDestination === 'north_luzon' || zoneDestination === 'metro_manila' || zoneDestination === 'south_luzon')) {
+        baseRate = 45.00
+        baseRatePerExtraKilo = 10.00 
+    } else if (zoneOrigin === 'north_luzon' && zoneDestination === 'visayas') {
+        baseRate = 65.00
+        baseRatePerExtraKilo = 20.00 
+    } else if (zoneOrigin === 'north_luzon' && zoneDestination === 'mindanao') {
+        baseRate = 85.00
+        baseRatePerExtraKilo = 30.00 
     }
 
-    // for VISAYAS island origin
-    if (islandOrigin === 'MINDANAO' && islandDestination === 'MINDANAO') {
-        baseRate = 75.00
-        baseRatePerExtraKilo = 25.00 
-    } else if (islandOrigin === 'MINDANAO' && (islandDestination === 'VISAYAS' || islandDestination === 'LUZON')) {
-        baseRate = 120.00
-        baseRatePerExtraKilo = 45.00 
+    if (zoneOrigin === 'south_luzon' && (zoneDestination === 'south_luzon' || zoneDestination === 'metro_manila' || zoneDestination === 'north_luzon')) {
+        baseRate = 45.00
+        baseRatePerExtraKilo = 10.00 
+    } else if (zoneOrigin === 'north_luzon' && zoneDestination === 'visayas') {
+        baseRate = 65.00
+        baseRatePerExtraKilo = 20.00 
+    } else if (zoneOrigin === 'north_luzon' && zoneDestination === 'mindanao') {
+        baseRate = 85.00
+        baseRatePerExtraKilo = 30.00 
+    }
+
+    if (zoneOrigin === 'visayas' && zoneDestination === 'visayas') {
+        baseRate = 45.00
+        baseRatePerExtraKilo = 10.00 
+    } else if (zoneOrigin === 'visayas' && (zoneDestination === 'metro_manila' || zoneDestination === 'north_luzon' || zoneDestination === 'south_luzon')) {
+        baseRate = 65.00
+        baseRatePerExtraKilo = 20.00 
+    } else if (zoneOrigin === 'visayas' && zoneDestination === 'mindanao') {
+        baseRate = 65.00
+        baseRatePerExtraKilo = 20.00 
+    }
+
+    if (zoneOrigin === 'mindanao' && zoneDestination === 'mindanao') {
+        baseRate = 45.00
+        baseRatePerExtraKilo = 10.00 
+    } else if (zoneOrigin === 'mindanao' && zoneDestination === 'visayas') {
+        baseRate = 65.00
+        baseRatePerExtraKilo = 20.00 
+    } else if (zoneOrigin === 'mindanao' && (zoneDestination === 'metro_manila' || zoneDestination === 'north_luzon' || zoneDestination === 'south_luzon')) {
+        baseRate = 85.00
+        baseRatePerExtraKilo = 30.00 
     }
 
     return { baseRate, baseRatePerExtraKilo }
 }
+
+// async function getBaseRatings(islandOrigin: string, islandDestination: string) {
+//     let baseRate = 0;
+//     let baseRatePerExtraKilo = 0;
+
+//     // for LUZON island origin
+//     if (islandOrigin === 'LUZON' && islandDestination === 'LUZON') {
+//         baseRate = 75.00
+//         baseRatePerExtraKilo = 25.00 
+//     } else if (islandOrigin === 'LUZON' && islandDestination === 'VISAYAS' || islandDestination === 'MINDANAO') {
+//         baseRate = 120.00
+//         baseRatePerExtraKilo = 45.00 
+//     }
+
+//     // for VISAYAS island origin
+//     if (islandOrigin === 'VISAYAS' && islandDestination === 'VISAYAS') {
+//         baseRate = 75.00
+//         baseRatePerExtraKilo = 25.00 
+//     } else if (islandOrigin === 'VISAYAS' && (islandDestination === 'LUZON' || islandDestination === 'MINDANAO')) {
+//         baseRate = 120.00
+//         baseRatePerExtraKilo = 45.00 
+//     }
+
+//     // for VISAYAS island origin
+//     if (islandOrigin === 'MINDANAO' && islandDestination === 'MINDANAO') {
+//         baseRate = 75.00
+//         baseRatePerExtraKilo = 25.00 
+//     } else if (islandOrigin === 'MINDANAO' && (islandDestination === 'VISAYAS' || islandDestination === 'LUZON')) {
+//         baseRate = 120.00
+//         baseRatePerExtraKilo = 45.00 
+//     }
+
+//     return { baseRate, baseRatePerExtraKilo }
+// }
 
 async function getAdditionalWeight(weight: number) {
     const baseWeight = 1;
@@ -94,22 +185,21 @@ async function calculateShippingFee(baseRatings: { baseRate: number, baseRatePer
 }
 
 interface JntRatesBody {
-    origin_region: string;
-    destination_region: string;
+    origin_zone: string;
+    destination_zone: string;
     weight_kg: number
 }
 
-fastify.post<{ Body: JntRatesBody}>('/jnt/sample', async (req, rep) => {
-    const { origin_region, destination_region, weight_kg } = req.body
+fastify.post<{ Body: JntRatesBody}>('/jnt/shipping-fee', async (req, rep) => {
+    const { origin_zone, destination_zone, weight_kg } = req.body
     
-    const islandOriginRegion = REGION_TO_ZONE_MAP[origin_region]
-    const islandDestinationRegion = REGION_TO_ZONE_MAP[destination_region]
-
-    const baseRatings = await getBaseRatings(islandOriginRegion, islandDestinationRegion)
+    const baseRatings = await getBaseRatings(origin_zone, destination_zone)
 
     const shippingFee = await calculateShippingFee(baseRatings, weight_kg)
 
-    return { status: 200, islandOriginRegion, islandDestinationRegion, baseRatings, shippingFee }
+    const data = { baseRatings, shippingFee }
+
+    return { status: 200, data }
 })
 
 // fastify.post('/api/v1/jnt/waybill')

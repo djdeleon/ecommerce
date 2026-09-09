@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\DataObjects\Coordinate;
 use App\Models\EntityAddress;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -29,4 +30,18 @@ class CustomerAddress extends Model
         return $this->morphOne(EntityAddress::class, 'addressable');
     }
 
+    public function fullCityAddress(): string
+    {
+        return "{$this->address->city->name}, {$this->address->province->name}, {$this->address->region->name}, Philippines";
+    }
+
+    public function fullAddress(): string
+    {
+        return "{$this->address->barangay->name}, {$this->address->city->name}, {$this->address->province->name}, {$this->address->region->name}, Philippines";
+    }
+
+    public function coordinates(): Coordinate
+    {
+        return new Coordinate($this->address->latitude, $this->address->longitude);
+    }
 }

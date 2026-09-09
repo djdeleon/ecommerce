@@ -39,13 +39,13 @@ class WarehouseFactory extends Factory
         ];
     }
 
-    #[Override]
-    public function configure()
-    {
-        return $this->afterCreating(function (Warehouse $warehouse) {
-            $warehouse->address()->create(
-                EntityAddress::factory()->raw() // .raw() generates the attributes array without saving a duplicate
-            );
-        });
-    }
+    // #[Override]
+    // public function configure()
+    // {
+    //     return $this->afterCreating(function (Warehouse $warehouse) {
+    //         $warehouse->address()->create(
+    //             EntityAddress::factory()->raw() // .raw() generates the attributes array without saving a duplicate
+    //         );
+    //     });
+    // }
 }

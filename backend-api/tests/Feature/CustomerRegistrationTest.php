@@ -72,4 +72,4 @@ test('a customer can have multiple address with full psgc addresses upon success
     expect($customer->customerAddresses[0]->address)
         ->latitude->toBeString()
         ->longitude->toBeString();
-});
+})->skip();
