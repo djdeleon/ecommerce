@@ -1,9 +1,26 @@
 <?php
 
+use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Customer;
 use App\Models\User;
 use Database\Factories\Address\AddressFactory;
+
+test('a customer has a cart upon registration', function () {
+    $user = User::factory()->make()->toArray();
+    $userPassword = [
+        'password' => 'secretPassword123',
+        'password_confirmation' => 'secretPassword123',
+    ];
+    $payload = array_merge($user, $userPassword);
+
+    $this->postJson(route('customers.register'), $payload)
+        ->assertCreated();
+    
+    $registeredCustomer = User::where('name', $user['name'])->first()->customer;
+
+    expect($registeredCustomer)->cart->toBeInstanceOf(Cart::class);
+});
 
 test('a customer can register without filling out an address', function () {
     $user = [

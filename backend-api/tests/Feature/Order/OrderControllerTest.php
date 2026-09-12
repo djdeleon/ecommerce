@@ -89,6 +89,10 @@ test('ToShip Order Package can proceed to ToReceive', function () {
         ->postJson(route('orders.vendor.to-receive', $orderPackage))
         ->assertOk();
 
+    /**
+     * The Webhook from Fastify is the one changing the Order state to ToReceive
+     */
+
     $orderPackage->refresh();
 
     expect($orderPackage->orderPackageStatuses)->toHaveCount(3);

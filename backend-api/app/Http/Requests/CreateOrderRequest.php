@@ -12,7 +12,7 @@ class CreateOrderRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->hasRole('customer');
     }
 
     /**
@@ -23,14 +23,19 @@ class CreateOrderRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'customer_address_id' => [
-                'required',
-            ],
             'order_details' => [
                 'required',
                 'array',
+                'min:1',
+            ],
+            'order_details.customer_address_id' => [
+                'required',
             ],
             'order_details.shipping_address' => [
+                'required',
+                'string',
+            ],
+            'order_details.payment_method' => [
                 'required',
                 'string',
             ],
@@ -45,18 +50,14 @@ class CreateOrderRequest extends FormRequest
             'order_items.*.vendor_id' => [
                 'required',
             ],
-            'order_items.*.variant_id' => [
+            'order_items.*.items.*.variant_id' => [
                 'required',
             ],
-            'order_items.*.quantity_ordered' => [
+            'order_items.*.items.*.ordered_quantity' => [
                 'required',
             ],
-            'order_items.*.price_at_purchased' => [
+            'order_items.*.items.*.price_at_purchased' => [
                 'required',
-            ],
-            'payment_method' => [
-                'required',
-                'string',
             ],
         ];
     }

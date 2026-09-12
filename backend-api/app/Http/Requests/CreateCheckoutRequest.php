@@ -24,12 +24,12 @@ class CreateCheckoutRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'selected_items' => [
+            'selected_items_id' => [
                 'required',
                 'array',
                 'min:1',
             ],
-            'selected_items.*' => [
+            'selected_items_id.*' => [
                 'required',
                 'integer',
                 // Custom rule to verify existence and enforce tenant cart ownership

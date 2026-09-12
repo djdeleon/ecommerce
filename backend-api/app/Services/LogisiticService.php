@@ -6,12 +6,23 @@ use Illuminate\Support\Facades\Http;
 
 class LogisiticService
 {
-    /**
-     * Need Actual Weight and Volumetric Weight
-     * Actual Weight vs. Volumetric Weight: J&T Express measures both the actual weight (via scale) 
-     * and the volumetric weight using the package dimensions (Length × Width × Height ÷ 3500). 
-     * Shopee charges whichever value is higher.
-     */
+    public function webhook()
+    {
+        /**
+         * The first scan of the barcode
+         * - Side Effects
+         * - - $orderPackageItem->facility->fulfillReservedStock()
+         */
+    }
+
+    public function book()
+    {
+        $response = Http::withToken(config('services.logistic.key'))
+            ->post('http://logistics:8000/jnt/book', [
+                
+            ]);
+    }
+
     public function calculateShippingFee(string $zoneA, string $zoneB, float $weight)
     {
         // weight could be Actual or Volumetric depends which one is higher.

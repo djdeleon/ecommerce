@@ -21,7 +21,6 @@ class CustomerFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
-            'shipping_address' => '123 Main Street',
         ];
     }
 

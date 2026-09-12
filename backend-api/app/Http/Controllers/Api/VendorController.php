@@ -4,7 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterVendorRequest;
-use App\Http\Requests\UpgradeVendorRequest;
+use App\Models\OrderPackage;
+use App\Services\LogisiticService;
 use App\Services\VendorService;
 use App\Traits\HttpResponses;
 use Illuminate\Http\Request;
@@ -12,6 +13,15 @@ use Illuminate\Http\Request;
 class VendorController extends Controller
 {
     use HttpResponses;
+
+    public function arrangeShipment(Request $request, OrderPackage $orderPackage)
+    {
+        $logisticService = new LogisiticService();
+        $vendor = $request->user()->vendor;
+        // dd($vendor);
+        $vendorWarehouseAddress = '';
+        dd($orderPackage->orderPackageItems);
+    }
 
     public function dashboard(Request $request)
     {

@@ -14,10 +14,6 @@ class Customer extends Model
     /** @use HasFactory<CustomerFactory> */
     use HasFactory;
 
-    protected $fillable = [
-        'shipping_address',
-    ];
-
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

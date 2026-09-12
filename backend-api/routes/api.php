@@ -62,7 +62,7 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
         Route::get('carts', [CartController::class, 'index'])->name('carts.index');
         Route::post('cart-items', [CartItemController::class, 'store'])->name('cart-items.store');
 
-        Route::post('checkouts', [CheckoutController::class, 'store'])->name('checkouts.store');
+        Route::post('checkouts', [CheckoutController::class, 'process'])->name('checkouts.process');
 
         Route::post('orders/place', [OrderController::class, 'place'])->name('orders.place');
     });
@@ -87,6 +87,7 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
 
     Route::middleware('role:vendor')->group(function () {
         Route::get('vendor/dashboard', [VendorController::class, 'dashboard'])->name('vendor.dashboard');
+        Route::post('vendors/{orderPackage}/arrange-shipment', [VendorController::class, 'arrangeShipment'])->name('vendors.arrange-shipment');
 
         Route::prefix('products')->controller(ProductController::class)->group(function () {
             Route::post('', 'store')->name('products.store');
