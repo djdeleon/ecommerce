@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Models\Order;
 use App\Models\OrderPackageItem;
 use App\Models\Variant;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -23,8 +22,9 @@ class OrderPackageItemFactory extends Factory
         return [
             'order_package_id' => OrderPackageItem::factory(),
             'variant_id' => Variant::factory(),
-            'quantity_ordered' => 1,
+            'ordered_quantity' => 1,
             'price_at_purchased' => "100.00",
+            'shipping_fee' => "100.00",
         ];
     }
 

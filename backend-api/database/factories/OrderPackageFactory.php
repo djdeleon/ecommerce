@@ -21,7 +21,8 @@ class OrderPackageFactory extends Factory
     {
         return [
             'order_id' => Order::factory(),
-            'vendor_id' => Vendor::factory()
+            'vendor_id' => Vendor::factory(),
+            'shipping_address' => '123 Main St.',
         ];
     }
 }

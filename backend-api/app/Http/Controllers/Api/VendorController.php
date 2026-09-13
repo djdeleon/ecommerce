@@ -17,10 +17,18 @@ class VendorController extends Controller
     public function arrangeShipment(Request $request, OrderPackage $orderPackage)
     {
         $logisticService = new LogisiticService();
-        $vendor = $request->user()->vendor;
-        // dd($vendor);
-        $vendorWarehouseAddress = '';
-        dd($orderPackage->orderPackageItems);
+
+        $orderPackage->orderPackageItems->each(function ($item) use ($logisticService) {
+            $shippingAddress = $item->orderPackage->shipping_address;
+            $weight = 9;
+
+            $item->orderPackageItemFacilities->each(function ($facility) use ($logisticService, $shippingAddress, $weight) {
+                $response = $logisticService->book($shippingAddress, $facility->fullAddress(), $weight);
+
+
+                dd($response);
+            });
+        });
     }
 
     public function dashboard(Request $request)

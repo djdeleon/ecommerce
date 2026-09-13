@@ -17,6 +17,7 @@ return new class extends Migration
             $table->foreignId('variant_id')->constrained()->restrictOnDelete();
             $table->unsignedSmallInteger('ordered_quantity');
             $table->decimal('price_at_purchased', 10, 4);
+            $table->decimal('shipping_fee', 10, 4)->nullable();
             $table->timestamps();
         });
     }

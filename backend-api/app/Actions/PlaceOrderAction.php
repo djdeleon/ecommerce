@@ -8,6 +8,8 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Services\Contracts\PaymentServiceInterface;
 use App\Services\FulfillmentFacility\FulfillmentFacilityFactory;
+use App\Services\LogisiticService;
+use App\Services\Logistic\Drivers\JntExpressDriver;
 use App\Services\Payments\PaymentServiceFactory;
 use Exception;
 use Illuminate\Support\Facades\DB;
@@ -26,34 +28,30 @@ class PlaceOrderAction
                 'total_amount' => $data['order_details']['total_amount'],
             ]);
 
-            // $paymentService = $this->paymentFactory->make($data['order_details']['payment_method']);
+            $paymentService = $this->paymentFactory->make($data['order_details']['payment_method']);
 
-            // $gatewayResponse = $paymentService->pay($order);
+            $gatewayResponse = $paymentService->pay($order);
 
-            // $isResponseVerified = $paymentService->gatewayResponseVerification($gatewayResponse);
+            $isResponseVerified = $paymentService->gatewayResponseVerification($gatewayResponse);
 
-            // if (! $isResponseVerified) {
-            //     throw new Exception("Gateway response is not valid to proceed to make a payment: " . json_encode($gatewayResponse));
-            // }
+            if (! $isResponseVerified) {
+                throw new Exception("Gateway response is not valid to proceed to make a payment: " . json_encode($gatewayResponse));
+            }
 
-            // $this->packOrders($order, $gatewayResponse, $paymentService, $data, $customer);
-            $this->packOrders($order, $data, $customer);
+            $this->packOrders($order, $gatewayResponse, $paymentService, $data, $customer);
 
-            // return $paymentService->orderCreationResponse($gatewayResponse);
+            return $paymentService->orderCreationResponse($gatewayResponse);
         });
     }
 
-    // private function packOrders(Order $order, array $response, PaymentServiceInterface $paymentService, array $data, Customer $customer): void
-    private function packOrders(Order $order, array $data, Customer $customer): void
+    private function packOrders(Order $order, array $response, PaymentServiceInterface $paymentService, array $data, Customer $customer): void
     {
         $vendorItems = collect($data['order_items']);
 
-        // $vendorItems->each(function ($items, $key) use ($order, $response, $paymentService, $data, $customer) {
-        $vendorItems->each(function ($item, $key) use ($order, $data, $customer) {
-            
-            $orderPackage = $order->orderPackages()->create(['vendor_id' => $item['vendor_id']]);
+        $vendorItems->each(function ($items, $key) use ($order, $response, $paymentService, $data, $customer) {
+            $orderPackage = $order->orderPackages()->create(['vendor_id' => $items['vendor_id']]);
 
-            $orderItems = $orderPackage->orderPackageItems()->createmany($item['items']);
+            $orderItems = $orderPackage->orderPackageItems()->createmany($items['items']);
 
             $orderItems->each(function ($orderPackageItem) {
                 $fulfillmentFactory = new FulfillmentFacilityFactory();
@@ -63,17 +61,29 @@ class PlaceOrderAction
                 if (! $isFulfilled) {
                     throw new Exception('Failed to fulfill this item.');
                 }
-
-                dd($orderPackageItem->orderPackageItemFacilities);
             });
 
-            // $fulfi
+            $logisticService = new LogisiticService();
+            $jntService = new JntExpressDriver();
 
+            $orderItems->each(function ($item) use ($customer, $logisticService, $jntService) {
+                $shippingFee = [];
 
+                $item->orderPackageItemFacilities->each(function ($facility) use ($jntService, $logisticService, $customer, &$shippingFee) {
+                    $actual = $facility->orderPackageItem->variant->actual_weight_kg;
+                    $volumetric = $jntService->volumetricWeight(
+                        $facility->orderPackageItem->variant->package_height_cm,
+                        $facility->orderPackageItem->variant->package_length_cm,
+                        $facility->orderPackageItem->variant->package_width_cm,
+                    );
+                    $weight = max($actual, $volumetric);
 
-            // Order Package is where we gonna put the Shipping Fee right...
+                    $shippingFee = $logisticService->calculateShippingFee($customer->zone(), $facility->zone(), $weight);
+                });
 
-            // Reserve stock...
+                $item->shipping_fee = $shippingFee['shippingFee'];
+                $item->save();
+            });
 
             $orderPackage->orderPackageStatuses()->create([
                 'status' => OrderPackageStatus::ToPay,

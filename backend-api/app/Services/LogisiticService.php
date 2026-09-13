@@ -15,8 +15,9 @@ class LogisiticService
          */
     }
 
-    public function book()
+    public function book(string $destination, string $origin, float $weight)
     {
+        // dd($destination, $origin, $weight);
         $response = Http::withToken(config('services.logistic.key'))
             ->post('http://logistics:8000/jnt/book', [
                 

@@ -33,4 +33,9 @@ class Customer extends Model
     {
         return $this->hasMany(CustomerAddress::class);
     }
+
+    public function zone()
+    {
+        return $this->customerAddresses()->one()->latestOfMany()->first()->address()->first()->region->zone;
+    }
 }

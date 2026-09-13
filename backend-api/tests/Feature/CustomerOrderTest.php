@@ -13,14 +13,11 @@ use App\Models\Vendor;
 use App\Models\Warehouse;
 use App\Services\CartService;
 use App\Services\CheckoutService;
-use App\Services\Fulfillment\FulfillmentFactory;
-use App\Services\FulfillmentFacility\FulfillmentFacilityFactory;
 use App\Services\GeolocationService;
 use App\Services\LogisiticService;
 use App\Services\Logistic\Drivers\JntExpressDriver;
 use App\Services\Payments\StripeService;
 use Database\Factories\Address\AddressFactory;
-use Database\Factories\CustomerAddressFactory;
 use Illuminate\Support\Facades\Http;
 
 test('a customer can place its orders with xendit available payment methods', function ($dataset) {
@@ -634,6 +631,7 @@ test('a customer can place its orders with checkout process', function () {
     $address = AddressFactory::luzon('region_3', 3);
     $customerAddress->address()->create($address);
     $customerZone = $customerAddress->address->region->zone;
+    // dd($customerAddress->fullAddress());
 
     // -------------------------------------------------------------
     // Customer Cart Items
@@ -662,17 +660,7 @@ test('a customer can place its orders with checkout process', function () {
     $ordersPayload = $items['checkout_items']->map(function ($vendorItems) {
         return [
             'vendor_id' => $vendorItems['vendor_id'],
-            // a vendor can pack multiple packages if the items don't exist in one hub.
-            // currently, we are only checking if quantity <= quantity_available.
-            // so another condition would be, check if the order items on the vendor do exist and can be fulfilled by vendor warehouses
-            // // then get the passing vendor warehouses and get which warehouse is closest THEN calculate the shipping fee.
-            // I think we also need to get all the count of items that exist in a warehouse, this way we can check base from order items <= warehouseItems
-            // 'packages' => [],
             'items' => $vendorItems['items']->map(function ($item) {
-
-                // dd($item);
-                // $item['inventory_stock_id'] = $item['nearest_hub']['stock_id'];
-                // return $item;
                 return [
                     'variant_id' => $item['variant']['id'],
                     'ordered_quantity' => $item['quantity'],
@@ -698,122 +686,6 @@ test('a customer can place its orders with checkout process', function () {
 
     $this->actingAs($customer->user, 'sanctum')
         ->postJson(route('orders.place'), $payload)
-        ->assertCreated();
-
-    $allocateFulfillmentFacilities = $ordersPayload->map(function ($order) {
-
-        $fulfillmentFactory = new FulfillmentFacilityFactory();
-        $fulfillmentService = $fulfillmentFactory->make($order['items']);
-    
-        dd($fulfillmentService);
-    });
-
-    dd($allocateFulfillmentFacilities);
-    
-    /**
-     * As soon as the customer hits "checkout" on the cart items page, this service is gonna be executed.
-     * - when the customer clicks 'place order', there's no need for this service to run because we already have the facility_id included for the orderPackageItems() creation.
-     */
-    $fulfillmentFactory = new FulfillmentFacilityFactory();
-    $fulfillmentService = $fulfillmentFactory->make();
-    
-    $data = $fulfillmentService->execute();
-
-    dd($data);
-    /**
-     * Scenario for Vendor Warehouse can handle all those orders (300 warehouse_id)
-     * The check for this is also, check the warehouse if all order items exist, if not we simply exit.
-     * - because what we PREFER most of the time is for the order items to be handled by ONE NEAREST WAREHOUSE.
-     * - if true, we now check/ask if all order items can be fulfilled,
-     * - - if true, get the details and the distance_km and keep asking the rest of vendor's warehouses.
-     * - - If not, we exit AND now do the Order Splitting Algorithm.
-     * 
-     * THIS IS FINAL FOR NOW AND SETTLE WITH THIS. BOTH THIS AND ORDER SPLITTING ALGORITHM
-     */
-    dd([
-		10 => [
-			100 => false,
-			200 => true,
-			300 => true,
-		],
-		20 => [
-			100 => true,
-			200 => false,
-			300 => true,
-		],
-		30 => [
-			100 => true,
-			200 => false,
-			300 => true,
-		]
-	]);
-
-    /**
-     * Scenario for Split-Order
-     */
-    dd([
-		10 => [
-			100 => false,
-			200 => true,
-		],
-		20 => [
-			100 => true,
-			200 => false,
-		],
-		30 => [
-			100 => true,
-			200 => false,
-		]
-	]);
-
-    /**
-     * What if we subtract the total order items to the passing_items_count, 
-     * this will give us the missing vendor items and identify the warehouse that can handle the most items.
-     * - the order items is 5 and the passing_items_count for Warehouse A is 4. We get 1 for missing items and sort the warehouses by most items.
-     * 
-     * Before we Iterate, the warehouses is sorted by nearest to farthest.
-     * - 5 order items. 5 Warehouses. 
-     * - - 1st Warehouse passing_item_count is 4
-     * - - - we get the nearest warehouse WITH the highest passing_items_count,
-     * - - - - this way parang yung left over is "hinahanapan na lang".
-     * - - - - so the left over items is checked to the 2nd, 3rd,... warehouse. 
-     * ----------- worst cases scenario is NO WAREHOUSE CAN FULFILL the remaining. OR The item can be fulfill by the farthest warehouse.
-     * ----------- or kung gusto mo talaga magpakabatak, get the 2nd highest passing_items count and check the remaining items to the 1st, 3rd, 4th,...
-     * ------------- then it would result either FALSE or TRUE
-     * -------------- IF FALSE, then lets continue the process to the next warehouse the 3rd warehouse then check the remain items to the 1st, 2nd, 4th...
-     * -------------- if the result is STILL FALSE... then let's simply return "Order cannot be processed."
-     * --------------- FOR TRUE (pack the package based on warehouses)
-     * 
-     * - 5 order items. 5 warehouses.
-     * - - 1st Warehouse passing_items_count is 1
-     * - - 5th Warehouse passing_items_count is 4
-     * - - is this just fine?
-     * - - - I think yes, let's settle with this, this algorithm is just an option for customer if the vendor can't have a single warehouse that can fulfill the order items.
-     * 
-     * - 6 order items. 3 warehouses.
-     * - - 1st Warehouse passing_items_count is 2
-     * - - 2nd Warehouse passing_items_count is 2
-     * - - 3rd Warehouse passing_items_count is 2
-     * - - this is where the vendor is going to have 3 packages.
-     */
-    [
-        100 => [
-            'checks' => [
-                10 => false,
-                20 => true,
-                30 => true,
-            ],
-            'passing_items_count' => 2
-        ],
-        200 => [
-            'checks' => [
-                10 => true,
-                20 => false,
-                30 => false,
-            ],
-            'passing_items_count' => 1
-        ]
-    ];
-
-    dd($orders);
-})->only();
+        ->assertCreated()
+        ->assertJsonStructure(['data' => ['id', 'redirect_url']]);
+})->skip();

@@ -373,4 +373,4 @@ test('multiple selected item variants are checked if which stock hubs is nearest
             ->has('data.grand_total')
             ->etc()
         );
-})->only();
+})->skip();

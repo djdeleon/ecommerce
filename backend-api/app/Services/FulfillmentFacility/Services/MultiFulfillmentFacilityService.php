@@ -24,8 +24,10 @@ class MultiFulfillmentFacilityService implements FulfillmentFacilityInterface
                     'allocated_quantity' => $data['allocated_quantity']
                 ]);
             }
+
+            unset($orderPackageItem->facilities);
         });
-        
+
         return 'Multiple fulfillment... Created';
     }
 }

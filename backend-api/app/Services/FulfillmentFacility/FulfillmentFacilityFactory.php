@@ -50,8 +50,6 @@ class FulfillmentFacilityFactory
 
         }
 
-        // TODO: FINALIZE THIS TODAY SO WE CAN PROCEED TO THE ARRANGE-SHIPMENT AND WORK ON FOR THE FASTIFY API!! WE NEED TO MOVE FAST SO WE CAN BUILD AND STUDY GO
-
         // For the last facility
         if ($quantity <= 0) {
             $orderPackageItem->facilities = $partialFacilities;

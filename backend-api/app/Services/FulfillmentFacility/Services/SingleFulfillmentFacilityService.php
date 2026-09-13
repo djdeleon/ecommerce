@@ -10,14 +10,16 @@ use Override;
 class SingleFulfillmentFacilityService implements FulfillmentFacilityInterface
 {
     #[Override]
-    public function execute(OrderPackageItem $orderPackageitem)
+    public function execute(OrderPackageItem $orderPackageItem)
     {
-        DB::transaction(function () use ($orderPackageitem) {
-            $orderPackageitem->facility->reserveStock($orderPackageitem->ordered_quantity);
+        DB::transaction(function () use ($orderPackageItem) {
+            $orderPackageItem->facility->reserveStock($orderPackageItem->ordered_quantity);
 
-            $orderPackageitem->orderPackageItemFacilities()->create([
-                'facility_id' => $orderPackageitem->facility->id
+            $orderPackageItem->orderPackageItemFacilities()->create([
+                'facility_id' => $orderPackageItem->facility->id
             ]);
+
+            unset($orderPackageItem->facility);
         });
 
         return 'Single fulfillment... ';

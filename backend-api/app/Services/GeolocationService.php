@@ -14,8 +14,6 @@ class GeolocationService
 {
     public function nearestHubWithStockCollection(Collection $cartItems, Coordinate $customerCoords)
     {
-        dd($cartItems->pluck('id'));
-
         $vendorItems = $cartItems->groupBy(function ($item) {
             return $item->variant->product->vendor->id;
         });

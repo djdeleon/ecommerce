@@ -17,7 +17,10 @@ class OrderPackage extends Model
     /** @use HasFactory<OrderPackageFactory> */
     use HasFactory;
 
-    protected $fillable = ['vendor_id'];
+    protected $fillable = [
+        'vendor_id',
+        'shipping_address',
+    ];
 
     public function order(): BelongsTo
     {

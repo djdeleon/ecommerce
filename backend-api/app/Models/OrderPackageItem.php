@@ -20,6 +20,7 @@ class OrderPackageItem extends Model
         'variant_id',
         'ordered_quantity',
         'price_at_purchased',
+        'shipping_fee',
     ];
 
     public function orderPackage(): BelongsTo
