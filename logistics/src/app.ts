@@ -1,4 +1,6 @@
 import Fastify from "fastify";
+import { prisma } from "./prisma.js";
+import { NetworkType } from "@prisma/client";
 
 export function buildApp() {
     const fastify = Fastify({ logger: true });
@@ -185,6 +187,50 @@ export function buildApp() {
 
         return baseRate + (additionalWeight * baseRatePerExtraKilo)
     }
+
+    fastify.get('/jnt/networks', async () => {
+        const networks = await prisma.network.findMany();
+
+        return { 
+            status: 200, 
+            message: 'Networks retrieved.', 
+            data: {
+                networks,
+                networkTypes: Object.values(NetworkType)
+            } 
+        }
+    })
+
+    interface NetworkBody {
+        name: string,
+        type: NetworkType,
+        address: string,
+    }
+
+    fastify.post<{ Body: NetworkBody }>('/jnt/networks', async (req, rep) => {
+            const { name, type, address } = req.body
+            const randomSuffix = Math.floor(Math.random() * 10000);
+
+            const code = `JTE-${randomSuffix}`
+            const latitude = "14.59"
+            const longitude = "120.98"
+
+            const network = await prisma.network.create({
+                data: {
+                    name: name,
+                    code: code,
+                    address: address,
+                    type: type,
+                    latitude: latitude,
+                    longitude: longitude,
+                }
+            })
+
+            rep.status(201).send({
+                message: "Network created.",
+                data: network
+            })
+    })
 
     interface JntRatesBody {
         origin_zone: string;

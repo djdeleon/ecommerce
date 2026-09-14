@@ -1,21 +1,22 @@
 import { buildApp } from "./app.js";
 
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, test, expect, beforeEach, afterAll } from "vitest";
 import { prisma, disconnectPrisma } from "./prisma.js"
 import { createNetwork, createCourier, createShipment } from "./utils/factories.js";
+import { NetworkType } from "@prisma/client";
 
-describe('Model Relationship Test', () => {
-  beforeAll(async () => {
+beforeEach(async () => {
     await prisma.$connect();
     await prisma.shipment.deleteMany();
     await prisma.courier.deleteMany();
     await prisma.network.deleteMany();
-  });
+});
 
-  afterAll(async () => {
+afterAll(async () => {
     await disconnectPrisma()
-  });
+});
 
+describe('Model Relationship Test', () => {
   it('creates a network', async () => {
     const network = await createNetwork({
         name: "Network A"
@@ -48,6 +49,47 @@ describe('Model Relationship Test', () => {
     expect(shipment.providerName).toBe("Ninja Van")
     expect(networkCourier?._count.couriers).toBe(1)
   })
+})
+
+describe('Logistic Networks', () => {
+    describe('J&T Express Logistics', () => {
+        const app = buildApp();
+        const expectedKey = process.env.LOGISTICS_KEY;
+
+        test('a J&T platform admin can view all networks', async () => {
+            await createNetwork();
+
+            const response = await app.inject({
+                method: 'GET',
+                url: '/jnt/networks',
+                headers: {
+                    authorization: `Bearer ${expectedKey}`
+                }
+            })
+
+            expect(response.statusCode).toBe(200)
+            expect(response.json().message).toBe('Networks retrieved.')
+            expect(response.json().data.networks.length).toBe(1)
+            expect(response.json().data.networkTypes.length).toBe(3)
+        })
+
+        test('a J&T platform admin can create a network', async () => {
+            const response = await app.inject({
+                method: 'POST',
+                url: '/jnt/networks',
+                headers: {
+                    authorization: `Bearer ${expectedKey}`
+                },
+                body: {
+                    name: "J&T Express Network Hub A",
+                    type: NetworkType.SortingHub,
+                    address: "Manila, Quezon City, Main St. 123",
+                }
+            })
+
+            expect(response.json().data.name).toBe("J&T Express Network Hub A")
+        })
+    })
 })
 
 describe('Logistics API - J&T Shipping Fee', () => {
