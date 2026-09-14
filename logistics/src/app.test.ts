@@ -1,28 +1,15 @@
 import { buildApp } from "./app.js";
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import pg from "pg";
+import { prisma, disconnectPrisma } from "./prisma.js"
 
 describe('Database Test', () => {
-  let prisma: PrismaClient;
-  let pool: pg.Pool;
-
   beforeAll(async () => {
-    // Standard connection pool
-    pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-    
-    // Pass the pool to the Prisma 7 Adapter
-    const adapter = new PrismaPg(pool);
-    prisma = new PrismaClient({ adapter });
-    
     await prisma.$connect();
   });
 
   afterAll(async () => {
-    await prisma?.$disconnect();
-    await pool?.end();
+    await disconnectPrisma()
   });
 
   it('should create a shipment', async () => {
