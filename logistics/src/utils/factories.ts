@@ -56,16 +56,16 @@ export async function createCourier(overrides = {}, withNetwork = false) {
  * Shipment Factory Helper
  * Automatically creates parent Network and Courier if needed!
  */
-export async function createShipment(overrides = {}) {
+export async function createShipment(overrides = {}, withNetwork = false, withCourier = false) {
   let networkId = (overrides as any).currentNetworkId;
   let courierId = (overrides as any).assignedCourierId;
 
-  if (!networkId) {
+  if (!networkId && withNetwork === true) {
     const network = await createNetwork();
     networkId = network.id;
   }
 
-  if (!courierId) {
+  if (!courierId && withCourier === true) {
     const courier = await createCourier({ currentNetworkId: networkId });
     courierId = courier.id;
   }
