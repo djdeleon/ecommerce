@@ -9,5 +9,7 @@ export const prisma = new PrismaClient({ adapter });
 
 export async function disconnectPrisma() {
     await prisma.$disconnect();
-    await pool.end();
+    if (!pool.ended) {
+        await pool.end();
+    }
 }
