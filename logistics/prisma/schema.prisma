@@ -11,13 +11,108 @@ datasource db {
   provider = "postgresql"
 }
 
-model Shipments {
-  id              Int      @id @default(autoincrement())
-  trackingNumber  String   @map("tracking_number")
-  barcode         String
-  status          String   @default("PENDING")
-  originZone      String   @map("origin_zone")
-  destinationZone String   @map("destination_zone")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+enum NetworkType {
+  SortingHub @map("sorting_hub")
+  DistributionCenter @map("distribution_center")
+  Branch @map("branch")
+
+  @@map("network_type")
+}
+
+enum CourierStatus {
+  Available @map("available")
+  Busy @map("busy")
+  Offline @map("offline")
+
+  @@map("courier_status")
+}
+
+enum ShipmentStatus {
+  PendingPickup @map("pending_pickup")
+  ReadyForPickup @map("ready_for_pickup")
+  PickedUp @map("picked_up")
+  InTransit @map("in_transit")
+  ArrivedAtHub @map("arrived_at_hub")
+  OutForDelivery @map("out_for_delivery")
+  Delivered @map("delivered")
+  FailedDelivery @map("failed_delivery")
+
+  @@map("shipment_status")
+}
+
+model Network {
+  id Int @id @default(autoincrement()) @db.SmallInt
+  name String
+  code String @db.VarChar(50) @unique
+  type NetworkType
+  address String
+  latitude Decimal @db.Decimal(10, 8)
+  longitude Decimal @db.Decimal(11, 8)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  couriers Courier[]
+  shipments Shipment[]
+  trackingLogs TrackingLog[]
+
+  @@map("networks")
+}
+
+model Courier {
+  id Int @id @default(autoincrement()) @db.Integer
+  firstName String @db.VarChar(100) @map("first_name")
+  lastName String @db.VarChar(100) @map("last_name")
+  phoneNumber String @db.VarChar(20) @unique @map("phone_number")
+  vehicleType String @db.VarChar(50) @map("vehicle_type")
+  plateNumber String @db.VarChar(20) @unique @map("plate_number")
+  status CourierStatus
+  currentNetworkId Int @db.SmallInt @map("current_network_id")
+  currentNetwork Network @relation(fields: [currentNetworkId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  shipments Shipment[]
+  trackingLogs TrackingLog[]
+
+  @@map("couriers")
+}
+
+model Shipment {
+  id Int @id @default(autoincrement())
+  trackingNumber String @db.VarChar(100) @unique @map("tracking_number")
+  externalOrderId String @map("external_order_id")
+  providerName String @db.VarChar(50) @map("provider_name")
+  senderName String @map("sender_name")
+  senderPhoneNumber String @db.VarChar(20) @map("sender_phone_number")
+  senderAddress String @map("sender_address")
+  recipientName String @map("recipient_name")
+  recipientPhoneNumber String @db.VarChar(20) @map("recipient_phone_number")
+  recipientAddress String @map("recipient_address")
+  recipientLatitude Decimal @db.Decimal(10, 8) @map("recipient_latitude")
+  recipientLongitude Decimal @db.Decimal(11, 8) @map("recipient_longitude")
+  weightKg Decimal @db.Decimal(5, 2) @map("weight_kg")
+  status ShipmentStatus @default(PendingPickup)
+  currentNetworkId Int? @db.SmallInt @map("current_network_id")
+  currentNetwork Network? @relation(fields: [currentNetworkId], references: [id], onDelete: SetNull)
+  assignedCourierId Int? @map("assigned_courier_id")
+  assignedCourier Courier? @relation(fields: [assignedCourierId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  trackingLogs TrackingLog[]
+
+  @@map("shipments")
+}
+
+model TrackingLog {
+  id Int @id @default(autoincrement())
+  shipmentId Int @map("shipment_id")
+  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  status ShipmentStatus
+  description String
+  networkId Int? @db.SmallInt @map("network_id")
+  network Network? @relation(fields: [networkId], references: [id], onDelete: SetNull)
+  courierId Int? @map("courier_id")
+  courier Courier? @relation(fields: [courierId], references: [id], onDelete: SetNull)
+
+  @@map("tracking_logs")
 }
