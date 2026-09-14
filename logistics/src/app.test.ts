@@ -3,7 +3,7 @@ import { buildApp } from "./app.js";
 import { describe, it, test, expect, beforeEach, afterAll } from "vitest";
 import { prisma, disconnectPrisma } from "./prisma.js"
 import { createNetwork, createCourier, createShipment } from "./utils/factories.js";
-import { CourierStatus, NetworkType } from "@prisma/client";
+import { CourierStatus, NetworkType, ShipmentStatus } from "@prisma/client";
 
 beforeEach(async () => {
   await prisma.$connect();
@@ -122,6 +122,73 @@ describe('J&T Express Logistics', () => {
 
       expect(response.statusCode).toBe(201)
       expect(await prisma.courier.count()).toBe(1)
+    })
+  })
+
+  describe('Logistic Shipments', () => {
+    test('a Laravel vendor can book a shipment', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/jnt/shipments',
+        headers: {
+          authorization: `Bearer ${expectedKey}`
+        },
+        body: {
+          externalOrderId: "ORD-1",
+          providerName: "jnt",
+          senderName: "Jane Doe",
+          senderPhoneNumber: "09245256362",
+          senderAddress: "City of Dagupan, Pangasinan, Ilocos Region (Region I), Philippines",
+          recipientName: "Johnny Doer",
+          recipientPhoneNumber: "09245256542",
+          recipientAddress: "City of Iloilo, Iloilo, Western Visayas (Region VI), Philippines",
+          weightKg: 2,
+          status: ShipmentStatus.PendingPickup,
+        }
+      })
+
+      expect(response.statusCode).toBe(201)
+      expect(await prisma.shipment.count()).toBe(1)
+    })
+
+    test('a shipment can have a network', async () => {
+      const shipment = await createShipment()
+      const network = await createNetwork()
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/jnt/shipments/${shipment.id}/assign-network`,
+        headers: {
+          authorization: `Bearer ${expectedKey}`
+        },
+        body: {
+          networkId: network.id
+        }
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(response.json().data.id).toBe(shipment.id)
+      expect(response.json().data.currentNetwork.id).toBe(network.id)
+    })
+
+    test('a shipment can have a courier', async () => {
+      const shipment = await createShipment()
+      const courier = await createCourier()
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/jnt/shipments/${shipment.id}/assign-courier`,
+        headers: {
+          authorization: `Bearer ${expectedKey}`
+        },
+        body: {
+          courierId: courier.id
+        }
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(response.json().data.id).toBe(shipment.id)
+      expect(response.json().data.assignedCourier.id).toBe(courier.id)
     })
   })
 })

@@ -1,6 +1,6 @@
 import Fastify from "fastify";
 import { prisma } from "./prisma.js";
-import { CourierStatus, NetworkType } from "@prisma/client";
+import { CourierStatus, NetworkType, ShipmentStatus } from "@prisma/client";
 
 export function buildApp() {
   const fastify = Fastify({ logger: true });
@@ -325,7 +325,120 @@ export function buildApp() {
     })
   })
 
+  interface ShipmentBody {
+    externalOrderId: string,
+    providerName: string,
+    senderName: string,
+    senderPhoneNumber: string,
+    senderAddress: string,
+    recipientName: string,
+    recipientPhoneNumber: string,
+    recipientAddress: string,
+    weightKg: number,
+    status: ShipmentStatus,
+  }
 
+  fastify.post<{ Body: ShipmentBody}>('/jnt/shipments', async (req, rep) => {
+    const { externalOrderId, providerName, senderName, senderPhoneNumber, senderAddress, recipientName, recipientPhoneNumber, recipientAddress, weightKg, status } = req.body
+
+    const randomSuffix = Math.floor(Math.random() * 10000);
+
+    const recipientLatitude = "14.60"
+    const recipientLongitude = "120.99"
+
+    const shipment = await prisma.shipment.create({
+      data: {
+        trackingNumber: `JTE-TN-${randomSuffix}`,
+        externalOrderId,
+        providerName,
+        senderName,
+        senderPhoneNumber,
+        senderAddress,
+        recipientName,
+        recipientPhoneNumber,
+        recipientAddress,
+        recipientLatitude,
+        recipientLongitude,
+        weightKg,
+        status
+      }
+    })
+
+    rep.status(201).send({
+      message: "Shipment created.",
+      data: shipment
+    })
+  })
+
+  interface ShipmentAssignNetworkParams {
+    shipmentId: string;
+  }
+
+  interface ShipmentAssignNetworkBody {
+    networkId: string
+  }
+
+  fastify.patch<{ 
+    Body: ShipmentAssignNetworkBody, 
+    Params: ShipmentAssignNetworkParams 
+  }>('/jnt/shipments/:shipmentId/assign-network', async (req, rep) => {
+    const { networkId } = req.body
+    const parsedNetworkId = parseInt(networkId)
+    const { shipmentId } = req.params
+    const parsedShipmentId = parseInt(shipmentId)
+
+    const updatedShipment = await prisma.shipment.update({
+      where: {
+        id: parsedShipmentId
+      },
+      data: {
+        currentNetworkId: parsedNetworkId
+      },
+      include: {
+        currentNetwork: true
+      }
+    })
+
+    rep.status(200).send({
+      message: "Network assigned",
+      data: updatedShipment
+    })
+  })
+
+  interface ShipmentAssignCourierParams {
+    shipmentId: string;
+  }
+
+  interface ShipmentAssignCourierBody {
+    courierId: string
+  }
+
+  fastify.patch<{ 
+    Body: ShipmentAssignCourierBody, 
+    Params: ShipmentAssignCourierParams 
+  }>('/jnt/shipments/:shipmentId/assign-courier', async (req, rep) => {
+    const { courierId } = req.body
+    const parsedCourierId = parseInt(courierId)
+    const { shipmentId } = req.params
+    const parsedShipmentId = parseInt(shipmentId)
+
+    const updatedShipment = await prisma.shipment.update({
+      where: {
+        id: parsedShipmentId
+      },
+      data: {
+        assignedCourierId: parsedCourierId
+      },
+      include: {
+        assignedCourier: true
+      }
+    })
+
+    rep.status(200).send({
+      message: "Courier assigned",
+      data: updatedShipment
+    })
+  })
 
   interface JntRatesBody {
     origin_zone: string;
