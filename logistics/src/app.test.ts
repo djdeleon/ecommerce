@@ -2,32 +2,53 @@ import { buildApp } from "./app.js";
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { prisma, disconnectPrisma } from "./prisma.js"
+import { createNetwork, createCourier, createShipment } from "./utils/factories.js";
 
-describe('Database Test', () => {
+describe('Model Relationship Test', () => {
   beforeAll(async () => {
     await prisma.$connect();
+    await prisma.shipment.deleteMany();
+    await prisma.courier.deleteMany();
+    await prisma.network.deleteMany();
   });
 
   afterAll(async () => {
     await disconnectPrisma()
   });
 
-  it('should create a shipment', async () => {
-    const shipment = await prisma.shipments.create({
-      data: {
-        trackingNumber: `Test-${Date.now()}`,
-        barcode: "123",
-        originZone: "ncr",
-        destinationZone: "visayas"
-      }
+  it('creates a network', async () => {
+    const network = await createNetwork({
+        name: "Network A"
     });
 
-    console.dir(shipment);
-    expect(shipment.id).toBeDefined();
-    await prisma.shipments.delete({ where: { id: shipment.id } });
-  });
-});
+    const courier = await createCourier({
+        firstName: "Fastification"
+    });
 
+    const shipment = await createShipment({
+        providerName: "Ninja Van"
+    });
+
+    const networkCourier = await prisma.network.findUnique({
+        where: { id: courier.currentNetwork.id },
+        include: {
+            _count: {
+                select: {
+                    couriers: true
+                }
+            }
+        }
+    });
+
+    expect(await prisma.network.count()).toBe(3)
+    expect(await prisma.courier.count()).toBe(2)
+    expect(await prisma.shipment.count()).toBe(1)
+    expect(network.name).toBe("Network A")
+    expect(courier.firstName).toBe("Fastification")
+    expect(shipment.providerName).toBe("Ninja Van")
+    expect(networkCourier?._count.couriers).toBe(1)
+  })
+})
 
 describe('Logistics API - J&T Shipping Fee', () => {
     const app = buildApp();
