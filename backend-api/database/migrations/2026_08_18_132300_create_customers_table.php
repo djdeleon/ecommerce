@@ -18,7 +18,6 @@ return new class extends Migration
                 ->references('id')
                 ->on('users')
                 ->onDelete('cascade');
-            $table->string('shipping_address')->nullable();
             $table->timestamps();
         });
     }

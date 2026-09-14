@@ -18,9 +18,7 @@ class CustomerService
 
             $user->assignRole('customer');
 
-            $user->customer()->create([
-                'shipping_address' => $data['shipping_address'],
-            ]);
+            $user->customer()->create();
 
             $user->customer->cart()->create();
 

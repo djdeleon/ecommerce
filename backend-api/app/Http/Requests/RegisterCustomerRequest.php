@@ -41,11 +41,6 @@ class RegisterCustomerRequest extends FormRequest
                 'min:8',
                 'confirmed',
             ],
-            'shipping_address' => [
-                'required',
-                'string',
-                'unique:customers,shipping_address',
-            ],
         ];
     }
 }

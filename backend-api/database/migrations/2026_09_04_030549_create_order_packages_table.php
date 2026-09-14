@@ -23,6 +23,7 @@ return new class extends Migration
                 ->references('id')
                 ->on('vendors')
                 ->restrictOnDelete();
+            $table->string('shipping_address');
             $table->timestamps();
 
             $table->unique(['order_id', 'vendor_id'], 'order_package_unique');

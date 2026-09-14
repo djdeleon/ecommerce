@@ -13,4 +13,12 @@ class JntExpressDriver implements LogisticInterface
     {
         dd('JnT create shipping order');
     }
+    
+    #[Override]
+    public function volumetricWeight(float $height, float $length, float $width): float
+    {
+        $packageDimensions = $height * $length * $width; // cm
+
+        return $packageDimensions / 3500; // kg
+    }
 }

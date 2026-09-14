@@ -2,11 +2,6 @@
 
 use App\Enums\OrderPackagePaymentStatus;
 use App\Enums\OrderPackageStatus;
-use Spatie\Permission\Models\Role;
-
-beforeEach(function () {
-    Role::firstOrCreate(['name' => 'customer', 'guard_name' => 'web']);
-});
 
 test('xendit webhook successfully transitions payment and order items to paid state', function () {
     $order = OrderTestBuilder::order()

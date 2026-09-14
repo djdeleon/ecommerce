@@ -74,10 +74,30 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=8000
+      - DB_HOST=logistics-database
+      - DB_PORT=5432
+      - DB_USER=eco_logistics_user
+      - DB_PASSWORD=eco_logistics_password
+      - DB_NAME=logistics
+      - DATABASE_URL=postgresql://eco_logistics_user:eco_logistics_password@logistics-database:5432/logistics?schema=public
+    depends_on:
+      - logistics-database
     volumes:
       - ./logistics:/app
       - /app/node_modules
 
+  logistics-database:
+    image: postgres:18-alpine
+    container_name: eco_logistics_postgres
+    environment:
+      - POSTGRES_USER=eco_logistics_user
+      - POSTGRES_PASSWORD=eco_logistics_password
+      - POSTGRES_DB=logistics
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - logistics_postgres_data:/var/lib/postgresql/data
+
 volumes:
   pgadmin_data: 
   postgres_data: 
+  logistics_postgres_data:

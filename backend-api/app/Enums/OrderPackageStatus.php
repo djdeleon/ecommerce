@@ -17,6 +17,7 @@ enum OrderPackageStatus: string
      * New Features
      * ToReceive should be marked BY 3PL (> 10 Orders) or Fulfillment Hub Centers (< 10 Orders when the vendor goes to the hub itself to drop-off the orders)
      * in the ToReceive order is where the Shipment Logs should be handled.
+     * - So the vendor needs to have a way to print a waybill?? yes it should be in the ToShip state
      * 
      * This is also going to be part of Checkout System
      * 

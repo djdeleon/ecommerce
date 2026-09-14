@@ -14,10 +14,6 @@ class Customer extends Model
     /** @use HasFactory<CustomerFactory> */
     use HasFactory;
 
-    protected $fillable = [
-        'shipping_address',
-    ];
-
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -36,5 +32,10 @@ class Customer extends Model
     public function customerAddresses(): HasMany
     {
         return $this->hasMany(CustomerAddress::class);
+    }
+
+    public function zone()
+    {
+        return $this->customerAddresses()->one()->latestOfMany()->first()->address()->first()->region->zone;
     }
 }

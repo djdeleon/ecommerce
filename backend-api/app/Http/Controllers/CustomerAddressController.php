@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\DataObjects\Coordinate;
 use App\Http\Requests\CreateCustomerAddressRequest;
 use App\Models\EntityAddress;
+use App\Services\GeolocationService;
 use App\Traits\HttpResponses;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Http;
@@ -12,7 +14,7 @@ class CustomerAddressController extends Controller
 {
     use HttpResponses;
 
-    public function store(CreateCustomerAddressRequest $request): JsonResponse
+    public function store(CreateCustomerAddressRequest $request, GeolocationService $geolocationService): JsonResponse
     {
         $customer = $request->user()->customer;
         $data = $request->validated();
@@ -24,31 +26,19 @@ class CustomerAddressController extends Controller
          * This is where we can do the Forward Geocoding
          * - only compute when the customer address creation is successful
          */
-        $addresses = array_filter([
-            $address->street_address,
-            $address->barangay?->name,
-            $address->city?->name,
-            $address->province?->name,
-            'Philippines'
-        ]);
-        
-        $fullAddress = implode(', ', $addresses);
 
-        $response = Http::withHeaders([
-            'User-Agent' => 'EcommercePortfolioApp/1.0' // Required by Nominatim policy
-        ])->get('https://nominatim.openstreetmap.org/search', [
-            'q' => $fullAddress,
-            'format' => 'json',
-            'limit' => 1,
-        ]);
+        $coords = $geolocationService->getCoordinates($customerAddress);
 
-        if ($response->successful() && !empty($response->json())) {
-            $data = $response->json()[0];
-            $address->latitude = (float) $data['lat'];
-            $address->longitude = (float) $data['lon'];
+        if ($coords instanceof Coordinate) {
+            $address->latitude = $coords->lat;
+            $address->longitude = $coords->lon;
             $address->save();
-        } else {
-            $this->fallbackToCity($address);
+            
+            return $this->success(
+                $customerAddress,
+                'Customer Address created.',
+                201
+            );
         }
 
         return $this->success(
@@ -60,7 +50,7 @@ class CustomerAddressController extends Controller
 
     protected function fallbackToCity(EntityAddress $customerAddress)
     {
-        $fallbackAddress = "{$customerAddress->city->name}, {$customerAddress->province->name}, Philippines";
+        $fallbackAddress = "{$customerAddress->city->name}, {$customerAddress->province->name}, {$customerAddress->region->name} Philippines";
 
         $response = Http::withHeaders([
             'User-Agent' => 'EcommercePortfolioApp/1.0' // Required by Nominatim policy

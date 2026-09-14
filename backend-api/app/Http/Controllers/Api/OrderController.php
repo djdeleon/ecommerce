@@ -8,9 +8,7 @@ use App\Http\Requests\CreateOrderRequest;
 use App\Models\Order;
 use App\Actions\PlaceOrderAction;
 use App\Enums\OrderPackageStatus;
-use App\Models\Address\Region;
 use App\Models\OrderPackage;
-use App\Models\Vendor;
 use App\Traits\HttpResponses;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Http;
@@ -21,60 +19,6 @@ class OrderController extends Controller
 
     public function place(CreateOrderRequest $request, PlaceOrderAction $action): JsonResponse
     {
-        // $baseUrl = config('services.logistic.url');
-        // $key = config('services.logistic.key');
-
-        // $customer = $request->user()->customer;
-        // $originRegion = Region::findOrFail($customer->customerAddresses[0]->region_id);
-
-        // $data = $request->validated();
-
-        // // TODO: need destination region
-        // $vendorItems = collect($data['order_items'])->groupBy('vendor_id');
-
-        // $vendorIds = $vendorItems->keys();
-
-        // $vendorRegions = [];
-
-        // $vendorIds->each(function ($id) use (&$vendorRegions, $baseUrl, $key, $originRegion) {
-        //     $vendor = Vendor::findOrFail($id);
-
-        //     $vendor->warehouses->each(function ($warehouse) use ($id, &$vendorRegions, $baseUrl, $key, $originRegion) {
-        //         if ($warehouse->warehouseAddress->is_default) {
-        //             $vendorRegion = Region::findOrFail($warehouse->warehouseAddress->region_id);
-        //             // $vendorRegions[$id] = $vendorRegion->slug;
-
-        //             $response = Http::withToken($key)->post("{$baseUrl}/jnt/sample", [
-        //                 'origin_region' => $originRegion->slug,
-        //                 'destination_region' => $vendorRegion->slug,
-        //                 'weight_kg' => 2.5,
-        //             ]);
-
-        //             if ($response->failed()) {
-        //                 dd($response->body());
-        //             }
-
-        //             dd($response->json());
-
-
-        //         }
-        //     });
-        // });
-
-        // dd('here');
-
-        // $response = Http::withToken($key)->post("{$baseUrl}/jnt/sample", [
-        //     'origin_region' => $originRegion->slug,
-        //     'destination_region' => 'region_13',
-        //     'weight_kg' => 2.5,
-        // ]);
-
-        // if ($response->failed()) {
-        //     dd($response->body());
-        // }
-
-        // dd($response->json());
-
         $order = $action->execute(
             $request->user()->customer,
             $request->validated()

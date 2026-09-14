@@ -21,6 +21,8 @@ class DatabaseSeeder extends Seeder
         $region = Region::find(1);
         $regionProvinces = $region->provinces;
 
+        dd(Region::all()->toArray());
+
         $province = Province::find(1);
         $provinceRegion = $province->region;
         $provinceCities = $province->cities;

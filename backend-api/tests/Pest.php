@@ -17,7 +17,6 @@ use Tests\TestCase;
 |
 */
 
-// 1. Configure Feature tests (They need the DB, Laravel App, and Roles)
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->beforeEach(function () {
@@ -27,11 +26,15 @@ pest()->extend(TestCase::class)
             ]);
         }
     })
-    ->in('Feature'); // ONLY apply this to Feature tests
+    ->in('Feature');
 
-// 2. Configure Unit tests (Keep them pure, no DB, no heavy extension)
 pest()->extend(TestCase::class)
-    ->in('Unit'); // ONLY apply this to Unit tests
+    ->use(RefreshDatabase::class)
+    ->beforeEach(function () {
+        Role::firstOrCreate(['name' => 'customer', 'guard_name' => 'web']);
+        Role::firstOrCreate(['name' => 'vendor', 'guard_name' => 'web']);
+    })
+    ->in('Unit');
 
 /*
 |--------------------------------------------------------------------------

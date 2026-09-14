@@ -1,16 +1,23 @@
 <?php
 
+use App\Actions\ProcessCheckoutAction;
 use App\Enums\OrderPackagePaymentStatus;
 use App\Enums\OrderPackageStatus as OrderPackageStatusEnum;
 use App\Models\CartItem;
 use App\Models\Customer;
 use App\Models\CustomerAddress;
+use App\Models\FulfillmentHub;
 use App\Models\Product;
 use App\Models\Variant;
 use App\Models\Vendor;
+use App\Models\Warehouse;
+use App\Services\CartService;
+use App\Services\CheckoutService;
+use App\Services\GeolocationService;
+use App\Services\LogisiticService;
+use App\Services\Logistic\Drivers\JntExpressDriver;
 use App\Services\Payments\StripeService;
 use Database\Factories\Address\AddressFactory;
-use Database\Factories\CustomerAddressFactory;
 use Illuminate\Support\Facades\Http;
 
 test('a customer can place its orders with xendit available payment methods', function ($dataset) {
@@ -265,23 +272,6 @@ test('a customer can place its orders with paypal payment', function () {
         ], 201)
     ]);
 
-
-    // $addressA = AddressFactory::luzon('region_1');
-    // $addressB = AddressFactory::luzon('region_2');
-    // $addressC = AddressFactory::luzon('region_3');
-    // dd($addressA, $addressB, $addressC);
-
-    // $address = AddressFactory::visayas('region_6');
-    // $address = AddressFactory::visayas('region_7');
-    // $address = AddressFactory::visayas('region_8');
-
-    // $address = AddressFactory::mindanao('region_9');
-    // $address = AddressFactory::mindanao('region_10');
-    // $address = AddressFactory::mindanao('region_11');
-
-    // $address = AddressFactory::region()->province()->city()->barangay()->create();
-    // $address = AddressFactory::all();
-
     $vendors = Vendor::factory(3)->hasWarehouses()->create();
     $vendorA = $vendors[0];
     $vendorB = $vendors[1];
@@ -367,4 +357,335 @@ test('a customer can place its orders with paypal payment', function () {
             expect($status->status)->toBe(OrderPackageStatusEnum::ToPay);
         });
     });
+});
+
+test('a customer can place its orders with checkout process', function () {
+    // -------------------------------------------------------------
+    // Platform Fulfillment Hub (A, B, C)
+    // -------------------------------------------------------------
+    $hubA = FulfillmentHub::factory()->create();
+    $address = AddressFactory::luzon('region_1', 1);
+    $hubA->address()->create($address);
+
+    $address = AddressFactory::visayas('region_6', 1);
+    $hubB = FulfillmentHub::factory()->create();
+    $hubB->address()->create($address);
+
+    $address = AddressFactory::mindanao('region_9', 1);
+    $hubC = FulfillmentHub::factory()->create();
+    $hubC->address()->create($address);
+
+    // -------------------------------------------------------------
+    // Vendor A
+    // -------------------------------------------------------------
+    $vendorA = Vendor::factory()->create();
+
+    // -------------------------------------------------------------
+    // Vendor A Warehouses (A, B, C)
+    // -------------------------------------------------------------
+    $warehouseA = $vendorA->warehouses()->create([
+        'name' => 'Warehouse A',
+        'contact_number' => '09171234567',
+    ]);
+    $address = AddressFactory::luzon('region_1', 2);
+    $warehouseA->address()->create($address);
+
+    $warehouseB = $vendorA->warehouses()->create([
+        'name' => 'Warehouse B',
+        'contact_number' => '09171232227',
+    ]);
+    $address = AddressFactory::visayas('region_6', 2);
+    $warehouseB->address()->create($address);
+
+    $warehouseC = $vendorA->warehouses()->create([
+        'name' => 'Warehouse C',
+        'contact_number' => '09171231239',
+    ]);
+    $address = AddressFactory::mindanao('region_9', 2);
+    $warehouseC->address()->create($address);
+
+    // -------------------------------------------------------------
+    // Vendor A Product
+    // -------------------------------------------------------------
+    Product::factory()->hasVariants(2)->for($vendorA)->create();
+
+    // -------------------------------------------------------------
+    // Vendor A Product Variant Stock
+    // -------------------------------------------------------------
+    $variantA = $vendorA->products[0]->variants[0];
+
+    $variantA->inventoryStocks()->create([
+        'inventorable_type' => Warehouse::class,
+        'inventorable_id' => $warehouseA->id,
+        'quantity_available' => 5,
+        'quantity_reserved' => 0,
+    ]);
+    $variantA->inventoryStocks()->create([
+        'inventorable_type' => Warehouse::class,
+        'inventorable_id' => $warehouseB->id,
+        'quantity_available' => 10,
+        'quantity_reserved' => 0,
+    ]);
+    $variantA->inventoryStocks()->create([
+        'inventorable_type' => Warehouse::class,
+        'inventorable_id' => $warehouseC->id,
+        'quantity_available' => 15,
+        'quantity_reserved' => 0,
+    ]);
+    $variantA->inventoryStocks()->create([
+        'inventorable_type' => FulfillmentHub::class,
+        'inventorable_id' => $hubA->id,
+        'quantity_available' => 5,
+        'quantity_reserved' => 0,
+    ]);
+    $variantA->inventoryStocks()->create([
+        'inventorable_type' => FulfillmentHub::class,
+        'inventorable_id' => $hubB->id,
+        'quantity_available' => 10,
+        'quantity_reserved' => 0,
+    ]);
+    $variantA->inventoryStocks()->create([
+        'inventorable_type' => FulfillmentHub::class,
+        'inventorable_id' => $hubC->id,
+        'quantity_available' => 15,
+        'quantity_reserved' => 0,
+    ]);
+
+    $variantAA = $vendorA->products[0]->variants[1];
+
+    $variantAA->inventoryStocks()->create([
+        'inventorable_type' => Warehouse::class,
+        'inventorable_id' => $warehouseA->id,
+        'quantity_available' => 5,
+        'quantity_reserved' => 0,
+    ]);
+    $variantAA->inventoryStocks()->create([
+        'inventorable_type' => FulfillmentHub::class,
+        'inventorable_id' => $hubC->id,
+        'quantity_available' => 15,
+        'quantity_reserved' => 0,
+    ]);
+
+    // -------------------------------------------------------------
+    // Vendor B
+    // -------------------------------------------------------------
+    $vendorB = Vendor::factory()->create();
+
+    // -------------------------------------------------------------
+    // Vendor B Warehouses (A, B, C)
+    // -------------------------------------------------------------
+    $warehouseA = $vendorB->warehouses()->create([
+        'name' => 'Warehouse D',
+        'contact_number' => '09171222567',
+    ]);
+    $address = AddressFactory::luzon('region_1', 3);
+    $warehouseA->address()->create($address);
+
+    $warehouseB = $vendorB->warehouses()->create([
+        'name' => 'Warehouse E',
+        'contact_number' => '09172232227',
+    ]);
+    $address = AddressFactory::visayas('region_6', 3);
+    $warehouseB->address()->create($address);
+
+    $warehouseC = $vendorB->warehouses()->create([
+        'name' => 'Warehouse F',
+        'contact_number' => '09172231239',
+    ]);
+    $address = AddressFactory::mindanao('region_9', 3);
+    $warehouseC->address()->create($address);
+
+    // -------------------------------------------------------------
+    // Vendor B Product
+    // -------------------------------------------------------------
+    Product::factory()->hasVariants()->for($vendorB)->create();
+
+    // -------------------------------------------------------------
+    // Vendor B Product Variant Stock
+    // -------------------------------------------------------------
+    $variantB = $vendorB->products[0]->variants[0];
+
+    $variantB->inventoryStocks()->create([
+        'inventorable_type' => Warehouse::class,
+        'inventorable_id' => $warehouseA->id,
+        'quantity_available' => 5,
+        'quantity_reserved' => 0,
+    ]);
+    $variantB->inventoryStocks()->create([
+        'inventorable_type' => Warehouse::class,
+        'inventorable_id' => $warehouseB->id,
+        'quantity_available' => 10,
+        'quantity_reserved' => 0,
+    ]);
+    $variantB->inventoryStocks()->create([
+        'inventorable_type' => Warehouse::class,
+        'inventorable_id' => $warehouseC->id,
+        'quantity_available' => 15,
+        'quantity_reserved' => 0,
+    ]);
+    $variantB->inventoryStocks()->create([
+        'inventorable_type' => FulfillmentHub::class,
+        'inventorable_id' => $hubA->id,
+        'quantity_available' => 5,
+        'quantity_reserved' => 0,
+    ]);
+    $variantB->inventoryStocks()->create([
+        'inventorable_type' => FulfillmentHub::class,
+        'inventorable_id' => $hubB->id,
+        'quantity_available' => 10,
+        'quantity_reserved' => 0,
+    ]);
+    $variantB->inventoryStocks()->create([
+        'inventorable_type' => FulfillmentHub::class,
+        'inventorable_id' => $hubC->id,
+        'quantity_available' => 15,
+        'quantity_reserved' => 0,
+    ]);
+
+    // -------------------------------------------------------------
+    // Vendor C
+    // -------------------------------------------------------------
+    $vendorC = Vendor::factory()->create();
+
+    // -------------------------------------------------------------
+    // Vendor C Warehouses (A, B, C)
+    // -------------------------------------------------------------
+    $warehouseA = $vendorC->warehouses()->create([
+        'name' => 'Warehouse G',
+        'contact_number' => '09171634567',
+    ]);
+    $address = AddressFactory::luzon('region_2', 1);
+    $warehouseA->address()->create($address);
+
+    $warehouseB = $vendorC->warehouses()->create([
+        'name' => 'Warehouse H',
+        'contact_number' => '09171232327',
+    ]);
+    $address = AddressFactory::visayas('region_7', 1);
+    $warehouseB->address()->create($address);
+
+    $warehouseC = $vendorC->warehouses()->create([
+        'name' => 'Warehouse I',
+        'contact_number' => '09121231239',
+    ]);
+    $address = AddressFactory::mindanao('region_10', 1);
+    $warehouseC->address()->create($address);
+
+    // -------------------------------------------------------------
+    // Vendor C Product
+    // -------------------------------------------------------------
+    Product::factory()->hasVariants()->for($vendorC)->create();
+
+    // -------------------------------------------------------------
+    // Vendor C Product Variant Stock
+    // -------------------------------------------------------------
+    $variantC = $vendorC->products[0]->variants[0];
+    $variantC->actual_weight_kg = 2;
+    $variantC->package_height_cm = 20;
+    $variantC->package_length_cm = 20;
+    $variantC->package_width_cm = 30;
+    $variantC->save();
+
+    $variantC->inventoryStocks()->create([
+        'inventorable_type' => Warehouse::class,
+        'inventorable_id' => $warehouseA->id,
+        'quantity_available' => 5,
+        'quantity_reserved' => 0,
+    ]);
+    $variantC->inventoryStocks()->create([
+        'inventorable_type' => Warehouse::class,
+        'inventorable_id' => $warehouseB->id,
+        'quantity_available' => 10,
+        'quantity_reserved' => 0,
+    ]);
+    $variantC->inventoryStocks()->create([
+        'inventorable_type' => Warehouse::class,
+        'inventorable_id' => $warehouseC->id,
+        'quantity_available' => 15,
+        'quantity_reserved' => 0,
+    ]);
+    $variantC->inventoryStocks()->create([
+        'inventorable_type' => FulfillmentHub::class,
+        'inventorable_id' => $hubA->id,
+        'quantity_available' => 5,
+        'quantity_reserved' => 0,
+    ]);
+    $variantC->inventoryStocks()->create([
+        'inventorable_type' => FulfillmentHub::class,
+        'inventorable_id' => $hubB->id,
+        'quantity_available' => 10,
+        'quantity_reserved' => 0,
+    ]);
+    $variantC->inventoryStocks()->create([
+        'inventorable_type' => FulfillmentHub::class,
+        'inventorable_id' => $hubC->id,
+        'quantity_available' => 15,
+        'quantity_reserved' => 0,
+    ]);
+
+    // -------------------------------------------------------------
+    // Customer
+    // -------------------------------------------------------------
+    $customer = Customer::factory()->create();
+    $customerAddress = CustomerAddress::factory()->for($customer)->create();
+    $address = AddressFactory::luzon('region_3', 3);
+    $customerAddress->address()->create($address);
+    $customerZone = $customerAddress->address->region->zone;
+    // dd($customerAddress->fullAddress());
+
+    // -------------------------------------------------------------
+    // Customer Cart Items
+    // -------------------------------------------------------------
+    $cart = $customer->cart;
+    CartItem::factory()->for($cart)->for($variantA)->create(['quantity' => 8]);
+    CartItem::factory()->for($cart)->for($variantAA)->create(['quantity' => 15]);
+    CartItem::factory()->for($cart)->for($variantB)->create(['quantity' => 10]);
+    CartItem::factory()->for($cart)->for($variantC)->create(['quantity' => 5]);
+
+    $payload = [
+        'selected_items_id' => $cart->cartItems->pluck('id')->all()
+    ];
+
+    $processCheckoutAction = new ProcessCheckoutAction(
+        new CartService(new GeolocationService, new JntExpressDriver, new LogisiticService), 
+        new CheckoutService
+    );
+    $items = $processCheckoutAction->execute($customer, $payload);
+
+    // dd($items['checkout_items']);
+
+    /**
+     * Simulating Orders Payload when the customer clicks 'place order'
+     */
+    $ordersPayload = $items['checkout_items']->map(function ($vendorItems) {
+        return [
+            'vendor_id' => $vendorItems['vendor_id'],
+            'items' => $vendorItems['items']->map(function ($item) {
+                return [
+                    'variant_id' => $item['variant']['id'],
+                    'ordered_quantity' => $item['quantity'],
+                    'price_at_purchased' => $item['variant']['price']
+                ];
+
+            })->all()
+        ];
+    })->all();
+
+    $payload = [
+        'order_items' => $ordersPayload,
+        'order_details' => [
+            'customer_address_id' => $customerAddress->id,
+            'total_amount' => $items['grand_total'],
+            'shipping_address' => $customerAddress->fullAddress(),
+            'payment_method' => 'paypal',
+        ],
+    ];
+
+    // dd($payload);
+    // dd($ordersPayload);
+
+    $this->actingAs($customer->user, 'sanctum')
+        ->postJson(route('orders.place'), $payload)
+        ->assertCreated()
+        ->assertJsonStructure(['data' => ['id', 'redirect_url']]);
 })->skip();

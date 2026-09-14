@@ -22,6 +22,7 @@ class RegionFactory extends Factory
             'correspondence_code' => fake()->unique()->numerify('#########'),
             'name' => fake()->state() . ' Region',
             'slug' => fake()->unique()->regexify('[a-z]{5,15}'),
+            'zone' => 'metro_manila',
         ];
     }
 

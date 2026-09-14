@@ -18,11 +18,9 @@ class VendorFactory extends Factory
      */
     public function definition(): array
     {
-        $name = fake()->unique()->sentence(2);
-
         return [
             'user_id' => User::factory(),
-            'shop_name' => rtrim(ucfirst($name), '.'),
+            'shop_name' => fake()->unique()->company(),
             'business_tin' => fake()->unique()->numerify('###-###-###') 
         ];
     }

@@ -90,7 +90,7 @@ class PaypalService implements PaymentServiceInterface
                         'reference_id' => (string) $order->id,
                         'amount' => [
                             'currency_code' => 'USD',
-                            'value' => $order->total_amount
+                            'value' => bcmul($order->total_amount, '1', 2)
                         ],
                     ],
                 ],
