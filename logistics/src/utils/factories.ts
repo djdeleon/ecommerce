@@ -24,11 +24,11 @@ export async function createNetwork(overrides = {}) {
  * Courier Factory Helper
  * Automatically creates a parent Network if one isn't provided!
  */
-export async function createCourier(overrides = {}) {
+export async function createCourier(overrides = {}, withNetwork = false) {
   let networkId = (overrides as any).currentNetworkId;
 
   // If no network ID was passed, create a parent network automatically (like Laravel does!)
-  if (!networkId) {
+  if (!networkId && withNetwork === true) {
     const network = await createNetwork();
     networkId = network.id;
   }

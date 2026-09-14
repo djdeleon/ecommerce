@@ -31,7 +31,7 @@ CREATE TABLE "couriers" (
     "vehicle_type" VARCHAR(50) NOT NULL,
     "plate_number" VARCHAR(20) NOT NULL,
     "status" "courier_status" NOT NULL,
-    "current_network_id" SMALLINT NOT NULL,
+    "current_network_id" SMALLINT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
