@@ -1,44 +1,46 @@
+import { ShipmentStatus } from "@prisma/client";
+
 type TrackingEventPayload = 
-  | { status: 'pending_pickup' }
-  | { status: 'ready_for_pickup' }
-  | { status: 'picked_up'; courierName: string; plateNumber: string }
-  | { status: 'in_transit'; originHub: string; destinationHub: string }
-  | { status: 'arrived_at_hub'; hubName: string; }
-  | { status: 'out_for_delivery'; courierName: string }
-  | { status: 'delivered' }
-  | { status: 'failed_delivery'; reason: string }
-  | { status: 'rejected'; reason: string }
+  | { status: 'PendingPickup' }
+  | { status: 'ReadyForPickup' }
+  | { status: 'PickedUp'; courierName?: string; plateNumber?: string }
+  | { status: 'InTransit'; originHub?: string; destinationHub?: string }
+  | { status: 'ArrivedAtHub'; hubName?: string; }
+  | { status: 'OutForDelivery'; courierName?: string }
+  | { status: 'Delivered' }
+  | { status: 'FailedDelivery'; reason?: string }
+  | { status: 'Rejected'; reason?: string }
 
 export function generateEventDescription(payload: TrackingEventPayload) {
   switch (payload.status) {
-    case 'pending_pickup':
-      return 'Shipment manifest generated. Awaiting package preparetion by the merchant.';
+    case ShipmentStatus.PendingPickup:
+      return 'Shipment manifest generated. Awaiting package preparation by the merchant.';
 
-    case 'ready_for_pickup':
+    case ShipmentStatus.ReadyForPickup:
       return 'Parcel has been packed and is ready for courier collection.';
 
-    case 'picked_up':
-      return `Parcel successfully collected by order ${payload.courierName} (${payload.plateNumber})`;
+    case ShipmentStatus.PickedUp:
+      return `Parcel successfully collected by courier ${payload.courierName} (${payload.plateNumber})`;
 
-    case 'in_transit':
+    case ShipmentStatus.InTransit:
       return `Parcel has departed from ${payload.originHub} and is in transit to ${payload.destinationHub}.`;
 
-    case 'arrived_at_hub':
+    case ShipmentStatus.ArrivedAtHub:
       return `Parcel arrived and sorted at fulfillment facility: ${payload.hubName}.`;
 
-    case 'out_for_delivery':
+    case ShipmentStatus.OutForDelivery:
       return `Parcel is out for delivery. Courier ${payload.courierName} will attempt drop-off today.`;
 
-    case 'delivered':
+    case ShipmentStatus.Delivered:
       return 'Parcel delivered successfully.';
 
-    case 'failed_delivery':
+    case ShipmentStatus.FailedDelivery:
       return `Delivery attempt unsuccessful. Reason: ${payload.reason}. A retry will be scheduled.`;
 
-    case 'rejected':
+    case ShipmentStatus.Rejected:
       return `Shipment rejected by facility/courier. Reason: ${payload.reason}. Order returning to merchant.`;
 
     default:
-      return 'Parcel processing state updated.'
+      return 'Parcel processing state updated.';
   }
 }

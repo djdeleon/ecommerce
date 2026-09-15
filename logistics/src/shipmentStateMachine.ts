@@ -1,16 +1,19 @@
-const ALLOWED_TRANSITIONS: Record<string, string[]> = {
-  'pending_pickup': ['ready_for_pickup', 'rejected'],
-  'ready_for_pickup': ['picked_up', 'pending_pickup'],
-  'picked_up': ['in_transit', 'arrived_at_hub'],
-  'in_transit': ['arrived_at_hub', 'out_for_delivery'],
-  'arrived_at_hub': ['in_transit', 'out_for_delivery'],
-  'out_for_delivery': ['delivered', 'failed_delivery'],
-  'failed_delivery': ['out_for_delivery', 'arrived_at_hub'],
-  'delivered': [],
-  'rejected': []
-}
+import { ShipmentStatus } from "@prisma/client"
 
-function isValidTransition(currentStatus: string, nextStatus: string): boolean {
+const ALLOWED_TRANSITIONS: Record<ShipmentStatus, ShipmentStatus[]> = {
+  [ShipmentStatus.PendingPickup]: [ShipmentStatus.ReadyForPickup, ShipmentStatus.Rejected],
+  [ShipmentStatus.ReadyForPickup]: [ShipmentStatus.PickedUp, ShipmentStatus.PendingPickup],
+  [ShipmentStatus.PickedUp]: [ShipmentStatus.InTransit, ShipmentStatus.ArrivedAtHub],
+  [ShipmentStatus.InTransit]: [ShipmentStatus.ArrivedAtHub, ShipmentStatus.OutForDelivery],
+  [ShipmentStatus.ArrivedAtHub]: [ShipmentStatus.InTransit, ShipmentStatus.OutForDelivery],
+  [ShipmentStatus.OutForDelivery]: [ShipmentStatus.Delivered, ShipmentStatus.FailedDelivery],
+  [ShipmentStatus.FailedDelivery]: [ShipmentStatus.OutForDelivery, ShipmentStatus.ArrivedAtHub],
+  [ShipmentStatus.Delivered]: [],
+  [ShipmentStatus.Rejected]: []
+};
+
+
+function isValidTransition(currentStatus: ShipmentStatus, nextStatus: ShipmentStatus): boolean {
   const allowed = ALLOWED_TRANSITIONS[currentStatus]
   return allowed ? allowed.includes(nextStatus) : false
 }

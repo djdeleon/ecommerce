@@ -4,6 +4,7 @@ import { describe, it, test, expect, beforeEach, afterAll } from "vitest";
 import { prisma, disconnectPrisma } from "./prisma.js"
 import { createNetwork, createCourier, createShipment, createTrackingLog } from "./utils/factories.js";
 import { CourierStatus, NetworkType, ShipmentStatus } from "@prisma/client";
+import { actAsCourier } from "./utils/auth-helpers.js";
 
 beforeEach(async () => {
   await prisma.$connect();
@@ -181,7 +182,38 @@ describe('J&T Express Logistics', () => {
       expect(shipmentTrackingLogs[1].status).toBe(ShipmentStatus.ReadyForPickup)
     })
 
-    test.only('a Laravel vendor can set the shipment to rejected', async () => {
+    test('a ready_for_pickup shipment can be picked up by available courier wtih assigned network', async () => {
+      const shipment = await createShipment()
+      await createTrackingLog(shipment.id)
+      await createTrackingLog(shipment.id, ShipmentStatus.ReadyForPickup)
+
+      const courier = await createCourier({}, true)
+      
+      const authHeaders = await actAsCourier(app, courier)
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/jnt/shipments/${shipment.id}/picked-up`,
+        headers: authHeaders
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(response.json().data.id).toBe(shipment.id)
+      expect(response.json().data.status).toBe(ShipmentStatus.PickedUp)
+
+      const shipmentTrackingLogs = await prisma.trackingLog.findMany({
+        where: {
+          shipmentId: shipment.id
+        }
+      })
+
+      expect(shipmentTrackingLogs.length).toBe(3)
+      expect(shipmentTrackingLogs[0].status).toBe(ShipmentStatus.PendingPickup)
+      expect(shipmentTrackingLogs[1].status).toBe(ShipmentStatus.ReadyForPickup)
+      expect(shipmentTrackingLogs[2].status).toBe(ShipmentStatus.PickedUp)
+    })
+
+    test('a Laravel vendor can set the shipment to rejected', async () => {
       const shipment = await createShipment()
       createTrackingLog(shipment.id)
 
@@ -247,18 +279,6 @@ describe('J&T Express Logistics', () => {
       expect(response.json().data.id).toBe(shipment.id)
       expect(response.json().data.assignedCourier.id).toBe(courier.id)
     })
-  })
-
-  describe.skip('Logistic Tracking Logs', () => {
-    /**
-     * This is a FEATURE, not just a simple CRUD that you do in the test case into the HTTP API.
-     * - this means, try to identify all the endpoints that it is going to need (it might need one or more endpoints)
-     * 
-     * - Make sure to make this IMMUTABLE
-     * 
-     * - Answer this question, every when does this log get created?
-     * - - this question will make you proceed to fully build this feature
-    */ 
   })
 })
 

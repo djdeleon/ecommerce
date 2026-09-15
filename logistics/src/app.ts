@@ -2,15 +2,18 @@ import Fastify from "fastify";
 import { prisma } from "./prisma.js";
 import { CourierStatus, NetworkType, ShipmentStatus } from "@prisma/client";
 import { generateEventDescription } from "./logisticsEventDictionary.js";
+import fastifyJwt from "@fastify/jwt";
 
 export function buildApp() {
   const fastify = Fastify({ logger: true });
 
-  fastify.addHook('preHandler', async (req, rep) => {
-    const authHeader = req.headers.authorization; // 'Bearer <secret>' format
-    const expectedKey = process.env.LOGISTICS_KEY;
+  fastify.register(fastifyJwt, {
+    secret: process.env.JWT_SECRET || 'jwt_logistics_development'
+  })
 
-    req.log.info({ authHeader, expectedKey }, 'Debugging Authorization Keys');
+  const verifyLogisticsKey = async (req: any, rep: any) => {
+    const authHeader = req.headers.authorization;
+    const expectedKey = process.env.LOGISTICS_KEY
 
     if (!authHeader || authHeader !== `Bearer ${expectedKey}`) {
       return rep.status(401).send({
@@ -18,8 +21,34 @@ export function buildApp() {
         message: 'Access Denied: Missing or invalid Authorization Token.'
       })
     }
-  })
+  }
 
+  const verifyUserAuth = async (req: any, rep: any) => {
+    try {
+      await req.jwtVerify();
+
+      console.dir(req)
+
+      const userId = req.user.id
+  
+      const courier = await prisma.courier.findUnique({
+        where: { id: parseInt(userId) },
+        include: { currentNetwork: true }
+      })
+  
+      if (!courier) {
+        return rep.status(401).send({
+          error: 'Unauthorized: Courier not found.'
+        })
+      }
+  
+      req.courier = courier
+    } catch (err) {
+      return rep.status(401).send({
+        error: 'Unauthorized: Invalid or missing token'
+      })
+    }
+  }
 
   const REGION_TO_ZONE_MAP: Record<string, string> = {
     // Luzon Zones
@@ -339,7 +368,9 @@ export function buildApp() {
     status: ShipmentStatus,
   }
 
-  fastify.post<{ Body: ShipmentBody }>('/jnt/shipments', async (req, rep) => {
+  fastify.post<{ Body: ShipmentBody }>('/jnt/shipments', {
+    preHandler: [verifyLogisticsKey]
+  }, async (req, rep) => {
     const { externalOrderId, providerName, senderName, senderPhoneNumber, senderAddress, recipientName, recipientPhoneNumber, recipientAddress, weightKg, status } = req.body
 
     const randomSuffix = Math.floor(Math.random() * 10000);
@@ -348,7 +379,7 @@ export function buildApp() {
     const recipientLongitude = "120.99"
 
     const description = generateEventDescription({
-      status: 'pending_pickup'
+      status: ShipmentStatus.PendingPickup
     })
 
     const data = await prisma.$transaction(async (tx) => {
@@ -392,10 +423,12 @@ export function buildApp() {
     shipmentId: string;
   }
 
-  fastify.patch<{ Params: ShipmentParams }>('/jnt/shipments/:shipmentId/ready-for-pickup', async (req, rep) => {
+  fastify.patch<{ Params: ShipmentParams }>('/jnt/shipments/:shipmentId/ready-for-pickup', {
+    preHandler: [verifyLogisticsKey]
+  }, async (req, rep) => {
     const { shipmentId } = req.params
     const parsedShipmentId = parseInt(shipmentId)
-    const description = generateEventDescription({ status: 'ready_for_pickup' })
+    const description = generateEventDescription({ status: ShipmentStatus.ReadyForPickup })
 
     const data = await prisma.$transaction(async (tx) => {
       const updatedShipment = await tx.shipment.update({
@@ -424,10 +457,52 @@ export function buildApp() {
     })
   })
 
-  fastify.patch<{ Params: ShipmentParams }>('/jnt/shipments/:shipmentId/rejected', async (req, rep) => {
+  fastify.patch<{ Params: ShipmentParams }>('/jnt/shipments/:shipmentId/picked-up', {
+    preHandler: [verifyUserAuth]
+  }, async (req, rep) => {
     const { shipmentId } = req.params
     const parsedShipmentId = parseInt(shipmentId)
-    const description = generateEventDescription({ status: 'rejected', reason: 'The last stock is broken.' })
+    const courier = req.courier
+
+    const description = generateEventDescription({ status: ShipmentStatus.PickedUp, courierName: courier.firstName, plateNumber: courier.plateNumber })
+
+    const data = await prisma.$transaction(async (tx) => {
+      const updatedShipment = await tx.shipment.update({
+        where: {
+          id: parsedShipmentId
+        },
+        data: {
+          status: ShipmentStatus.PickedUp,
+          currentNetworkId: courier.currentNetworkId,
+          assignedCourierId: courier.id
+        }
+      })
+
+      await tx.trackingLog.create({
+        data: {
+          shipmentId: parsedShipmentId,
+          status: ShipmentStatus.PickedUp,
+          description,
+          networkId: courier.currentNetworkId,
+          courierId: courier.id
+        }
+      })
+
+      return { updatedShipment }
+    })
+
+    rep.status(200).send({
+      message: 'Shipment updated.',
+      data: data.updatedShipment
+    })
+  })
+
+  fastify.patch<{ Params: ShipmentParams }>('/jnt/shipments/:shipmentId/rejected', {
+    preHandler: [verifyLogisticsKey]
+  }, async (req, rep) => {
+    const { shipmentId } = req.params
+    const parsedShipmentId = parseInt(shipmentId)
+    const description = generateEventDescription({ status: ShipmentStatus.Rejected, reason: 'The last stock is broken.' })
 
     const data = await prisma.$transaction(async (tx) => {
       const updatedShipment = await tx.shipment.update({
@@ -532,7 +607,9 @@ export function buildApp() {
     weight_kg: number
   }
 
-  fastify.post<{ Body: JntRatesBody }>('/jnt/shipping-fee', async (req, rep) => {
+  fastify.post<{ Body: JntRatesBody }>('/jnt/shipping-fee', {
+    preHandler: [verifyLogisticsKey]
+  }, async (req, rep) => {
     const { origin_zone, destination_zone, weight_kg } = req.body
 
     const baseRatings = await getBaseRatings(origin_zone, destination_zone)
