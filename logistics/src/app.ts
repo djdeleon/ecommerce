@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import { prisma } from "./prisma.js";
 import { CourierStatus, NetworkType, ShipmentStatus } from "@prisma/client";
+import { generateEventDescription } from "./logisticsEventDictionary.js";
 
 export function buildApp() {
   const fastify = Fastify({ logger: true });
@@ -346,27 +347,80 @@ export function buildApp() {
     const recipientLatitude = "14.60"
     const recipientLongitude = "120.99"
 
-    const shipment = await prisma.shipment.create({
-      data: {
-        trackingNumber: `JTE-TN-${randomSuffix}`,
-        externalOrderId,
-        providerName,
-        senderName,
-        senderPhoneNumber,
-        senderAddress,
-        recipientName,
-        recipientPhoneNumber,
-        recipientAddress,
-        recipientLatitude,
-        recipientLongitude,
-        weightKg,
-        status
-      }
+    const description = generateEventDescription({
+      status: 'pending_pickup'
     })
+
+    const data = await prisma.$transaction(async (tx) => {
+      const shipment = await tx.shipment.create({
+        data: {
+          trackingNumber: `JTE-TN-${randomSuffix}`,
+          externalOrderId,
+          providerName,
+          senderName,
+          senderPhoneNumber,
+          senderAddress,
+          recipientName,
+          recipientPhoneNumber,
+          recipientAddress,
+          recipientLatitude,
+          recipientLongitude,
+          weightKg,
+          status
+        }
+      })
+  
+      await tx.trackingLog.create({
+        data: {
+          shipmentId: shipment.id,
+          status: ShipmentStatus.PendingPickup,
+          description: description,
+        }
+      })
+
+      return { shipment }
+    })
+
 
     rep.status(201).send({
       message: "Shipment created.",
-      data: shipment
+      data: data.shipment
+    })
+  })
+
+  interface ShipmentParams {
+    shipmentId: string;
+  }
+
+  fastify.patch<{ Params: ShipmentParams }>('/jnt/shipments/:shipmentId/ready-for-pickup', async (req, rep) => {
+    const { shipmentId } = req.params
+    const parsedShipmentId = parseInt(shipmentId)
+    const description = generateEventDescription({ status: 'ready_for_pickup' })
+
+    const data = await prisma.$transaction(async (tx) => {
+      const updatedShipment = await tx.shipment.update({
+        where: {
+          id: parsedShipmentId
+        },
+        data: {
+          status: ShipmentStatus.ReadyForPickup
+        }
+      })
+
+      await tx.trackingLog.create({
+        data: {
+          shipmentId: parsedShipmentId,
+          status: ShipmentStatus.ReadyForPickup,
+          description
+        }
+      })
+
+      return { updatedShipment }
+    })
+
+    rep.status(200).send({
+      message: 'Shipment updated.',
+      data: data.updatedShipment
     })
   })
 

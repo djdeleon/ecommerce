@@ -1,5 +1,6 @@
 import { CourierStatus, NetworkType, ShipmentStatus } from "@prisma/client";
 import { prisma } from "../prisma.js";
+import { generateEventDescription } from "../logisticsEventDictionary.js";
 
 /**
  * Network Factory
@@ -92,4 +93,16 @@ export async function createShipment(overrides = {}, withNetwork = false, withCo
       ...overrides,
     },
   });
+}
+
+export async function createTrackingLog(shipmentId: number) {
+  const description = generateEventDescription({ status: 'pending_pickup' })
+  
+  return await prisma.trackingLog.create({
+    data: {
+      shipmentId: shipmentId,
+      status: ShipmentStatus.PendingPickup,
+      description: description,
+    }
+  })
 }
