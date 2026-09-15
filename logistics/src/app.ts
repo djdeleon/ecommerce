@@ -497,6 +497,166 @@ export function buildApp() {
     })
   })
 
+  fastify.patch<{ Params: ShipmentParams}>('/jnt/shipments/:shipmentId/in-transit', {
+    preHandler: [verifyUserAuth]
+  }, async (req, rep) => {
+    const { shipmentId } = req.params
+    const parsedShipmentId = parseInt(shipmentId)
+    const courier = req.courier
+
+    const description = generateEventDescription({ status: ShipmentStatus.InTransit, originHub: courier.currentNetwork.name, destinationHub: 'next hub' })
+
+    const data = await prisma.$transaction(async (tx) => {
+      const updatedShipment = await tx.shipment.update({
+        where: {
+          id: parsedShipmentId
+        },
+        data: {
+          status: ShipmentStatus.InTransit,
+          currentNetworkId: courier.currentNetworkId,
+          assignedCourierId: courier.id
+        }
+      })
+
+      await tx.trackingLog.create({
+        data: {
+          shipmentId: parsedShipmentId,
+          status: ShipmentStatus.InTransit,
+          description,
+          networkId: courier.currentNetworkId,
+          courierId: courier.id
+        }
+      })
+
+      return { updatedShipment }
+    })
+
+    rep.status(200).send({
+      message: 'Shipment updated.',
+      data: data.updatedShipment
+    })
+  })
+
+  fastify.patch<{ Params: ShipmentParams}>('/jnt/shipments/:shipmentId/arrived-at-hub', {
+    preHandler: [verifyUserAuth]
+  }, async (req, rep) => {
+    const { shipmentId } = req.params
+    const parsedShipmentId = parseInt(shipmentId)
+    const courier = req.courier
+
+    const description = generateEventDescription({ status: ShipmentStatus.ArrivedAtHub, hubName: 'unknown hub' })
+
+    const data = await prisma.$transaction(async (tx) => {
+      const updatedShipment = await tx.shipment.update({
+        where: {
+          id: parsedShipmentId
+        },
+        data: {
+          status: ShipmentStatus.ArrivedAtHub,
+          currentNetworkId: courier.currentNetworkId,
+          assignedCourierId: courier.id
+        }
+      })
+
+      await tx.trackingLog.create({
+        data: {
+          shipmentId: parsedShipmentId,
+          status: ShipmentStatus.ArrivedAtHub,
+          description,
+          networkId: courier.currentNetworkId,
+          courierId: courier.id
+        }
+      })
+
+      return { updatedShipment }
+    })
+
+    rep.status(200).send({
+      message: 'Shipment updated.',
+      data: data.updatedShipment
+    })
+  })
+
+  fastify.patch<{ Params: ShipmentParams}>('/jnt/shipments/:shipmentId/out-for-delivery', {
+    preHandler: [verifyUserAuth]
+  }, async (req, rep) => {
+    const { shipmentId } = req.params
+    const parsedShipmentId = parseInt(shipmentId)
+    const courier = req.courier
+
+    const description = generateEventDescription({ status: ShipmentStatus.OutForDelivery, courierName: courier.firstName })
+
+    const data = await prisma.$transaction(async (tx) => {
+      const updatedShipment = await tx.shipment.update({
+        where: {
+          id: parsedShipmentId
+        },
+        data: {
+          status: ShipmentStatus.OutForDelivery,
+          currentNetworkId: courier.currentNetworkId,
+          assignedCourierId: courier.id
+        }
+      })
+
+      await tx.trackingLog.create({
+        data: {
+          shipmentId: parsedShipmentId,
+          status: ShipmentStatus.OutForDelivery,
+          description,
+          networkId: courier.currentNetworkId,
+          courierId: courier.id
+        }
+      })
+
+      return { updatedShipment }
+    })
+
+    rep.status(200).send({
+      message: 'Shipment updated.',
+      data: data.updatedShipment
+    })
+  })
+
+  fastify.patch<{ Params: ShipmentParams}>('/jnt/shipments/:shipmentId/delivered', {
+    preHandler: [verifyUserAuth]
+  }, async (req, rep) => {
+    const { shipmentId } = req.params
+    const parsedShipmentId = parseInt(shipmentId)
+    const courier = req.courier
+
+    const description = generateEventDescription({ status: ShipmentStatus.Delivered })
+
+    const data = await prisma.$transaction(async (tx) => {
+      const updatedShipment = await tx.shipment.update({
+        where: {
+          id: parsedShipmentId
+        },
+        data: {
+          status: ShipmentStatus.Delivered,
+          currentNetworkId: courier.currentNetworkId,
+          assignedCourierId: courier.id
+        }
+      })
+
+      await tx.trackingLog.create({
+        data: {
+          shipmentId: parsedShipmentId,
+          status: ShipmentStatus.Delivered,
+          description,
+          networkId: courier.currentNetworkId,
+          courierId: courier.id
+        }
+      })
+
+      return { updatedShipment }
+    })
+
+    rep.status(200).send({
+      message: 'Shipment updated.',
+      data: data.updatedShipment
+    })
+  })
+
   fastify.patch<{ Params: ShipmentParams }>('/jnt/shipments/:shipmentId/rejected', {
     preHandler: [verifyLogisticsKey]
   }, async (req, rep) => {

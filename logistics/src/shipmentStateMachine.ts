@@ -12,7 +12,6 @@ const ALLOWED_TRANSITIONS: Record<ShipmentStatus, ShipmentStatus[]> = {
   [ShipmentStatus.Rejected]: []
 };
 
-
 function isValidTransition(currentStatus: ShipmentStatus, nextStatus: ShipmentStatus): boolean {
   const allowed = ALLOWED_TRANSITIONS[currentStatus]
   return allowed ? allowed.includes(nextStatus) : false

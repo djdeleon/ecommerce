@@ -188,7 +188,7 @@ describe('J&T Express Logistics', () => {
       await createTrackingLog(shipment.id, ShipmentStatus.ReadyForPickup)
 
       const courier = await createCourier({}, true)
-      
+
       const authHeaders = await actAsCourier(app, courier)
 
       const response = await app.inject({
@@ -211,6 +211,150 @@ describe('J&T Express Logistics', () => {
       expect(shipmentTrackingLogs[0].status).toBe(ShipmentStatus.PendingPickup)
       expect(shipmentTrackingLogs[1].status).toBe(ShipmentStatus.ReadyForPickup)
       expect(shipmentTrackingLogs[2].status).toBe(ShipmentStatus.PickedUp)
+    })
+
+    test('a picked_up shipment can be set to in_transit', async () => {
+      const shipment = await createShipment()
+      await createTrackingLog(shipment.id)
+      await createTrackingLog(shipment.id, ShipmentStatus.ReadyForPickup)
+      await createTrackingLog(shipment.id, ShipmentStatus.PickedUp)
+
+      const courier = await createCourier({}, true)
+
+      const authHeaders = await actAsCourier(app, courier)
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/jnt/shipments/${shipment.id}/in-transit`,
+        headers: authHeaders
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(response.json().data.id).toBe(shipment.id)
+      expect(response.json().data.status).toBe(ShipmentStatus.InTransit)
+
+      const shipmentTrackingLogs = await prisma.trackingLog.findMany({
+        where: {
+          shipmentId: shipment.id
+        }
+      })
+
+      expect(shipmentTrackingLogs.length).toBe(4)
+      expect(shipmentTrackingLogs[0].status).toBe(ShipmentStatus.PendingPickup)
+      expect(shipmentTrackingLogs[1].status).toBe(ShipmentStatus.ReadyForPickup)
+      expect(shipmentTrackingLogs[2].status).toBe(ShipmentStatus.PickedUp)
+      expect(shipmentTrackingLogs[3].status).toBe(ShipmentStatus.InTransit)
+    })
+
+    test.only('an in_transit shipment can be set to arrived_at_hub', async () => {
+      const shipment = await createShipment()
+      await createTrackingLog(shipment.id)
+      await createTrackingLog(shipment.id, ShipmentStatus.ReadyForPickup)
+      await createTrackingLog(shipment.id, ShipmentStatus.PickedUp)
+      await createTrackingLog(shipment.id, ShipmentStatus.InTransit)
+
+      const courier = await createCourier({}, true)
+
+      const authHeaders = await actAsCourier(app, courier)
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/jnt/shipments/${shipment.id}/arrived-at-hub`,
+        headers: authHeaders
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(response.json().data.id).toBe(shipment.id)
+      expect(response.json().data.status).toBe(ShipmentStatus.ArrivedAtHub)
+
+      const shipmentTrackingLogs = await prisma.trackingLog.findMany({
+        where: {
+          shipmentId: shipment.id
+        }
+      })
+
+      expect(shipmentTrackingLogs.length).toBe(5)
+      expect(shipmentTrackingLogs[0].status).toBe(ShipmentStatus.PendingPickup)
+      expect(shipmentTrackingLogs[1].status).toBe(ShipmentStatus.ReadyForPickup)
+      expect(shipmentTrackingLogs[2].status).toBe(ShipmentStatus.PickedUp)
+      expect(shipmentTrackingLogs[3].status).toBe(ShipmentStatus.InTransit)
+      expect(shipmentTrackingLogs[4].status).toBe(ShipmentStatus.ArrivedAtHub)
+    })
+
+    test.only('an arrived_at_hub shipment can be set to out_for_delivery', async () => {
+      const shipment = await createShipment()
+      await createTrackingLog(shipment.id)
+      await createTrackingLog(shipment.id, ShipmentStatus.ReadyForPickup)
+      await createTrackingLog(shipment.id, ShipmentStatus.PickedUp)
+      await createTrackingLog(shipment.id, ShipmentStatus.InTransit)
+      await createTrackingLog(shipment.id, ShipmentStatus.ArrivedAtHub)
+
+      const courier = await createCourier({}, true)
+
+      const authHeaders = await actAsCourier(app, courier)
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/jnt/shipments/${shipment.id}/out-for-delivery`,
+        headers: authHeaders
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(response.json().data.id).toBe(shipment.id)
+      expect(response.json().data.status).toBe(ShipmentStatus.OutForDelivery)
+
+      const shipmentTrackingLogs = await prisma.trackingLog.findMany({
+        where: {
+          shipmentId: shipment.id
+        }
+      })
+
+      expect(shipmentTrackingLogs.length).toBe(6)
+      expect(shipmentTrackingLogs[0].status).toBe(ShipmentStatus.PendingPickup)
+      expect(shipmentTrackingLogs[1].status).toBe(ShipmentStatus.ReadyForPickup)
+      expect(shipmentTrackingLogs[2].status).toBe(ShipmentStatus.PickedUp)
+      expect(shipmentTrackingLogs[3].status).toBe(ShipmentStatus.InTransit)
+      expect(shipmentTrackingLogs[4].status).toBe(ShipmentStatus.ArrivedAtHub)
+      expect(shipmentTrackingLogs[5].status).toBe(ShipmentStatus.OutForDelivery)
+    })
+
+    test.only('an out_for_delivery shipment can be set to delivered', async () => {
+      const shipment = await createShipment()
+      await createTrackingLog(shipment.id)
+      await createTrackingLog(shipment.id, ShipmentStatus.ReadyForPickup)
+      await createTrackingLog(shipment.id, ShipmentStatus.PickedUp)
+      await createTrackingLog(shipment.id, ShipmentStatus.InTransit)
+      await createTrackingLog(shipment.id, ShipmentStatus.ArrivedAtHub)
+      await createTrackingLog(shipment.id, ShipmentStatus.OutForDelivery)
+
+      const courier = await createCourier({}, true)
+
+      const authHeaders = await actAsCourier(app, courier)
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/jnt/shipments/${shipment.id}/delivered`,
+        headers: authHeaders
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(response.json().data.id).toBe(shipment.id)
+      expect(response.json().data.status).toBe(ShipmentStatus.Delivered)
+
+      const shipmentTrackingLogs = await prisma.trackingLog.findMany({
+        where: {
+          shipmentId: shipment.id
+        }
+      })
+
+      expect(shipmentTrackingLogs.length).toBe(7)
+      expect(shipmentTrackingLogs[0].status).toBe(ShipmentStatus.PendingPickup)
+      expect(shipmentTrackingLogs[1].status).toBe(ShipmentStatus.ReadyForPickup)
+      expect(shipmentTrackingLogs[2].status).toBe(ShipmentStatus.PickedUp)
+      expect(shipmentTrackingLogs[3].status).toBe(ShipmentStatus.InTransit)
+      expect(shipmentTrackingLogs[4].status).toBe(ShipmentStatus.ArrivedAtHub)
+      expect(shipmentTrackingLogs[5].status).toBe(ShipmentStatus.OutForDelivery)
+      expect(shipmentTrackingLogs[6].status).toBe(ShipmentStatus.Delivered)
     })
 
     test('a Laravel vendor can set the shipment to rejected', async () => {
