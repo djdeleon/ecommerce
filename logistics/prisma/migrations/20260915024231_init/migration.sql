@@ -5,7 +5,7 @@ CREATE TYPE "network_type" AS ENUM ('sorting_hub', 'distribution_center', 'branc
 CREATE TYPE "courier_status" AS ENUM ('available', 'busy', 'offline');
 
 -- CreateEnum
-CREATE TYPE "shipment_status" AS ENUM ('pending_pickup', 'ready_for_pickup', 'picked_up', 'in_transit', 'arrived_at_hub', 'out_for_delivery', 'delivered', 'failed_delivery');
+CREATE TYPE "shipment_status" AS ENUM ('pending_pickup', 'ready_for_pickup', 'picked_up', 'in_transit', 'arrived_at_hub', 'out_for_delivery', 'delivered', 'failed_delivery', 'rejected');
 
 -- CreateTable
 CREATE TABLE "networks" (

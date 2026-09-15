@@ -36,6 +36,7 @@ enum ShipmentStatus {
   OutForDelivery @map("out_for_delivery")
   Delivered @map("delivered")
   FailedDelivery @map("failed_delivery")
+  Rejected @map("rejected")
 
   @@map("shipment_status")
 }

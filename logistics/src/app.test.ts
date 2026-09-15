@@ -181,8 +181,31 @@ describe('J&T Express Logistics', () => {
       expect(shipmentTrackingLogs[1].status).toBe(ShipmentStatus.ReadyForPickup)
     })
 
-    test.skip('a Laravel vendor can set the shipment to reject', async () => {
-      
+    test.only('a Laravel vendor can set the shipment to rejected', async () => {
+      const shipment = await createShipment()
+      createTrackingLog(shipment.id)
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/jnt/shipments/${shipment.id}/rejected`,
+        headers: {
+          authorization: `Bearer ${expectedKey}`
+        },
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(response.json().data.id).toBe(shipment.id)
+      expect(response.json().data.status).toBe(ShipmentStatus.Rejected)
+
+      const shipmentTrackingLogs = await prisma.trackingLog.findMany({
+        where: {
+          shipmentId: shipment.id
+        }
+      })
+
+      expect(shipmentTrackingLogs.length).toBe(2)
+      expect(shipmentTrackingLogs[0].status).toBe(ShipmentStatus.PendingPickup)
+      expect(shipmentTrackingLogs[1].status).toBe(ShipmentStatus.Rejected)
     })
 
     test('a shipment can have a network', async () => {

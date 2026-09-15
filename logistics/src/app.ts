@@ -339,7 +339,7 @@ export function buildApp() {
     status: ShipmentStatus,
   }
 
-  fastify.post<{ Body: ShipmentBody}>('/jnt/shipments', async (req, rep) => {
+  fastify.post<{ Body: ShipmentBody }>('/jnt/shipments', async (req, rep) => {
     const { externalOrderId, providerName, senderName, senderPhoneNumber, senderAddress, recipientName, recipientPhoneNumber, recipientAddress, weightKg, status } = req.body
 
     const randomSuffix = Math.floor(Math.random() * 10000);
@@ -369,7 +369,7 @@ export function buildApp() {
           status
         }
       })
-  
+
       await tx.trackingLog.create({
         data: {
           shipmentId: shipment.id,
@@ -424,6 +424,38 @@ export function buildApp() {
     })
   })
 
+  fastify.patch<{ Params: ShipmentParams }>('/jnt/shipments/:shipmentId/rejected', async (req, rep) => {
+    const { shipmentId } = req.params
+    const parsedShipmentId = parseInt(shipmentId)
+    const description = generateEventDescription({ status: 'rejected', reason: 'The last stock is broken.' })
+
+    const data = await prisma.$transaction(async (tx) => {
+      const updatedShipment = await tx.shipment.update({
+        where: {
+          id: parsedShipmentId
+        },
+        data: {
+          status: ShipmentStatus.Rejected
+        }
+      })
+
+      await tx.trackingLog.create({
+        data: {
+          shipmentId: parsedShipmentId,
+          status: ShipmentStatus.Rejected,
+          description
+        }
+      })
+
+      return { updatedShipment }
+    })
+
+    rep.status(200).send({
+      message: 'Shipment updated.',
+      data: data.updatedShipment
+    })
+  })
+
   interface ShipmentAssignNetworkParams {
     shipmentId: string;
   }
@@ -432,9 +464,9 @@ export function buildApp() {
     networkId: string
   }
 
-  fastify.patch<{ 
-    Body: ShipmentAssignNetworkBody, 
-    Params: ShipmentAssignNetworkParams 
+  fastify.patch<{
+    Body: ShipmentAssignNetworkBody,
+    Params: ShipmentAssignNetworkParams
   }>('/jnt/shipments/:shipmentId/assign-network', async (req, rep) => {
     const { networkId } = req.body
     const parsedNetworkId = parseInt(networkId)
@@ -467,9 +499,9 @@ export function buildApp() {
     courierId: string
   }
 
-  fastify.patch<{ 
-    Body: ShipmentAssignCourierBody, 
-    Params: ShipmentAssignCourierParams 
+  fastify.patch<{
+    Body: ShipmentAssignCourierBody,
+    Params: ShipmentAssignCourierParams
   }>('/jnt/shipments/:shipmentId/assign-courier', async (req, rep) => {
     const { courierId } = req.body
     const parsedCourierId = parseInt(courierId)
