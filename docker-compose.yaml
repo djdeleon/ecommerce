@@ -81,6 +81,7 @@ services:
       - DB_PASSWORD=eco_logistics_password
       - DB_NAME=logistics
       - DATABASE_URL=postgresql://eco_logistics_user:eco_logistics_password@logistics-database:5432/logistics?schema=public
+      - JWT_SECRET=jwt_logistics
     depends_on:
       - logistics-database
     volumes:

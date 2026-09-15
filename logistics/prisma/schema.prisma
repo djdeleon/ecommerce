@@ -27,6 +27,11 @@ enum CourierStatus {
   @@map("courier_status")
 }
 
+enum UserRole {
+  Admin @map("admin")
+  Courier @map("courier")
+}
+
 enum ShipmentStatus {
   PendingPickup @map("pending_pickup")
   ReadyForPickup @map("ready_for_pickup")
@@ -36,6 +41,7 @@ enum ShipmentStatus {
   OutForDelivery @map("out_for_delivery")
   Delivered @map("delivered")
   FailedDelivery @map("failed_delivery")
+  Rejected @map("rejected")
 
   @@map("shipment_status")
 }
@@ -58,8 +64,23 @@ model Network {
   @@map("networks")
 }
 
+model User {
+  id Int @id @default(autoincrement())
+  email String @unique
+  password String
+  role UserRole @default(Courier)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  courier Courier?
+
+  @@map("users")
+}
+
 model Courier {
   id Int @id @default(autoincrement()) @db.Integer
+  userId Int @unique @map("user_id")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   firstName String @db.VarChar(100) @map("first_name")
   lastName String @db.VarChar(100) @map("last_name")
   phoneNumber String @db.VarChar(20) @unique @map("phone_number")

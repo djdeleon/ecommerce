@@ -13,9 +13,10 @@ return [
     | a conventional file to locate the various service credentials.
     |
     */
-    'logistic' => [
+    'logistics' => [
         'url' => env('LOGISTICS_SERVICE_URL'),
         'key' => env('LOGISTICS_KEY'),
+        'webhook_secret' => env('LOGISTICS_WEBHOOK_SECRET'),
         'default' => env('LOGISTIC_DEFAULT'),
     ],
 

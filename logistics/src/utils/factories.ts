@@ -1,23 +1,24 @@
-import { CourierStatus, NetworkType, ShipmentStatus } from "@prisma/client";
+import { CourierStatus, NetworkType, ShipmentStatus, UserRole } from "@prisma/client";
 import { prisma } from "../prisma.js";
+import { generateEventDescription } from "../logisticsEventDictionary.js";
 
 /**
  * Network Factory
  */
 export async function createNetwork(overrides = {}) {
-    const randomSuffix = Math.floor(Math.random() * 10000);
+  const randomSuffix = Math.floor(Math.random() * 10000);
 
-    return await prisma.network.create({
-        data: {
-            name: `Test Hub ${randomSuffix}`,
-            code: `HUB-${randomSuffix}`,
-            address: `${randomSuffix} Test Street, Manila`,
-            type: NetworkType.SortingHub,
-            latitude: "14.59",
-            longitude: "120.98",
-            ...overrides,
-        }
-    })
+  return await prisma.network.create({
+    data: {
+      name: `Test Hub ${randomSuffix}`,
+      code: `HUB-${randomSuffix}`,
+      address: `${randomSuffix} Test Street, Manila`,
+      type: NetworkType.SortingHub,
+      latitude: "14.59",
+      longitude: "120.98",
+      ...overrides,
+    }
+  })
 }
 
 /**
@@ -25,6 +26,7 @@ export async function createNetwork(overrides = {}) {
  * Automatically creates a parent Network if one isn't provided!
  */
 export async function createCourier(overrides = {}, withNetwork = false) {
+  const randomSuffix = Math.floor(Math.random() * 10000);
   let networkId = (overrides as any).currentNetworkId;
 
   // If no network ID was passed, create a parent network automatically (like Laravel does!)
@@ -33,10 +35,17 @@ export async function createCourier(overrides = {}, withNetwork = false) {
     networkId = network.id;
   }
 
-  const randomSuffix = Math.floor(Math.random() * 10000);
+  const user = await prisma.user.create({
+    data: {
+      email: `user-${randomSuffix}@example.com`,
+      password: 'secretPassword123',
+      role: UserRole.Courier
+    }
+  })
 
   return await prisma.courier.create({
     data: {
+      userId: user.id,
       firstName: "Fastification",
       lastName: "JavaScript",
       phoneNumber: `09${Math.floor(100000000 + Math.random() * 900000000)}`, // Random 11-digit string
@@ -47,7 +56,8 @@ export async function createCourier(overrides = {}, withNetwork = false) {
       ...overrides,
     },
     include: {
-        currentNetwork: true
+      currentNetwork: true,
+      user: true
     }
   });
 }
@@ -92,4 +102,16 @@ export async function createShipment(overrides = {}, withNetwork = false, withCo
       ...overrides,
     },
   });
+}
+
+export async function createTrackingLog(shipmentId: number, status: ShipmentStatus = ShipmentStatus.PendingPickup) {
+  const description = generateEventDescription({ status })
+
+  return await prisma.trackingLog.create({
+    data: {
+      shipmentId: shipmentId,
+      status,
+      description: description,
+    }
+  })
 }
