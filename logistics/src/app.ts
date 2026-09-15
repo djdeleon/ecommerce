@@ -1,14 +1,20 @@
 import Fastify from "fastify";
 import { prisma } from "./prisma.js";
-import { CourierStatus, NetworkType, ShipmentStatus } from "@prisma/client";
+import { CourierStatus, NetworkType, ShipmentStatus, UserRole } from "@prisma/client";
 import { generateEventDescription } from "./logisticsEventDictionary.js";
 import fastifyJwt from "@fastify/jwt";
+import crypto, { hash } from 'crypto';
+import fastifyBcrypt from "fastify-bcrypt";
 
 export function buildApp() {
   const fastify = Fastify({ logger: true });
 
   fastify.register(fastifyJwt, {
     secret: process.env.JWT_SECRET || 'jwt_logistics_development'
+  })
+
+  fastify.register(fastifyBcrypt as any, {
+    saltWorkFactor: 10,
   })
 
   const verifyLogisticsKey = async (req: any, rep: any) => {
@@ -27,22 +33,15 @@ export function buildApp() {
     try {
       await req.jwtVerify();
 
-      console.dir(req)
-
       const userId = req.user.id
-  
-      const courier = await prisma.courier.findUnique({
-        where: { id: parseInt(userId) },
-        include: { currentNetwork: true }
+
+      const user = await prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+        include: { courier: true }
       })
-  
-      if (!courier) {
-        return rep.status(401).send({
-          error: 'Unauthorized: Courier not found.'
-        })
-      }
-  
-      req.courier = courier
+
+      req.user = user
+
     } catch (err) {
       return rep.status(401).send({
         error: 'Unauthorized: Invalid or missing token'
@@ -327,6 +326,8 @@ export function buildApp() {
   })
 
   interface CourierBody {
+    email: string,
+    password: string,
     firstName: string,
     lastName: string,
     phoneNumber: string,
@@ -336,23 +337,58 @@ export function buildApp() {
   }
 
   fastify.post<{ Body: CourierBody }>('/jnt/couriers', async (req, rep) => {
-    const { firstName, lastName, phoneNumber, vehicleType, plateNumber, status } = req.body
+    const { email, password, firstName, lastName, phoneNumber, vehicleType, plateNumber, status } = req.body
 
-    const courier = await prisma.courier.create({
-      data: {
-        firstName,
-        lastName,
-        phoneNumber,
-        vehicleType,
-        plateNumber,
-        status
+    try {
+      const existingUser = await prisma.user.findUnique({
+        where: { email }
+      })
+
+      if (existingUser) {
+        return rep.status(400).send({
+          error: 'Email already registered.'
+        })
       }
-    })
 
-    rep.status(201).send({
-      message: "Courier created.",
-      data: courier
-    })
+      const hashedPassword = await fastify.bcrypt.hash(password)
+
+      const newUser = await prisma.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          role: UserRole.Courier
+        }
+      })
+
+      const courier = await prisma.courier.create({
+        data: {
+          userId: newUser.id,
+          firstName,
+          lastName,
+          phoneNumber,
+          vehicleType,
+          plateNumber,
+          status
+        },
+        include: {
+          user: true
+        }
+      })
+
+      const token = fastify.jwt.sign({ id: newUser.id })
+
+      rep.status(201).send({
+        message: 'Courier registered.',
+        data: {
+          courier,
+          token,
+        }
+      })
+    } catch (err) {
+      return rep.status(500).send({
+        'error': 'Internal Server Error: '
+      })
+    }
   })
 
   interface ShipmentBody {
@@ -462,7 +498,7 @@ export function buildApp() {
   }, async (req, rep) => {
     const { shipmentId } = req.params
     const parsedShipmentId = parseInt(shipmentId)
-    const courier = req.courier
+    const courier = req.user.courier
 
     const description = generateEventDescription({ status: ShipmentStatus.PickedUp, courierName: courier.firstName, plateNumber: courier.plateNumber })
 
@@ -491,20 +527,60 @@ export function buildApp() {
       return { updatedShipment }
     })
 
+    const laravelWebhookUrl = process.env.LARAVEL_WEBHOOK_URL
+    const webhookSecret = process.env.LOGISTICS_WEBHOOK_SECRET
+
+    if (!laravelWebhookUrl || !webhookSecret) {
+      console.error('Webhook configuration missing. Skipping dispatch')
+      return;
+    }
+
+    const body = JSON.stringify({
+      external_order_id: data.updatedShipment.externalOrderId,
+      tracking_number: data.updatedShipment.trackingNumber,
+      status: ShipmentStatus.PickedUp,
+      description,
+      timeStamp: data.updatedShipment.createdAt
+    })
+
+    const hmac = crypto.createHmac('sha256', webhookSecret);
+    hmac.update(body)
+    const signature = hmac.digest('hex')
+
+    fetch(laravelWebhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Logistics-Signature': signature,
+        'User-Agent': 'J&T EXpress',
+      },
+      body
+    }).then(async (response) => {
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`Laravel webhook failed with status [${response.status}]: ${errorText}`)
+      }
+    }).catch((error) => {
+      console.error('Network error during Laravel webhook dispatch: ', error)
+    })
+
     rep.status(200).send({
       message: 'Shipment updated.',
       data: data.updatedShipment
     })
   })
 
-  fastify.patch<{ Params: ShipmentParams}>('/jnt/shipments/:shipmentId/in-transit', {
+  fastify.patch<{ Params: ShipmentParams }>('/jnt/shipments/:shipmentId/in-transit', {
     preHandler: [verifyUserAuth]
   }, async (req, rep) => {
     const { shipmentId } = req.params
     const parsedShipmentId = parseInt(shipmentId)
-    const courier = req.courier
+    const courier = req.user.courier
+    const courierNetwork = await prisma.network.findUniqueOrThrow({
+      where: { id: courier.currentNetworkId },
+    })
 
-    const description = generateEventDescription({ status: ShipmentStatus.InTransit, originHub: courier.currentNetwork.name, destinationHub: 'next hub' })
+    const description = generateEventDescription({ status: ShipmentStatus.InTransit, originHub: courierNetwork.name, destinationHub: 'next hub' })
 
     const data = await prisma.$transaction(async (tx) => {
       const updatedShipment = await tx.shipment.update({
@@ -537,12 +613,12 @@ export function buildApp() {
     })
   })
 
-  fastify.patch<{ Params: ShipmentParams}>('/jnt/shipments/:shipmentId/arrived-at-hub', {
+  fastify.patch<{ Params: ShipmentParams }>('/jnt/shipments/:shipmentId/arrived-at-hub', {
     preHandler: [verifyUserAuth]
   }, async (req, rep) => {
     const { shipmentId } = req.params
     const parsedShipmentId = parseInt(shipmentId)
-    const courier = req.courier
+    const courier = req.user.courier
 
     const description = generateEventDescription({ status: ShipmentStatus.ArrivedAtHub, hubName: 'unknown hub' })
 
@@ -577,12 +653,12 @@ export function buildApp() {
     })
   })
 
-  fastify.patch<{ Params: ShipmentParams}>('/jnt/shipments/:shipmentId/out-for-delivery', {
+  fastify.patch<{ Params: ShipmentParams }>('/jnt/shipments/:shipmentId/out-for-delivery', {
     preHandler: [verifyUserAuth]
   }, async (req, rep) => {
     const { shipmentId } = req.params
     const parsedShipmentId = parseInt(shipmentId)
-    const courier = req.courier
+    const courier = req.user.courier
 
     const description = generateEventDescription({ status: ShipmentStatus.OutForDelivery, courierName: courier.firstName })
 
@@ -617,12 +693,12 @@ export function buildApp() {
     })
   })
 
-  fastify.patch<{ Params: ShipmentParams}>('/jnt/shipments/:shipmentId/delivered', {
+  fastify.patch<{ Params: ShipmentParams }>('/jnt/shipments/:shipmentId/delivered', {
     preHandler: [verifyUserAuth]
   }, async (req, rep) => {
     const { shipmentId } = req.params
     const parsedShipmentId = parseInt(shipmentId)
-    const courier = req.courier
+    const courier = req.user.courier
 
     const description = generateEventDescription({ status: ShipmentStatus.Delivered })
 
@@ -779,6 +855,92 @@ export function buildApp() {
     const data = { baseRatings, shippingFee }
 
     return { status: 200, data }
+  })
+
+  interface UserRegisterBody {
+    email: string,
+    password: string,
+    role: UserRole
+  }
+
+  fastify.post<{ Body: UserRegisterBody }>('/jnt/users/register', async (req, rep) => {
+    const { email, password, role } = req.body
+
+    try {
+      const existingUser = await prisma.user.findUnique({
+        where: { email }
+      })
+
+      if (existingUser) {
+        return rep.status(400).send({
+          error: 'Email already registered.'
+        })
+      }
+
+      const hashedPassword = await fastify.bcrypt.hash(password)
+
+      const newUser = await prisma.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          role
+        }
+      })
+
+      const { password: _, ...user } = newUser
+
+      const token = fastify.jwt.sign({ id: user.id })
+
+      rep.status(201).send({
+        message: 'user registered.',
+        data: {
+          user,
+          token,
+        }
+      })
+    } catch (err) {
+      return rep.status(500).send({
+        'error': 'Internal Server Error: '
+      })
+    }
+
+  })
+
+  interface UserLoginBody {
+    email: string,
+    password: string,
+  }
+
+  fastify.post<{ Body: UserLoginBody }>('/jnt/users/login', async (req, rep) => {
+    const { email, password } = req.body
+
+    const user = await prisma.user.findUnique({
+      where: { email }
+    })
+
+    if (!user) {
+      return rep.status(401).send({
+        error: 'Invalid email or password'
+      })
+    }
+
+    const isValid = await fastify.bcrypt.compare(password, user.password)
+
+    if (!isValid) {
+      return rep.status(401).send({
+        error: 'Invalid email or password'
+      })
+    }
+
+    const token = fastify.jwt.sign({ id: user.id })
+
+    return rep.send({
+      message: 'User logged in',
+      data: {
+        user,
+        token
+      }
+    })
   })
 
   return fastify;

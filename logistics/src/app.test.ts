@@ -3,13 +3,14 @@ import { buildApp } from "./app.js";
 import { describe, it, test, expect, beforeEach, afterAll } from "vitest";
 import { prisma, disconnectPrisma } from "./prisma.js"
 import { createNetwork, createCourier, createShipment, createTrackingLog } from "./utils/factories.js";
-import { CourierStatus, NetworkType, ShipmentStatus } from "@prisma/client";
+import { CourierStatus, NetworkType, ShipmentStatus, UserRole } from "@prisma/client";
 import { actAsCourier } from "./utils/auth-helpers.js";
 
 beforeEach(async () => {
   await prisma.$connect();
   await prisma.shipment.deleteMany();
   await prisma.courier.deleteMany();
+  await prisma.user.deleteMany();
   await prisma.network.deleteMany();
 });
 
@@ -85,6 +86,55 @@ describe('J&T Express Logistics', () => {
   })
 
   describe('Logistic Couriers', () => {
+    test('admin can register', async () => {
+      const randomSuffix = Math.floor(Math.random() * 10000);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/jnt/users/register',
+        body: {
+          email: `user-${randomSuffix}@example.com`,
+          password: 'secretPassword123',
+          role: UserRole.Admin
+        }
+      })
+
+      expect(response.statusCode).toBe(201)
+      expect(await prisma.user.count()).toBe(1)
+      expect(response.json().user).not.toBeNull()
+      expect(response.json().token).not.toBeNull()
+    })
+
+    test('a user can login', async () => {
+      const randomSuffix = Math.floor(Math.random() * 10000);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/jnt/users/register',
+        body: {
+          email: `user-${randomSuffix}@example.com`,
+          password: 'secretPassword123',
+          role: UserRole.Admin
+        }
+      })
+
+      expect(response.statusCode).toBe(201)
+      const { user } = response.json().data
+
+      const loginResponse = await app.inject({
+        method: 'POST',
+        url: '/jnt/users/login',
+        body: {
+          email: user.email,
+          password: 'secretPassword123'
+        }
+      })
+
+      expect(loginResponse.statusCode).toBe(200)
+      expect(response.json().user).not.toBeNull()
+      expect(response.json().token).not.toBeNull()
+    })
+
     test('a J&T platform admin can create a network', async () => {
       await createCourier();
 
@@ -112,6 +162,8 @@ describe('J&T Express Logistics', () => {
           authorization: `Bearer ${expectedKey}`
         },
         body: {
+          email: `courier-${randomSuffix}@example.com`,
+          password: 'secretPassword123',
           firstName: "Courier First",
           lastName: "Courier Last",
           phoneNumber: `09${Math.floor(100000000 + Math.random() * 900000000)}`, // Random 11-digit string
@@ -122,6 +174,7 @@ describe('J&T Express Logistics', () => {
       })
 
       expect(response.statusCode).toBe(201)
+      expect(await prisma.user.count()).toBe(1)
       expect(await prisma.courier.count()).toBe(1)
     })
   })
@@ -182,14 +235,14 @@ describe('J&T Express Logistics', () => {
       expect(shipmentTrackingLogs[1].status).toBe(ShipmentStatus.ReadyForPickup)
     })
 
-    test('a ready_for_pickup shipment can be picked up by available courier wtih assigned network', async () => {
+    test('a ready_for_pickup shipment can be picked up by available courier wtih assigned network with webhook dispatch', async () => {
       const shipment = await createShipment()
       await createTrackingLog(shipment.id)
       await createTrackingLog(shipment.id, ShipmentStatus.ReadyForPickup)
 
       const courier = await createCourier({}, true)
 
-      const authHeaders = await actAsCourier(app, courier)
+      const authHeaders = await actAsCourier(app, courier.user)
 
       const response = await app.inject({
         method: 'PATCH',
@@ -221,7 +274,7 @@ describe('J&T Express Logistics', () => {
 
       const courier = await createCourier({}, true)
 
-      const authHeaders = await actAsCourier(app, courier)
+      const authHeaders = await actAsCourier(app, courier.user)
 
       const response = await app.inject({
         method: 'PATCH',
@@ -246,7 +299,7 @@ describe('J&T Express Logistics', () => {
       expect(shipmentTrackingLogs[3].status).toBe(ShipmentStatus.InTransit)
     })
 
-    test.only('an in_transit shipment can be set to arrived_at_hub', async () => {
+    test('an in_transit shipment can be set to arrived_at_hub', async () => {
       const shipment = await createShipment()
       await createTrackingLog(shipment.id)
       await createTrackingLog(shipment.id, ShipmentStatus.ReadyForPickup)
@@ -255,7 +308,7 @@ describe('J&T Express Logistics', () => {
 
       const courier = await createCourier({}, true)
 
-      const authHeaders = await actAsCourier(app, courier)
+      const authHeaders = await actAsCourier(app, courier.user)
 
       const response = await app.inject({
         method: 'PATCH',
@@ -281,7 +334,7 @@ describe('J&T Express Logistics', () => {
       expect(shipmentTrackingLogs[4].status).toBe(ShipmentStatus.ArrivedAtHub)
     })
 
-    test.only('an arrived_at_hub shipment can be set to out_for_delivery', async () => {
+    test('an arrived_at_hub shipment can be set to out_for_delivery', async () => {
       const shipment = await createShipment()
       await createTrackingLog(shipment.id)
       await createTrackingLog(shipment.id, ShipmentStatus.ReadyForPickup)
@@ -291,7 +344,7 @@ describe('J&T Express Logistics', () => {
 
       const courier = await createCourier({}, true)
 
-      const authHeaders = await actAsCourier(app, courier)
+      const authHeaders = await actAsCourier(app, courier.user)
 
       const response = await app.inject({
         method: 'PATCH',
@@ -318,7 +371,7 @@ describe('J&T Express Logistics', () => {
       expect(shipmentTrackingLogs[5].status).toBe(ShipmentStatus.OutForDelivery)
     })
 
-    test.only('an out_for_delivery shipment can be set to delivered', async () => {
+    test('an out_for_delivery shipment can be set to delivered', async () => {
       const shipment = await createShipment()
       await createTrackingLog(shipment.id)
       await createTrackingLog(shipment.id, ShipmentStatus.ReadyForPickup)
@@ -329,7 +382,7 @@ describe('J&T Express Logistics', () => {
 
       const courier = await createCourier({}, true)
 
-      const authHeaders = await actAsCourier(app, courier)
+      const authHeaders = await actAsCourier(app, courier.user)
 
       const response = await app.inject({
         method: 'PATCH',

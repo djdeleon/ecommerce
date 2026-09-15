@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\FulfillmentHubController;
 use App\Http\Controllers\Api\InventoryStockController;
+use App\Http\Controllers\Api\LogisticWebhookController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PayPalWebhookController;
 use App\Http\Controllers\Api\ProductController;
@@ -23,6 +24,7 @@ use App\Http\Controllers\Api\WarehouseController;
 use App\Http\Controllers\Api\XenditWebhookController;
 use App\Http\Controllers\CustomerAddressController;
 use App\Http\Middleware\SetPostgreUserContext;
+use App\Http\Middleware\VerifyLogisticsWebhook;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -115,6 +117,7 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
 Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle'])->name('stripe.webhook');
 Route::post('/xendit/webhook', [XenditWebhookController::class, 'handle'])->name('xendit.webhook');
 Route::post('/paypal/webhook', [PayPalWebhookController::class, 'handle'])->name('paypal.webhook');
+Route::post('v1/logistics/webhook', LogisticWebhookController::class)->middleware(VerifyLogisticsWebhook::class);
 
 Route::prefix('v1')->group(function () {
     Route::prefix('addresses')->group(function () {
