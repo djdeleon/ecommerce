@@ -101,7 +101,7 @@ model Courier {
 model Shipment {
   id Int @id @default(autoincrement())
   trackingNumber String @db.VarChar(100) @unique @map("tracking_number")
-  externalOrderId String @map("external_order_id")
+  externalOrderId String @unique @map("external_order_id")
   providerName String @db.VarChar(50) @map("provider_name")
   senderName String @map("sender_name")
   senderPhoneNumber String @db.VarChar(20) @map("sender_phone_number")

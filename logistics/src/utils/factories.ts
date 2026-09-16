@@ -107,6 +107,13 @@ export async function createShipment(overrides = {}, withNetwork = false, withCo
 export async function createTrackingLog(shipmentId: number, status: ShipmentStatus = ShipmentStatus.PendingPickup) {
   const description = generateEventDescription({ status })
 
+  await prisma.shipment.update({
+    where: { id: shipmentId },
+    data: {
+      status
+    }
+  })
+
   return await prisma.trackingLog.create({
     data: {
       shipmentId: shipmentId,

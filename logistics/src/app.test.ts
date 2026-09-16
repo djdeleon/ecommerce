@@ -197,7 +197,6 @@ describe('J&T Express Logistics', () => {
           recipientPhoneNumber: "09245256542",
           recipientAddress: "City of Iloilo, Iloilo, Western Visayas (Region VI), Philippines",
           weightKg: 2,
-          status: ShipmentStatus.PendingPickup,
         }
       })
 
@@ -236,7 +235,9 @@ describe('J&T Express Logistics', () => {
     })
 
     test('a ready_for_pickup shipment can be picked up by available courier wtih assigned network with webhook dispatch', async () => {
-      const shipment = await createShipment()
+      const shipment = await createShipment({
+        externalOrderId: '1'
+      })
       await createTrackingLog(shipment.id)
       await createTrackingLog(shipment.id, ShipmentStatus.ReadyForPickup)
 

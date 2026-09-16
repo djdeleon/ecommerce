@@ -107,6 +107,9 @@ CREATE UNIQUE INDEX "couriers_plate_number_key" ON "couriers"("plate_number");
 -- CreateIndex
 CREATE UNIQUE INDEX "shipments_tracking_number_key" ON "shipments"("tracking_number");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "shipments_external_order_id_key" ON "shipments"("external_order_id");
+
 -- AddForeignKey
 ALTER TABLE "couriers" ADD CONSTRAINT "couriers_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

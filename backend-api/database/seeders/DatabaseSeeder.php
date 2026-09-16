@@ -18,23 +18,23 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $region = Region::find(1);
-        $regionProvinces = $region->provinces;
+        // $region = Region::find(1);
+        // $regionProvinces = $region->provinces;
 
-        dd(Region::all()->toArray());
+        // dd(Region::all()->toArray());
 
-        $province = Province::find(1);
-        $provinceRegion = $province->region;
-        $provinceCities = $province->cities;
+        // $province = Province::find(1);
+        // $provinceRegion = $province->region;
+        // $provinceCities = $province->cities;
 
-        $city = City::find(1);
-        $cityProvince = $city->province;
-        $cityBarangays = $city->barangays;
+        // $city = City::find(1);
+        // $cityProvince = $city->province;
+        // $cityBarangays = $city->barangays;
 
-        $barangay = Barangay::find(1);
-        $barangayCity = $barangay->city;
+        // $barangay = Barangay::find(1);
+        // $barangayCity = $barangay->city;
 
-        dd(Region::count(), Province::count(), City::count(), Barangay::count());
+        // dd(Region::count(), Province::count(), City::count(), Barangay::count());
 
         $this->call([
             // RoleSeeder::class,
@@ -42,6 +42,7 @@ class DatabaseSeeder extends Seeder
             // VendorSeeder::class,
             // VendorTwoSeeder::class
             // AddressSeeder::class,
+            OrderSeeder::class
         ]);
     }
 }

@@ -401,13 +401,15 @@ export function buildApp() {
     recipientPhoneNumber: string,
     recipientAddress: string,
     weightKg: number,
-    status: ShipmentStatus,
   }
 
   fastify.post<{ Body: ShipmentBody }>('/jnt/shipments', {
     preHandler: [verifyLogisticsKey]
   }, async (req, rep) => {
-    const { externalOrderId, providerName, senderName, senderPhoneNumber, senderAddress, recipientName, recipientPhoneNumber, recipientAddress, weightKg, status } = req.body
+    const { externalOrderId, providerName, senderName, senderPhoneNumber, senderAddress, recipientName, recipientPhoneNumber, recipientAddress, weightKg } = req.body
+
+    // for testing
+    await prisma.shipment.deleteMany();
 
     const randomSuffix = Math.floor(Math.random() * 10000);
 
@@ -418,7 +420,7 @@ export function buildApp() {
       status: ShipmentStatus.PendingPickup
     })
 
-    const data = await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
       const shipment = await tx.shipment.create({
         data: {
           trackingNumber: `JTE-TN-${randomSuffix}`,
@@ -433,7 +435,7 @@ export function buildApp() {
           recipientLatitude,
           recipientLongitude,
           weightKg,
-          status
+          status: ShipmentStatus.PendingPickup
         }
       })
 
@@ -444,41 +446,35 @@ export function buildApp() {
           description: description,
         }
       })
-
-      return { shipment }
     })
 
-
-    rep.status(201).send({
-      message: "Shipment created.",
-      data: data.shipment
-    })
+    rep.status(201)
   })
 
   interface ShipmentParams {
     shipmentId: string;
   }
 
-  fastify.patch<{ Params: ShipmentParams }>('/jnt/shipments/:shipmentId/ready-for-pickup', {
+  interface ShipmentOrderParams {
+    externalOrderId: string;
+  }
+
+  fastify.patch<{ Params: ShipmentOrderParams }>('/jnt/shipments/:externalOrderId/ready-for-pickup', {
     preHandler: [verifyLogisticsKey]
   }, async (req, rep) => {
-    const { shipmentId } = req.params
-    const parsedShipmentId = parseInt(shipmentId)
+    const { externalOrderId } = req.params
+    console.dir(externalOrderId)
     const description = generateEventDescription({ status: ShipmentStatus.ReadyForPickup })
 
     const data = await prisma.$transaction(async (tx) => {
       const updatedShipment = await tx.shipment.update({
-        where: {
-          id: parsedShipmentId
-        },
-        data: {
-          status: ShipmentStatus.ReadyForPickup
-        }
+        where: { externalOrderId: externalOrderId },
+        data: { status: ShipmentStatus.ReadyForPickup }
       })
 
       await tx.trackingLog.create({
         data: {
-          shipmentId: parsedShipmentId,
+          shipmentId: updatedShipment.id,
           status: ShipmentStatus.ReadyForPickup,
           description
         }
@@ -538,15 +534,18 @@ export function buildApp() {
     const body = JSON.stringify({
       external_order_id: data.updatedShipment.externalOrderId,
       tracking_number: data.updatedShipment.trackingNumber,
+      courier_id: courier.id,
       status: ShipmentStatus.PickedUp,
       description,
       timeStamp: data.updatedShipment.createdAt
     })
 
+    // webhookHmacSignature
     const hmac = crypto.createHmac('sha256', webhookSecret);
     hmac.update(body)
     const signature = hmac.digest('hex')
 
+    // webhookDispatch
     fetch(laravelWebhookUrl, {
       method: 'POST',
       headers: {
@@ -725,6 +724,46 @@ export function buildApp() {
       })
 
       return { updatedShipment }
+    })
+
+    const laravelWebhookUrl = process.env.LARAVEL_WEBHOOK_URL
+    const webhookSecret = process.env.LOGISTICS_WEBHOOK_SECRET
+
+    if (!laravelWebhookUrl || !webhookSecret) {
+      console.error('Webhook configuration missing. Skipping dispatch')
+      return;
+    }
+
+    const body = JSON.stringify({
+      external_order_id: data.updatedShipment.externalOrderId,
+      tracking_number: data.updatedShipment.trackingNumber,
+      courier_id: courier.id,
+      status: ShipmentStatus.Delivered,
+      description,
+      timeStamp: data.updatedShipment.createdAt
+    })
+
+    // webhookHmacSignature
+    const hmac = crypto.createHmac('sha256', webhookSecret);
+    hmac.update(body)
+    const signature = hmac.digest('hex')
+
+    // webhookDispatch
+    fetch(laravelWebhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Logistics-Signature': signature,
+        'User-Agent': 'J&T EXpress',
+      },
+      body
+    }).then(async (response) => {
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`Laravel webhook failed with status [${response.status}]: ${errorText}`)
+      }
+    }).catch((error) => {
+      console.error('Network error during Laravel webhook dispatch: ', error)
     })
 
     rep.status(200).send({

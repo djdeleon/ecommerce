@@ -90,6 +90,7 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
     Route::middleware('role:vendor')->group(function () {
         Route::get('vendor/dashboard', [VendorController::class, 'dashboard'])->name('vendor.dashboard');
         Route::post('vendors/{orderPackage}/arrange-shipment', [VendorController::class, 'arrangeShipment'])->name('vendors.arrange-shipment');
+        Route::post('vendors/{orderPackage}/ready-for-pickup', [VendorController::class, 'readyForPickup'])->name('vendors.ready-for-pickup');
 
         Route::prefix('products')->controller(ProductController::class)->group(function () {
             Route::post('', 'store')->name('products.store');
