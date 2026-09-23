@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\DataObjects\Coordinate;
 use App\Enums\OrderPackageStatus;
 use App\Models\Customer;
 use App\Models\OrderPackage;
@@ -24,7 +25,7 @@ class LogisiticService
     public function toPickup(OrderPackage $orderPackage)
     {
         $response = Http::withToken(config('services.logistics.key'))
-            ->patch("http://logistics:8000/jnt/shipments/{$orderPackage->id}/ready-for-pickup");
+            ->patch("http://logistics:8000/jnt/parcels/{$orderPackage->id}/ready-for-pickup");
 
         if ($response->status() !== 200) {
             throw new Exception('Invalid shipment update.');
@@ -36,17 +37,36 @@ class LogisiticService
         /**
          * The facility should be in the orderPackage as well for sender details
          */
+
+        // lets restructure the payload into:
+        // $newPayload = [
+        //     'sender_details' => [
+        //         'barangay' => 'brgy 123',
+        //         'city' => 'city 123',
+        //         'full_address' => 'full address 123',
+        //     ],
+        //     'recipient_details' => [
+        //         'barangay' => 'brgy 123',
+        //         'city' => 'city 123',
+        //         'full_address' => 'full address 123',
+        //         'coordinates' => [
+        //             'latitude' => "12.02",
+        //             'longitude' => "12.02",
+        //         ]
+        //     ]
+        // ]
         $facility = $orderPackage->orderPackageItems[0]->orderPackageItemFacilities[0];
         $payload = [
             'external_order_id' => (string) $orderPackage->id,
-            'provider_name' => 'jnt',
-            'sender_name' => $facility->inventoryStock->inventorable->name,
-            'sender_phone_number' => $facility->inventoryStock->inventorable->contact_number,
-            'sender_address' => $facility->fullAddress(),
-            'recipient_name' => $customer->user->name,
-            'recipient_phone_number' => '09440857284', // column to be added
-            'recipient_address' => $customer->customerAddresses[0]->fullAddress(),
-            'weight_kg' => $orderPackage->orderPackageItems[0]->variant->actual_weight_kg, // column to be added in orderPackageItem (snapshot)
+            'store_name' => $facility->inventoryStock->inventorable->name,
+            'store_contact_number' => $facility->inventoryStock->inventorable->contact_number,
+            'store_address' => $facility->fullAddress(),
+            'store_location' => new Coordinate(125.10, 14.42),
+            'customer_name' => $customer->user->name,
+            'customer_phone' => '09440857284', // column to be added
+            'customer_address' => $customer->customerAddresses[0]->fullAddress(),
+            'customer_location' => new Coordinate(124.00, 12.42),
+            'weight_grams' => (int) $orderPackage->orderPackageItems[0]->variant->actual_weight_kg, // column to be added in orderPackageItem (snapshot)
         ];
 
         $camelCasePayload = collect($payload)->mapWithKeys(function ($value, $key) {
@@ -54,7 +74,7 @@ class LogisiticService
         })->all();
 
         $response = Http::withToken(config('services.logistics.key'))
-            ->post('http://logistics:8000/jnt/shipments', $camelCasePayload);
+            ->post('http://logistics:8000/jnt/parcels', $camelCasePayload);
 
         // The shipment id response can be stored in the order_package_statuses or creat a new table named order_package_shipment_logs
 

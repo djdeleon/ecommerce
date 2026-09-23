@@ -1,38 +1,48 @@
-import { CourierStatus, NetworkType, ShipmentStatus, UserRole } from "@prisma/client";
+import { CourierStatus, FacilityType, ShipmentStatus, UserRole } from "@prisma/client";
 import { prisma } from "../prisma.js";
 import { generateEventDescription } from "../logisticsEventDictionary.js";
 
 /**
- * Network Factory
+ * Facility Factory
  */
-export async function createNetwork(overrides = {}) {
+export async function createFacility(overrides = {}) {
   const randomSuffix = Math.floor(Math.random() * 10000);
 
-  return await prisma.network.create({
+  const latitude = (overrides as any).latitude ?? 120.98
+  const longitude = (overrides as any).longitude ?? 14.59
+
+  const { longitude: _, latitude: __, ...cleanOverrides } = overrides as any;
+
+  const facility = await prisma.facility.create({
     data: {
       name: `Test Hub ${randomSuffix}`,
-      code: `HUB-${randomSuffix}`,
+      type: FacilityType.RegionalHub,
+      sortingCode: `HUB-${randomSuffix}`,
       address: `${randomSuffix} Test Street, Manila`,
-      type: NetworkType.SortingHub,
-      latitude: "14.59",
-      longitude: "120.98",
-      ...overrides,
+      ...cleanOverrides,
     }
   })
+
+  await prisma.$executeRaw`
+    UPDATE facilities
+    SET location = ST_SetSRID(ST_MakePoint(${parseFloat(longitude)}, ${parseFloat(latitude)}), 4326)
+    WHERE id = ${facility.id}
+  `
+
+  return facility
 }
 
 /**
  * Courier Factory Helper
- * Automatically creates a parent Network if one isn't provided!
+ * Automatically creates a parent Facility if one isn't provided!
  */
 export async function createCourier(overrides = {}, withNetwork = false) {
   const randomSuffix = Math.floor(Math.random() * 10000);
-  let networkId = (overrides as any).currentNetworkId;
+  let facilityId = (overrides as any).currentFacilityId;
 
-  // If no network ID was passed, create a parent network automatically (like Laravel does!)
-  if (!networkId && withNetwork === true) {
-    const network = await createNetwork();
-    networkId = network.id;
+  if (!facilityId && withNetwork === true) {
+    const facility = await createFacility();
+    facilityId = facility.id;
   }
 
   const user = await prisma.user.create({
@@ -52,63 +62,103 @@ export async function createCourier(overrides = {}, withNetwork = false) {
       vehicleType: "truck",
       plateNumber: `ABC-${randomSuffix}`,
       status: CourierStatus.Available,
-      currentNetworkId: networkId,
+      currentFacilityId: facilityId,
       ...overrides,
     },
     include: {
-      currentNetwork: true,
+      currentFacility: true,
       user: true
     }
   });
 }
 
+export async function createStore(overrides = {}) {
+  const longitude = (overrides as any).longitude ?? 14.59
+  const latitude = (overrides as any).latitude ?? 120.98
+
+  const store = await prisma.store.create({
+    data: {
+      name: "Store Factory",
+      contactNumber: "09225356435",
+      address: "Bulacan 123 Main St.",
+      ...overrides
+    }
+  })
+
+  await prisma.$executeRaw`
+    UPDATE stores
+    SET location = ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)
+    WHERE id = ${store.id}
+  `
+
+  return store
+}
+
 /**
- * Shipment Factory Helper
- * Automatically creates parent Network and Courier if needed!
+ * Parcel Factory Helper
+ * Automatically creates parent Facility and Courier if needed!
  */
-export async function createShipment(overrides = {}, withNetwork = false, withCourier = false) {
-  let networkId = (overrides as any).currentNetworkId;
-  let courierId = (overrides as any).assignedCourierId;
+export async function createParcel(overrides = {}) {
+  const origin = await createFacility({
+    name: 'Origin Mega Hub'
+  })
+  const destination = await createFacility({
+    name: 'Destination Regional Hub',
+    type: FacilityType.RegionalHub,
+  })
 
-  if (!networkId && withNetwork === true) {
-    const network = await createNetwork();
-    networkId = network.id;
-  }
+  const courier = await createCourier({ currentFacilityId: origin.id });
 
-  if (!courierId && withCourier === true) {
-    const courier = await createCourier({ currentNetworkId: networkId });
-    courierId = courier.id;
-  }
+  const store = await prisma.store.create({
+    data: {
+      name: "Store 1",
+      contactNumber: "09225325754",
+      address: "Bulacan 123 Main St.",
+    }
+  })
+
+  await prisma.$executeRaw`
+    UPDATE stores
+    SET location = ST_SetSRID(ST_MakePoint(${14.22}, ${123.423}), 4326)
+    WHERE id = ${store.id}
+  `
 
   const randomSuffix = Math.floor(Math.random() * 10000);
 
-  return await prisma.shipment.create({
+  const parcel = await prisma.parcel.create({
     data: {
       trackingNumber: `TRK-${Date.now()}-${randomSuffix}`,
-      externalOrderId: `EXT-${randomSuffix}`,
-      providerName: "J&T Express",
-      senderName: "John Doe",
-      senderPhoneNumber: "09111111111",
-      senderAddress: "Sender Address",
-      recipientName: "Jane Doe",
-      recipientPhoneNumber: "09222222222",
-      recipientAddress: "Recipient Address",
-      recipientLatitude: "14.60",
-      recipientLongitude: "120.99",
-      weightKg: "1.50",
+      externalOrderId: `${randomSuffix}`,
+      weightGrams: 1500,
+      originFacilityId: origin.id,
+      destinationFacilityId: destination.id,
+      currentFacilityId: origin.id,
+      sortingCodeCache: `HUB-BUL-SKY-05`,
+      routingPipelineCache: `BUL-NL`,
+      storeId: store.id,
+      customerName: "Doe John",
+      customerAddress: "Marilao San Pablo 123 St.",
+      customerPhone: "09244562453",
+      assignedCourierId: courier.id,
       status: ShipmentStatus.PendingPickup,
-      currentNetworkId: networkId,
-      assignedCourierId: courierId,
       ...overrides,
     },
   });
+
+  await prisma.$executeRaw`
+    UPDATE parcels
+    SET customer_location = ST_SetSRID(ST_MakePoint(${14.22}, ${123.423}), 4326)
+    WHERE id = ${parcel.id}
+  `
+
+  return parcel
 }
 
-export async function createTrackingLog(shipmentId: number, status: ShipmentStatus = ShipmentStatus.PendingPickup) {
+export async function createTrackingLog(parcelId: number, status: ShipmentStatus = ShipmentStatus.PendingPickup) {
   const description = generateEventDescription({ status })
 
-  await prisma.shipment.update({
-    where: { id: shipmentId },
+  const parcel = await prisma.parcel.update({
+    where: { id: parcelId },
     data: {
       status
     }
@@ -116,7 +166,7 @@ export async function createTrackingLog(shipmentId: number, status: ShipmentStat
 
   return await prisma.trackingLog.create({
     data: {
-      shipmentId: shipmentId,
+      parcelId: parcel.id,
       status,
       description: description,
     }

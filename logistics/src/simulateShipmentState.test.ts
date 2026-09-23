@@ -1,16 +1,16 @@
 import { buildApp } from "./app.js";
 import { describe, it, test, expect, afterAll, beforeAll } from "vitest";
 import { prisma, disconnectPrisma } from "./prisma.js"
-import { createNetwork, createCourier, createShipment, createTrackingLog } from "./utils/factories.js";
-import { CourierStatus, NetworkType, ShipmentStatus, UserRole } from "@prisma/client";
+import { createFacility, createCourier, createParcel, createTrackingLog } from "./utils/factories.js";
+import { CourierStatus, FacilityType, ShipmentStatus, UserRole } from "@prisma/client";
 import { actAsCourier } from "./utils/auth-helpers.js";
 
 beforeAll(async () => {
   await prisma.$connect();
-  await prisma.shipment.deleteMany();
+  await prisma.parcel.deleteMany();
   await prisma.courier.deleteMany();
   await prisma.user.deleteMany();
-  await prisma.network.deleteMany();
+  await prisma.facility.deleteMany();
 });
 
 afterAll(async () => {
@@ -21,12 +21,13 @@ describe('Webhook Shipment Transition State', () => {
   const app = buildApp();
   const externalOrderId = '1'
 
-  test('a ready_for_pickup shipment can be picked up by available courier wtih assigned network with webhook dispatch', async () => {
-    const shipment = await createShipment({
+  test('a ready_for_pickup parcel can be picked up by available courier wtih assigned network with webhook dispatch', async () => {
+    const parcel = await createParcel({
       externalOrderId
     })
-    await createTrackingLog(shipment.id)
-    await createTrackingLog(shipment.id, ShipmentStatus.ReadyForPickup)
+
+    await createTrackingLog(parcel.id)
+    await createTrackingLog(parcel.id, ShipmentStatus.ReadyForPickup)
 
     const courier = await createCourier({}, true)
 
@@ -34,17 +35,17 @@ describe('Webhook Shipment Transition State', () => {
 
     const response = await app.inject({
       method: 'PATCH',
-      url: `/jnt/shipments/${shipment.id}/picked-up`,
+      url: `/jnt/parcels/${parcel.id}/picked-up`,
       headers: authHeaders
     })
 
     expect(response.statusCode).toBe(200)
-    expect(response.json().data.id).toBe(shipment.id)
+    expect(response.json().data.id).toBe(parcel.id)
     expect(response.json().data.status).toBe(ShipmentStatus.PickedUp)
 
     const shipmentTrackingLogs = await prisma.trackingLog.findMany({
       where: {
-        shipmentId: shipment.id
+        parcelId: parcel.id
       }
     })
 
@@ -54,8 +55,8 @@ describe('Webhook Shipment Transition State', () => {
     expect(shipmentTrackingLogs[2].status).toBe(ShipmentStatus.PickedUp)
   })
 
-  test('a picked_up shipment can be set to in_transit', async () => {
-    const shipment = await prisma.shipment.findUniqueOrThrow({
+  test('a picked_up parcel can be set to in_transit', async () => {
+    const parcel = await prisma.parcel.findUniqueOrThrow({
       where: { externalOrderId }
     })
 
@@ -69,17 +70,17 @@ describe('Webhook Shipment Transition State', () => {
 
     const response = await app.inject({
       method: 'PATCH',
-      url: `/jnt/shipments/${shipment.id}/in-transit`,
+      url: `/jnt/parcels/${parcel.id}/in-transit`,
       headers: authHeaders
     })
 
     expect(response.statusCode).toBe(200)
-    expect(response.json().data.id).toBe(shipment.id)
+    expect(response.json().data.id).toBe(parcel.id)
     expect(response.json().data.status).toBe(ShipmentStatus.InTransit)
 
     const shipmentTrackingLogs = await prisma.trackingLog.findMany({
       where: {
-        shipmentId: shipment.id
+        parcelId: parcel.id
       }
     })
 
@@ -90,8 +91,8 @@ describe('Webhook Shipment Transition State', () => {
     expect(shipmentTrackingLogs[3].status).toBe(ShipmentStatus.InTransit)
   })
 
-  test('an in_transit shipment can be set to arrived_at_hub', async () => {
-    const shipment = await prisma.shipment.findUniqueOrThrow({
+  test('an in_transit parcel can be set to arrived_at_hub', async () => {
+    const parcel = await prisma.parcel.findUniqueOrThrow({
       where: { externalOrderId }
     })
 
@@ -105,17 +106,17 @@ describe('Webhook Shipment Transition State', () => {
 
     const response = await app.inject({
       method: 'PATCH',
-      url: `/jnt/shipments/${shipment.id}/arrived-at-hub`,
+      url: `/jnt/parcels/${parcel.id}/arrived-at-hub`,
       headers: authHeaders
     })
 
     expect(response.statusCode).toBe(200)
-    expect(response.json().data.id).toBe(shipment.id)
+    expect(response.json().data.id).toBe(parcel.id)
     expect(response.json().data.status).toBe(ShipmentStatus.ArrivedAtHub)
 
     const shipmentTrackingLogs = await prisma.trackingLog.findMany({
       where: {
-        shipmentId: shipment.id
+        parcelId: parcel.id
       }
     })
 
@@ -127,8 +128,8 @@ describe('Webhook Shipment Transition State', () => {
     expect(shipmentTrackingLogs[4].status).toBe(ShipmentStatus.ArrivedAtHub)
   })
 
-  test('an arrived_at_hub shipment can be set to out_for_delivery', async () => {
-    const shipment = await prisma.shipment.findUniqueOrThrow({
+  test('an arrived_at_hub parcel can be set to out_for_delivery', async () => {
+    const parcel = await prisma.parcel.findUniqueOrThrow({
       where: { externalOrderId }
     })
 
@@ -142,17 +143,17 @@ describe('Webhook Shipment Transition State', () => {
 
     const response = await app.inject({
       method: 'PATCH',
-      url: `/jnt/shipments/${shipment.id}/out-for-delivery`,
+      url: `/jnt/parcels/${parcel.id}/out-for-delivery`,
       headers: authHeaders
     })
 
     expect(response.statusCode).toBe(200)
-    expect(response.json().data.id).toBe(shipment.id)
+    expect(response.json().data.id).toBe(parcel.id)
     expect(response.json().data.status).toBe(ShipmentStatus.OutForDelivery)
 
     const shipmentTrackingLogs = await prisma.trackingLog.findMany({
       where: {
-        shipmentId: shipment.id
+        parcelId: parcel.id
       }
     })
 
@@ -165,8 +166,8 @@ describe('Webhook Shipment Transition State', () => {
     expect(shipmentTrackingLogs[5].status).toBe(ShipmentStatus.OutForDelivery)
   })
 
-  test('an out_for_delivery shipment can be set to delivered with webhook dispatch', async () => {
-    const shipment = await prisma.shipment.findUniqueOrThrow({
+  test('an out_for_delivery parcel can be set to delivered with webhook dispatch', async () => {
+    const parcel = await prisma.parcel.findUniqueOrThrow({
       where: { externalOrderId }
     })
 
@@ -180,17 +181,17 @@ describe('Webhook Shipment Transition State', () => {
 
     const response = await app.inject({
       method: 'PATCH',
-      url: `/jnt/shipments/${shipment.id}/delivered`,
+      url: `/jnt/parcels/${parcel.id}/delivered`,
       headers: authHeaders
     })
 
     expect(response.statusCode).toBe(200)
-    expect(response.json().data.id).toBe(shipment.id)
+    expect(response.json().data.id).toBe(parcel.id)
     expect(response.json().data.status).toBe(ShipmentStatus.Delivered)
 
     const shipmentTrackingLogs = await prisma.trackingLog.findMany({
       where: {
-        shipmentId: shipment.id
+        parcelId: parcel.id
       }
     })
 

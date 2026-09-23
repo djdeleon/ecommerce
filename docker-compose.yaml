@@ -89,7 +89,7 @@ services:
       - /app/node_modules
 
   logistics-database:
-    image: postgres:18-alpine
+    image: postgis/postgis:18-3.6
     container_name: eco_logistics_postgres
     environment:
       - POSTGRES_USER=eco_logistics_user
