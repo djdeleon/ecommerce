@@ -187,8 +187,11 @@ class AddressFactory
         $addresses = [];
 
         if ($region === 'region_1') {
-            $region = Region::firstOrCreate([
-                'code' => '0100000000',
+            $region = Region::firstOrCreate(
+            [
+                'code' => '0100000000'
+            ],
+            [
                 'correspondence_code' => '010000000',
                 'name' => 'Ilocos Region (Region I)',
                 'slug' => 'region_1',

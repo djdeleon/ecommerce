@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Models\Customer;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Spatie\Permission\Models\Role;
 
 /**
  * @extends Factory<Customer>
@@ -27,6 +28,8 @@ class CustomerFactory extends Factory
     public function configure()
     {
         return $this->afterCreating(function (Customer $customer) {
+            Role::firstOrCreate(['name' => 'customer', 'guard_name' => 'web']);
+
             $customer->user->assignRole(UserRole::Customer);
             $customer->cart()->create();
         });

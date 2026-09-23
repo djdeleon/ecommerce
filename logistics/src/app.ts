@@ -1,15 +1,26 @@
 import Fastify from "fastify";
 import { prisma } from "./prisma.js";
-import { CourierStatus, NetworkType, ShipmentStatus } from "@prisma/client";
+import { CourierStatus, FacilityType, ShipmentStatus, UserRole } from "@prisma/client";
+import { generateEventDescription } from "./logisticsEventDictionary.js";
+import fastifyJwt from "@fastify/jwt";
+import crypto, { hash } from 'crypto';
+import fastifyBcrypt from "fastify-bcrypt";
+import { createFacility, createStore } from "./utils/factories.js";
 
 export function buildApp() {
   const fastify = Fastify({ logger: true });
 
-  fastify.addHook('preHandler', async (req, rep) => {
-    const authHeader = req.headers.authorization; // 'Bearer <secret>' format
-    const expectedKey = process.env.LOGISTICS_KEY;
+  fastify.register(fastifyJwt, {
+    secret: process.env.JWT_SECRET || 'jwt_logistics_development'
+  })
 
-    req.log.info({ authHeader, expectedKey }, 'Debugging Authorization Keys');
+  fastify.register(fastifyBcrypt as any, {
+    saltWorkFactor: 10,
+  })
+
+  const verifyLogisticsKey = async (req: any, rep: any) => {
+    const authHeader = req.headers.authorization;
+    const expectedKey = process.env.LOGISTICS_KEY
 
     if (!authHeader || authHeader !== `Bearer ${expectedKey}`) {
       return rep.status(401).send({
@@ -17,8 +28,27 @@ export function buildApp() {
         message: 'Access Denied: Missing or invalid Authorization Token.'
       })
     }
-  })
+  }
 
+  const verifyUserAuth = async (req: any, rep: any) => {
+    try {
+      await req.jwtVerify();
+
+      const userId = req.user.id
+
+      const user = await prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+        include: { courier: true }
+      })
+
+      req.user = user
+
+    } catch (err) {
+      return rep.status(401).send({
+        error: 'Unauthorized: Invalid or missing token'
+      })
+    }
+  }
 
   const REGION_TO_ZONE_MAP: Record<string, string> = {
     // Luzon Zones
@@ -188,8 +218,8 @@ export function buildApp() {
     return baseRate + (additionalWeight * baseRatePerExtraKilo)
   }
 
-  fastify.get('/jnt/networks', async () => {
-    const networks = await prisma.network.findMany();
+  fastify.get('/jnt/facilities', async () => {
+    const facilities = await prisma.facility.findMany();
     const availableCouriers = await prisma.courier.findMany({
       where: {
         status: CourierStatus.Available
@@ -198,10 +228,10 @@ export function buildApp() {
 
     return {
       status: 200,
-      message: 'Networks retrieved.',
+      message: 'Facilities retrieved.',
       data: {
-        networks,
-        networkTypes: Object.values(NetworkType),
+        facilities,
+        facilityTypes: Object.values(FacilityType),
         availableCouriers
       }
     }
@@ -209,37 +239,55 @@ export function buildApp() {
 
   interface NetworkBody {
     name: string,
-    type: NetworkType,
+    type: FacilityType,
     address: string,
   }
 
-  fastify.post<{ Body: NetworkBody }>('/jnt/networks', async (req, rep) => {
+  fastify.post<{ Body: NetworkBody }>('/jnt/facilities', async (req, rep) => {
     const { name, type, address } = req.body
     const randomSuffix = Math.floor(Math.random() * 10000);
 
-    const code = `JTE-${randomSuffix}`
+    const facilityTypeMap = {
+      'MegaGateway': 'mega_gateway',
+      'RegionalHub': 'regional_hub',
+      'LocalBranch': 'local_branch',
+    }
+
+    const facilityType = facilityTypeMap[type]
+
+    const sortingCode = `JTE-${randomSuffix}`
     const latitude = "14.59"
     const longitude = "120.98"
 
-    const network = await prisma.network.create({
-      data: {
-        name: name,
-        code: code,
-        address: address,
-        type: type,
-        latitude: latitude,
-        longitude: longitude,
-      }
-    })
+    const [facility] = await prisma.$queryRaw<any[]>`
+      INSERT INTO "facilities" (
+        "name",
+        "type",
+        "sorting_code",
+        "address",
+        "location",
+        "parent_id",
+        "updated_at"
+      ) VALUES (
+        ${name},
+        ${facilityType},
+        ${sortingCode},
+        ${address},
+        ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326),
+        null,
+        NOW()
+      )
+      RETURNING *;
+    `;
 
     rep.status(201).send({
-      message: "Network created.",
-      data: network
+      message: "Facility created.",
+      data: facility
     })
   })
 
   interface NetworkAssignCourierParams {
-    networkId: string;
+    facilityId: string;
   }
 
   interface NetworkAssignCourierBody {
@@ -249,28 +297,28 @@ export function buildApp() {
   fastify.patch<{
     Body: NetworkAssignCourierBody,
     Params: NetworkAssignCourierParams
-  }>('/jnt/networks/:networkId/assign-courier', async (req, rep) => {
-    const { networkId } = req.params
+  }>('/jnt/facilities/:facilityId/assign-courier', async (req, rep) => {
+    const { facilityId } = req.params
     const { courierId } = req.body
 
     const parsedCourierId = parseInt(courierId)
-    const parsedNetworkId = parseInt(networkId)
+    const parsedFacilityId = parseInt(facilityId)
 
     await prisma.courier.update({
       where: {
         id: parsedCourierId
       },
       data: {
-        currentNetworkId: parsedNetworkId
+        currentFacilityId: parsedFacilityId
       },
       include: {
-        currentNetwork: true
+        currentFacility: true
       }
     })
 
-    const updatedNetwork = await prisma.network.findUniqueOrThrow({
+    const updatedFacility = await prisma.facility.findUniqueOrThrow({
       where: {
-        id: parsedNetworkId
+        id: parsedFacilityId
       },
       include: {
         couriers: true
@@ -279,7 +327,7 @@ export function buildApp() {
 
     rep.status(200).send({
       message: "Courier assigned.",
-      data: updatedNetwork
+      data: updatedFacility
     })
   })
 
@@ -297,6 +345,8 @@ export function buildApp() {
   })
 
   interface CourierBody {
+    email: string,
+    password: string,
     firstName: string,
     lastName: string,
     phoneNumber: string,
@@ -306,125 +356,549 @@ export function buildApp() {
   }
 
   fastify.post<{ Body: CourierBody }>('/jnt/couriers', async (req, rep) => {
-    const { firstName, lastName, phoneNumber, vehicleType, plateNumber, status } = req.body
+    const { email, password, firstName, lastName, phoneNumber, vehicleType, plateNumber, status } = req.body
 
-    const courier = await prisma.courier.create({
-      data: {
-        firstName,
-        lastName,
-        phoneNumber,
-        vehicleType,
-        plateNumber,
-        status
+    try {
+      const existingUser = await prisma.user.findUnique({
+        where: { email }
+      })
+
+      if (existingUser) {
+        return rep.status(400).send({
+          error: 'Email already registered.'
+        })
       }
-    })
 
-    rep.status(201).send({
-      message: "Courier created.",
-      data: courier
-    })
+      const hashedPassword = await fastify.bcrypt.hash(password)
+
+      const newUser = await prisma.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          role: UserRole.Courier
+        }
+      })
+
+      const courier = await prisma.courier.create({
+        data: {
+          userId: newUser.id,
+          firstName,
+          lastName,
+          phoneNumber,
+          vehicleType,
+          plateNumber,
+          status
+        },
+        include: {
+          user: true
+        }
+      })
+
+      const token = fastify.jwt.sign({ id: newUser.id })
+
+      rep.status(201).send({
+        message: 'Courier registered.',
+        data: {
+          courier,
+          token,
+        }
+      })
+    } catch (err) {
+      return rep.status(500).send({
+        'error': 'Internal Server Error: '
+      })
+    }
   })
 
-  interface ShipmentBody {
+  interface ParcelBody {
     externalOrderId: string,
-    providerName: string,
-    senderName: string,
-    senderPhoneNumber: string,
-    senderAddress: string,
-    recipientName: string,
-    recipientPhoneNumber: string,
-    recipientAddress: string,
-    weightKg: number,
-    status: ShipmentStatus,
+    weightGrams: number,
+    storeName: string,
+    storeContactNumber: string,
+    storeAddress: string,
+    storeLocation: object,
+    customerName: string,
+    customerAddress: string,
+    customerPhone: string,
   }
 
-  fastify.post<{ Body: ShipmentBody}>('/jnt/shipments', async (req, rep) => {
-    const { externalOrderId, providerName, senderName, senderPhoneNumber, senderAddress, recipientName, recipientPhoneNumber, recipientAddress, weightKg, status } = req.body
+  fastify.post<{ Body: ParcelBody }>('/jnt/parcels', {
+    preHandler: [verifyLogisticsKey]
+  }, async (req, rep) => {
+    console.dir('heres')
+    console.dir(req.body)
+    const { externalOrderId, weightGrams, storeName, storeContactNumber, storeAddress, storeLocation, customerName, customerAddress, customerPhone } = req.body
+
+
+    // for testing
+    await prisma.parcel.deleteMany();
+    const origin = await createFacility({
+      name: 'Origin Mega Hub'
+    })
+    const destination = await createFacility({
+      name: 'Destination Regional Hub',
+      type: FacilityType.RegionalHub,
+    })
+    const store = await createStore({
+      name: storeName,
+      contactNumber: storeContactNumber,
+      address: storeAddress,
+    })
 
     const randomSuffix = Math.floor(Math.random() * 10000);
 
-    const recipientLatitude = "14.60"
-    const recipientLongitude = "120.99"
+    const description = generateEventDescription({
+      status: ShipmentStatus.PendingPickup
+    })
+    
+    const sortingCodeCache = `HUB-BUL-SKY-05`
+    const routingPipelineCache = `BUL-NL`
 
-    const shipment = await prisma.shipment.create({
-      data: {
-        trackingNumber: `JTE-TN-${randomSuffix}`,
-        externalOrderId,
-        providerName,
-        senderName,
-        senderPhoneNumber,
-        senderAddress,
-        recipientName,
-        recipientPhoneNumber,
-        recipientAddress,
-        recipientLatitude,
-        recipientLongitude,
-        weightKg,
-        status
-      }
+    const data = await prisma.$transaction(async (tx) => {
+      const parcel = await tx.parcel.create({
+        data: {
+          trackingNumber: `JTE-TN-${randomSuffix}`,
+          externalOrderId,
+          weightGrams,
+          originFacilityId: origin.id,
+          destinationFacilityId: destination.id,
+          currentFacilityId: origin.id,
+          sortingCodeCache,
+          routingPipelineCache,
+          storeId: store.id,
+          customerName,
+          customerAddress,
+          customerPhone,
+          status: ShipmentStatus.PendingPickup
+        }
+      })
+
+      await tx.trackingLog.create({
+        data: {
+          parcelId: parcel.id,
+          status: ShipmentStatus.PendingPickup,
+          description,
+        }
+      })
+
+      return { parcel }
     })
 
     rep.status(201).send({
-      message: "Shipment created.",
-      data: shipment
+      message: 'Parcel created.',
+      data: data.parcel
     })
   })
 
-  interface ShipmentAssignNetworkParams {
-    shipmentId: string;
+  interface ParcelParams {
+    parcelId: string;
   }
 
-  interface ShipmentAssignNetworkBody {
-    networkId: string
+  interface ShipmentOrderParams {
+    externalOrderId: string;
   }
 
-  fastify.patch<{ 
-    Body: ShipmentAssignNetworkBody, 
-    Params: ShipmentAssignNetworkParams 
-  }>('/jnt/shipments/:shipmentId/assign-network', async (req, rep) => {
-    const { networkId } = req.body
-    const parsedNetworkId = parseInt(networkId)
-    const { shipmentId } = req.params
-    const parsedShipmentId = parseInt(shipmentId)
+  fastify.patch<{ Params: ShipmentOrderParams }>('/jnt/parcels/:externalOrderId/ready-for-pickup', {
+    preHandler: [verifyLogisticsKey]
+  }, async (req, rep) => {
+    const { externalOrderId } = req.params
+    const description = generateEventDescription({ status: ShipmentStatus.ReadyForPickup })
 
-    const updatedShipment = await prisma.shipment.update({
+    const data = await prisma.$transaction(async (tx) => {
+      const updatedParcel = await tx.parcel.update({
+        where: { externalOrderId: externalOrderId },
+        data: { status: ShipmentStatus.ReadyForPickup }
+      })
+
+      await tx.trackingLog.create({
+        data: {
+          parcelId: updatedParcel.id,
+          status: ShipmentStatus.ReadyForPickup,
+          description
+        }
+      })
+
+      return { updatedParcel }
+    })
+
+    rep.status(200).send({
+      message: 'Parcel updated.',
+      data: data.updatedParcel
+    })
+  })
+
+  fastify.patch<{ Params: ParcelParams }>('/jnt/parcels/:parcelId/picked-up', {
+    preHandler: [verifyUserAuth]
+  }, async (req, rep) => {
+    const { parcelId } = req.params
+    const parsedParcelId = parseInt(parcelId)
+    const courier = req.user.courier
+
+    const description = generateEventDescription({ status: ShipmentStatus.PickedUp, courierName: courier.firstName, plateNumber: courier.plateNumber })
+
+    const data = await prisma.$transaction(async (tx) => {
+      const updatedParcel = await tx.parcel.update({
+        where: {
+          id: parsedParcelId
+        },
+        data: {
+          status: ShipmentStatus.PickedUp,
+          currentFacilityId: courier.currentFacilityId,
+          assignedCourierId: courier.id
+        }
+      })
+
+      await tx.trackingLog.create({
+        data: {
+          parcelId: parsedParcelId,
+          status: ShipmentStatus.PickedUp,
+          description,
+          facilityId: courier.currentFacilityId,
+          courierId: courier.id
+        }
+      })
+
+      return { updatedParcel }
+    })
+
+    const laravelWebhookUrl = process.env.LARAVEL_WEBHOOK_URL
+    const webhookSecret = process.env.LOGISTICS_WEBHOOK_SECRET
+
+    if (!laravelWebhookUrl || !webhookSecret) {
+      console.error('Webhook configuration missing. Skipping dispatch')
+      return;
+    }
+
+    const body = JSON.stringify({
+      external_order_id: data.updatedParcel.externalOrderId,
+      tracking_number: data.updatedParcel.trackingNumber,
+      courier_id: courier.id,
+      status: ShipmentStatus.PickedUp,
+      description,
+      timeStamp: data.updatedParcel.createdAt
+    })
+
+    // webhookHmacSignature
+    const hmac = crypto.createHmac('sha256', webhookSecret);
+    hmac.update(body)
+    const signature = hmac.digest('hex')
+
+    // webhookDispatch
+    fetch(laravelWebhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Logistics-Signature': signature,
+        'User-Agent': 'J&T EXpress',
+      },
+      body
+    }).then(async (response) => {
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`Laravel webhook failed with status [${response.status}]: ${errorText}`)
+      }
+    }).catch((error) => {
+      console.error('Facility error during Laravel webhook dispatch: ', error)
+    })
+
+    rep.status(200).send({
+      message: 'Parcel updated.',
+      data: data.updatedParcel
+    })
+  })
+
+  fastify.patch<{ Params: ParcelParams }>('/jnt/parcels/:parcelId/in-transit', {
+    preHandler: [verifyUserAuth]
+  }, async (req, rep) => {
+    const { parcelId } = req.params
+    const parsedParcelId = parseInt(parcelId)
+    const courier = req.user.courier
+    const courierNetwork = await prisma.facility.findUniqueOrThrow({
+      where: { id: courier.currentFacilityId },
+    })
+
+    const description = generateEventDescription({ status: ShipmentStatus.InTransit, originHub: courierNetwork.name, destinationHub: 'next hub' })
+
+    const data = await prisma.$transaction(async (tx) => {
+      const updatedParcel = await tx.parcel.update({
+        where: {
+          id: parsedParcelId
+        },
+        data: {
+          status: ShipmentStatus.InTransit,
+          currentFacilityId: courier.currentFacilityId,
+          assignedCourierId: courier.id
+        }
+      })
+
+      await tx.trackingLog.create({
+        data: {
+          parcelId: parsedParcelId,
+          status: ShipmentStatus.InTransit,
+          description,
+          facilityId: courier.currentFacilityId,
+          courierId: courier.id
+        }
+      })
+
+      return { updatedParcel }
+    })
+
+    rep.status(200).send({
+      message: 'Parcel updated.',
+      data: data.updatedParcel
+    })
+  })
+
+  fastify.patch<{ Params: ParcelParams }>('/jnt/parcels/:parcelId/arrived-at-hub', {
+    preHandler: [verifyUserAuth]
+  }, async (req, rep) => {
+    const { parcelId } = req.params
+    const parsedParcelId = parseInt(parcelId)
+    const courier = req.user.courier
+
+    const description = generateEventDescription({ status: ShipmentStatus.ArrivedAtHub, hubName: 'unknown hub' })
+
+    const data = await prisma.$transaction(async (tx) => {
+      const updatedParcel = await tx.parcel.update({
+        where: {
+          id: parsedParcelId
+        },
+        data: {
+          status: ShipmentStatus.ArrivedAtHub,
+          currentFacilityId: courier.currentFacilityId,
+          assignedCourierId: courier.id
+        }
+      })
+
+      await tx.trackingLog.create({
+        data: {
+          parcelId: parsedParcelId,
+          status: ShipmentStatus.ArrivedAtHub,
+          description,
+          facilityId: courier.currentFacilityId,
+          courierId: courier.id
+        }
+      })
+
+      return { updatedParcel }
+    })
+
+    rep.status(200).send({
+      message: 'Parcel updated.',
+      data: data.updatedParcel
+    })
+  })
+
+  fastify.patch<{ Params: ParcelParams }>('/jnt/parcels/:parcelId/out-for-delivery', {
+    preHandler: [verifyUserAuth]
+  }, async (req, rep) => {
+    const { parcelId } = req.params
+    const parsedParcelId = parseInt(parcelId)
+    const courier = req.user.courier
+
+    const description = generateEventDescription({ status: ShipmentStatus.OutForDelivery, courierName: courier.firstName })
+
+    const data = await prisma.$transaction(async (tx) => {
+      const updatedParcel = await tx.parcel.update({
+        where: {
+          id: parsedParcelId
+        },
+        data: {
+          status: ShipmentStatus.OutForDelivery,
+          currentFacilityId: courier.currentFacilityId,
+          assignedCourierId: courier.id
+        }
+      })
+
+      await tx.trackingLog.create({
+        data: {
+          parcelId: parsedParcelId,
+          status: ShipmentStatus.OutForDelivery,
+          description,
+          facilityId: courier.currentFacilityId,
+          courierId: courier.id
+        }
+      })
+
+      return { updatedParcel }
+    })
+
+    rep.status(200).send({
+      message: 'Parcel updated.',
+      data: data.updatedParcel
+    })
+  })
+
+  fastify.patch<{ Params: ParcelParams }>('/jnt/parcels/:parcelId/delivered', {
+    preHandler: [verifyUserAuth]
+  }, async (req, rep) => {
+    const { parcelId } = req.params
+    const parsedParcelId = parseInt(parcelId)
+    const courier = req.user.courier
+
+    const description = generateEventDescription({ status: ShipmentStatus.Delivered })
+
+    const data = await prisma.$transaction(async (tx) => {
+      const updatedParcel = await tx.parcel.update({
+        where: {
+          id: parsedParcelId
+        },
+        data: {
+          status: ShipmentStatus.Delivered,
+          currentFacilityId: courier.currentFacilityId,
+          assignedCourierId: courier.id
+        }
+      })
+
+      await tx.trackingLog.create({
+        data: {
+          parcelId: parsedParcelId,
+          status: ShipmentStatus.Delivered,
+          description,
+          facilityId: courier.currentFacilityId,
+          courierId: courier.id
+        }
+      })
+
+      return { updatedParcel }
+    })
+
+    const laravelWebhookUrl = process.env.LARAVEL_WEBHOOK_URL
+    const webhookSecret = process.env.LOGISTICS_WEBHOOK_SECRET
+
+    if (!laravelWebhookUrl || !webhookSecret) {
+      console.error('Webhook configuration missing. Skipping dispatch')
+      return;
+    }
+
+    const body = JSON.stringify({
+      external_order_id: data.updatedParcel.externalOrderId,
+      tracking_number: data.updatedParcel.trackingNumber,
+      courier_id: courier.id,
+      status: ShipmentStatus.Delivered,
+      description,
+      timeStamp: data.updatedParcel.createdAt
+    })
+
+    // webhookHmacSignature
+    const hmac = crypto.createHmac('sha256', webhookSecret);
+    hmac.update(body)
+    const signature = hmac.digest('hex')
+
+    // webhookDispatch
+    fetch(laravelWebhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Logistics-Signature': signature,
+        'User-Agent': 'J&T EXpress',
+      },
+      body
+    }).then(async (response) => {
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`Laravel webhook failed with status [${response.status}]: ${errorText}`)
+      }
+    }).catch((error) => {
+      console.error('Facility error during Laravel webhook dispatch: ', error)
+    })
+
+    rep.status(200).send({
+      message: 'Parcel updated.',
+      data: data.updatedParcel
+    })
+  })
+
+  fastify.patch<{ Params: ParcelParams }>('/jnt/parcels/:parcelId/rejected', {
+    preHandler: [verifyLogisticsKey]
+  }, async (req, rep) => {
+    const { parcelId } = req.params
+    const parsedParcelId = parseInt(parcelId)
+    const description = generateEventDescription({ status: ShipmentStatus.Rejected, reason: 'The last stock is broken.' })
+
+    const data = await prisma.$transaction(async (tx) => {
+      const updatedParcel = await tx.parcel.update({
+        where: {
+          id: parsedParcelId
+        },
+        data: {
+          status: ShipmentStatus.Rejected
+        }
+      })
+
+      await tx.trackingLog.create({
+        data: {
+          parcelId: parsedParcelId,
+          status: ShipmentStatus.Rejected,
+          description
+        }
+      })
+
+      return { updatedParcel }
+    })
+
+    rep.status(200).send({
+      message: 'Parcel updated.',
+      data: data.updatedParcel
+    })
+  })
+
+  interface ParcelAssignNetworkParams {
+    parcelId: string;
+  }
+
+  interface ParcelAssignNetworkBody {
+    facilityId: string
+  }
+
+  fastify.patch<{
+    Body: ParcelAssignNetworkBody,
+    Params: ParcelAssignNetworkParams
+  }>('/jnt/parcels/:parcelId/assign-facility', async (req, rep) => {
+    const { facilityId } = req.body
+    const parsedFacilityId = parseInt(facilityId)
+    const { parcelId } = req.params
+    const parsedParcelId = parseInt(parcelId)
+
+    const updatedParcel = await prisma.parcel.update({
       where: {
-        id: parsedShipmentId
+        id: parsedParcelId
       },
       data: {
-        currentNetworkId: parsedNetworkId
+        currentFacilityId: parsedFacilityId
       },
       include: {
-        currentNetwork: true
+        currentFacility: true
       }
     })
 
     rep.status(200).send({
-      message: "Network assigned",
-      data: updatedShipment
+      message: "Facility assigned",
+      data: updatedParcel
     })
   })
 
   interface ShipmentAssignCourierParams {
-    shipmentId: string;
+    parcelId: string;
   }
 
   interface ShipmentAssignCourierBody {
     courierId: string
   }
 
-  fastify.patch<{ 
-    Body: ShipmentAssignCourierBody, 
-    Params: ShipmentAssignCourierParams 
-  }>('/jnt/shipments/:shipmentId/assign-courier', async (req, rep) => {
+  fastify.patch<{
+    Body: ShipmentAssignCourierBody,
+    Params: ShipmentAssignCourierParams
+  }>('/jnt/parcels/:parcelId/assign-courier', async (req, rep) => {
     const { courierId } = req.body
     const parsedCourierId = parseInt(courierId)
-    const { shipmentId } = req.params
-    const parsedShipmentId = parseInt(shipmentId)
+    const { parcelId } = req.params
+    const parsedParcelId = parseInt(parcelId)
 
-    const updatedShipment = await prisma.shipment.update({
+    const updatedParcel = await prisma.parcel.update({
       where: {
-        id: parsedShipmentId
+        id: parsedParcelId
       },
       data: {
         assignedCourierId: parsedCourierId
@@ -436,7 +910,7 @@ export function buildApp() {
 
     rep.status(200).send({
       message: "Courier assigned",
-      data: updatedShipment
+      data: updatedParcel
     })
   })
 
@@ -446,7 +920,9 @@ export function buildApp() {
     weight_kg: number
   }
 
-  fastify.post<{ Body: JntRatesBody }>('/jnt/shipping-fee', async (req, rep) => {
+  fastify.post<{ Body: JntRatesBody }>('/jnt/shipping-fee', {
+    preHandler: [verifyLogisticsKey]
+  }, async (req, rep) => {
     const { origin_zone, destination_zone, weight_kg } = req.body
 
     const baseRatings = await getBaseRatings(origin_zone, destination_zone)
@@ -456,6 +932,92 @@ export function buildApp() {
     const data = { baseRatings, shippingFee }
 
     return { status: 200, data }
+  })
+
+  interface UserRegisterBody {
+    email: string,
+    password: string,
+    role: UserRole
+  }
+
+  fastify.post<{ Body: UserRegisterBody }>('/jnt/users/register', async (req, rep) => {
+    const { email, password, role } = req.body
+
+    try {
+      const existingUser = await prisma.user.findUnique({
+        where: { email }
+      })
+
+      if (existingUser) {
+        return rep.status(400).send({
+          error: 'Email already registered.'
+        })
+      }
+
+      const hashedPassword = await fastify.bcrypt.hash(password)
+
+      const newUser = await prisma.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          role
+        }
+      })
+
+      const { password: _, ...user } = newUser
+
+      const token = fastify.jwt.sign({ id: user.id })
+
+      rep.status(201).send({
+        message: 'user registered.',
+        data: {
+          user,
+          token,
+        }
+      })
+    } catch (err) {
+      return rep.status(500).send({
+        'error': 'Internal Server Error: '
+      })
+    }
+
+  })
+
+  interface UserLoginBody {
+    email: string,
+    password: string,
+  }
+
+  fastify.post<{ Body: UserLoginBody }>('/jnt/users/login', async (req, rep) => {
+    const { email, password } = req.body
+
+    const user = await prisma.user.findUnique({
+      where: { email }
+    })
+
+    if (!user) {
+      return rep.status(401).send({
+        error: 'Invalid email or password'
+      })
+    }
+
+    const isValid = await fastify.bcrypt.compare(password, user.password)
+
+    if (!isValid) {
+      return rep.status(401).send({
+        error: 'Invalid email or password'
+      })
+    }
+
+    const token = fastify.jwt.sign({ id: user.id })
+
+    return rep.send({
+      message: 'User logged in',
+      data: {
+        user,
+        token
+      }
+    })
   })
 
   return fastify;

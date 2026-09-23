@@ -81,6 +81,7 @@ services:
       - DB_PASSWORD=eco_logistics_password
       - DB_NAME=logistics
       - DATABASE_URL=postgresql://eco_logistics_user:eco_logistics_password@logistics-database:5432/logistics?schema=public
+      - JWT_SECRET=jwt_logistics
     depends_on:
       - logistics-database
     volumes:
@@ -88,7 +89,7 @@ services:
       - /app/node_modules
 
   logistics-database:
-    image: postgres:18-alpine
+    image: postgis/postgis:18-3.6
     container_name: eco_logistics_postgres
     environment:
       - POSTGRES_USER=eco_logistics_user

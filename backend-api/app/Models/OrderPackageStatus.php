@@ -14,6 +14,7 @@ class OrderPackageStatus extends Model
     use HasFactory;
 
     protected $fillable = [
+        'order_package_id',
         'changed_by_id',
         'status',
         'notes',

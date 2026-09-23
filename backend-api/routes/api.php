@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\FulfillmentHubController;
 use App\Http\Controllers\Api\InventoryStockController;
+use App\Http\Controllers\Api\LogisticWebhookController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PayPalWebhookController;
 use App\Http\Controllers\Api\ProductController;
@@ -23,6 +24,7 @@ use App\Http\Controllers\Api\WarehouseController;
 use App\Http\Controllers\Api\XenditWebhookController;
 use App\Http\Controllers\CustomerAddressController;
 use App\Http\Middleware\SetPostgreUserContext;
+use App\Http\Middleware\VerifyLogisticsWebhook;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -88,6 +90,7 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
     Route::middleware('role:vendor')->group(function () {
         Route::get('vendor/dashboard', [VendorController::class, 'dashboard'])->name('vendor.dashboard');
         Route::post('vendors/{orderPackage}/arrange-shipment', [VendorController::class, 'arrangeShipment'])->name('vendors.arrange-shipment');
+        Route::post('vendors/{orderPackage}/ready-for-pickup', [VendorController::class, 'readyForPickup'])->name('vendors.ready-for-pickup');
 
         Route::prefix('products')->controller(ProductController::class)->group(function () {
             Route::post('', 'store')->name('products.store');
@@ -115,6 +118,7 @@ Route::middleware(['auth:sanctum', SetPostgreUserContext::class])->group(functio
 Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle'])->name('stripe.webhook');
 Route::post('/xendit/webhook', [XenditWebhookController::class, 'handle'])->name('xendit.webhook');
 Route::post('/paypal/webhook', [PayPalWebhookController::class, 'handle'])->name('paypal.webhook');
+Route::post('v1/logistics/webhook', LogisticWebhookController::class)->middleware(VerifyLogisticsWebhook::class);
 
 Route::prefix('v1')->group(function () {
     Route::prefix('addresses')->group(function () {

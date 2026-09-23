@@ -16,19 +16,71 @@ class VendorController extends Controller
 
     public function arrangeShipment(Request $request, OrderPackage $orderPackage)
     {
+        $vendor = $request->user()->vendor;
+        $customer = $orderPackage->order->customer;
+
         $logisticService = new LogisiticService();
+        $logisticService->ship($orderPackage, $vendor, $customer);
 
-        $orderPackage->orderPackageItems->each(function ($item) use ($logisticService) {
-            $shippingAddress = $item->orderPackage->shipping_address;
-            $weight = 9;
+        return $this->success(
+            null,
+            'Shipment arranged.'
+        );
 
-            $item->orderPackageItemFacilities->each(function ($facility) use ($logisticService, $shippingAddress, $weight) {
-                $response = $logisticService->book($shippingAddress, $facility->fullAddress(), $weight);
+        
+
+        
 
 
-                dd($response);
-            });
-        });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        // $logisticService = new LogisiticService();
+
+        // $orderPackage->orderPackageItems->each(function ($item) use ($logisticService) {
+        //     $shippingAddress = $item->orderPackage->shipping_address;
+        //     $weight = 9;
+
+        //     $item->orderPackageItemFacilities->each(function ($facility) use ($logisticService, $shippingAddress, $weight) {
+        //         $response = $logisticService->book($shippingAddress, $facility->fullAddress(), $weight);
+
+
+        //         dd($response);
+        //     });
+        // });
+    }
+
+    public function readyForPickup(Request $request, OrderPackage $orderPackage)
+    {
+        $logisticService = new LogisiticService();
+        $logisticService->toPickup($orderPackage);
+
+        return $this->success(
+            null,
+            'Order Package is now ready to pick up.'
+        );
     }
 
     public function dashboard(Request $request)

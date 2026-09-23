@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Models\User;
 use App\Models\Vendor;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Spatie\Permission\Models\Role;
 
 /**
  * @extends Factory<Vendor>
@@ -28,6 +29,7 @@ class VendorFactory extends Factory
     public function configure()
     {
         return $this->afterCreating(function (Vendor $vendor) {
+            Role::firstOrCreate(['name' => 'vendor', 'guard_name' => 'web']);
             $vendor->user->assignRole('vendor');
         });
     }
