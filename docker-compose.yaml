@@ -116,6 +116,9 @@ services:
       - DB_USER=eco_logistics_user
       - DB_PASSWORD=eco_logistics_password
       - DB_NAME=logistics
+      - DATABASE_URL=postgresql://eco_logistics_user:eco_logistics_password@logistics-database:5432/logistics?schema=public
+    depends_on:
+      - logistics-database
     volumes:
       - ./logistics-engine:/app
 
