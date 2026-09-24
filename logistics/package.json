@@ -2,6 +2,9 @@
   "name": "logistics-microservice",
   "version": "1.0.0",
   "type": "module",
+  "imports": {
+    "#factory": "./tests/factory/index.ts"
+  },
   "description": "Mock 3PL & Barcode Scanner Microservice",
   "main": "dist/index.js",
   "scripts": {

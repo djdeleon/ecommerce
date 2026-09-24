@@ -5,7 +5,8 @@ import { generateEventDescription } from "./logisticsEventDictionary.js";
 import fastifyJwt from "@fastify/jwt";
 import crypto, { hash } from 'crypto';
 import fastifyBcrypt from "fastify-bcrypt";
-import { createFacility, createStore } from "./utils/factories.js";
+import { calculateDigest, decryptSecret } from "./utils/crypto.js";
+import { createFacility, createStore } from "#factory";
 
 export function buildApp() {
   const fastify = Fastify({ logger: true });
@@ -17,6 +18,39 @@ export function buildApp() {
   fastify.register(fastifyBcrypt as any, {
     saltWorkFactor: 10,
   })
+
+  const verifyInboundAuth = async (req: any, rep: any) => {
+    const apiKey = req.headers['x-api-key'] as string
+    const incomingSignature = req.headers['x-signature'] as string
+
+    if (!apiKey || !incomingSignature) {
+      return rep.status(401).send({ error: 'Unauthorized: Missing security headers.'})
+    }
+
+    const client = await prisma.client.findUnique({
+      where: { apiKey }
+    })
+
+    if (!client || !client.isActive) {
+      return rep.status(401).send({ error: 'Unauthorized: Invalid or deactivated API Client'})
+    }
+
+    const plainTextSecret = decryptSecret(client.apiSecret)
+    const rawBodyString = JSON.stringify(req.body)
+
+    const expectedSignature = calculateDigest(rawBodyString, plainTextSecret)
+
+    const isMatch = crypto.timingSafeEqual(
+      Buffer.from(incomingSignature, 'utf8'),
+      Buffer.from(expectedSignature, 'utf8')
+    )
+
+    if (!isMatch) {
+      return rep.status(401).send({ error: 'Unauthorized: Signature mismatch.'})
+    }
+
+    return req.clientId = client.id
+  }
 
   const verifyLogisticsKey = async (req: any, rep: any) => {
     const authHeader = req.headers.authorization;

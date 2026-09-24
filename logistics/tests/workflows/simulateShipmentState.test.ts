@@ -1,9 +1,9 @@
-import { buildApp } from "./app.js";
-import { describe, it, test, expect, afterAll, beforeAll } from "vitest";
-import { prisma, disconnectPrisma } from "./prisma.js"
-import { createFacility, createCourier, createParcel, createTrackingLog } from "./utils/factories.js";
-import { CourierStatus, FacilityType, ShipmentStatus, UserRole } from "@prisma/client";
-import { actAsCourier } from "./utils/auth-helpers.js";
+import { buildApp } from "../../src/app.js";
+import { describe, test, expect, afterAll, beforeAll } from "vitest";
+import { prisma, disconnectPrisma } from "../../src/prisma.js"
+import { createCourier, createParcel, createTrackingLog } from "#factory";
+import { ShipmentStatus } from "@prisma/client";
+import { actAsCourier } from "../helper/auth.helper.js";
 
 beforeAll(async () => {
   await prisma.$connect();
