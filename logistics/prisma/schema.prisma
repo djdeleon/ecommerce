@@ -113,11 +113,42 @@ model Courier {
   @@map("couriers")
 }
 
+model Client {
+  id Int @id @default(autoincrement())
+  name String @unique
+  apiKey String @unique @map("api_key")
+  apiSecret String @map("api_secret")
+  isActive Boolean @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  trackingNumberPools TrackingNumberPool[]
+
+  @@map("clients")
+}
+
+model TrackingNumberPool {
+  id Int @id @default(autoincrement())
+  trackingNumber String @unique @db.VarChar(50) @map("tracking_number")
+  clientId Int @map("client_id")
+  client Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  isAssigned Boolean @default(false) @map("is_assigned")
+  assignedAt DateTime? @map("assigned_at")
+  parcel Parcel?
+
+  @@map("tracking_number_pools")
+}
+
 model Parcel {
   id Int @id @default(autoincrement())
   trackingNumber String @db.VarChar(50) @unique @map("tracking_number")
+  trackingNumberRel TrackingNumberPool @relation(fields: [trackingNumber], references: [trackingNumber], onDelete: Restrict)
   externalOrderId String @unique @map("external_order_id")
   weightGrams Int @map("weight_grams")
+  lengthCm Int? @map("length_cm")
+  heightCm Int? @map("height_cm")
+  widthCm Int? @map("width_cm")
+  declaredValue Decimal @db.Decimal(10, 2) @map("declared_value")
   originFacilityId Int @map("origin_facility_id")
   originFacility Facility @relation("ParcelOrigin", fields: [originFacilityId], references: [id], onDelete: Restrict)
   destinationFacilityId Int @map("destination_facility_id")
