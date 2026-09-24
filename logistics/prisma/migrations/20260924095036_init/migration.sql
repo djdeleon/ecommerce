@@ -67,11 +67,41 @@ CREATE TABLE "couriers" (
 );
 
 -- CreateTable
+CREATE TABLE "clients" (
+    "id" SERIAL NOT NULL,
+    "name" TEXT NOT NULL,
+    "api_key" TEXT NOT NULL,
+    "api_secret" TEXT NOT NULL,
+    "webhook_url" TEXT NOT NULL,
+    "webhook_secret" TEXT NOT NULL,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "clients_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "tracking_number_pools" (
+    "id" SERIAL NOT NULL,
+    "tracking_number" VARCHAR(50) NOT NULL,
+    "client_id" INTEGER NOT NULL,
+    "is_assigned" BOOLEAN NOT NULL DEFAULT false,
+    "assigned_at" TIMESTAMP(3),
+
+    CONSTRAINT "tracking_number_pools_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "parcels" (
     "id" SERIAL NOT NULL,
     "tracking_number" VARCHAR(50) NOT NULL,
     "external_order_id" TEXT NOT NULL,
     "weight_grams" INTEGER NOT NULL,
+    "length_cm" INTEGER,
+    "height_cm" INTEGER,
+    "width_cm" INTEGER,
+    "declared_value" DECIMAL(10,2) NOT NULL,
     "origin_facility_id" INTEGER NOT NULL,
     "destination_facility_id" INTEGER NOT NULL,
     "current_facility_id" INTEGER,
@@ -129,6 +159,15 @@ CREATE UNIQUE INDEX "couriers_phone_number_key" ON "couriers"("phone_number");
 CREATE UNIQUE INDEX "couriers_plate_number_key" ON "couriers"("plate_number");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "clients_name_key" ON "clients"("name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "clients_api_key_key" ON "clients"("api_key");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "tracking_number_pools_tracking_number_key" ON "tracking_number_pools"("tracking_number");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "parcels_tracking_number_key" ON "parcels"("tracking_number");
 
 -- CreateIndex
@@ -145,6 +184,12 @@ ALTER TABLE "couriers" ADD CONSTRAINT "couriers_user_id_fkey" FOREIGN KEY ("user
 
 -- AddForeignKey
 ALTER TABLE "couriers" ADD CONSTRAINT "couriers_current_facility_id_fkey" FOREIGN KEY ("current_facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "tracking_number_pools" ADD CONSTRAINT "tracking_number_pools_client_id_fkey" FOREIGN KEY ("client_id") REFERENCES "clients"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "parcels" ADD CONSTRAINT "parcels_tracking_number_fkey" FOREIGN KEY ("tracking_number") REFERENCES "tracking_number_pools"("tracking_number") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "parcels" ADD CONSTRAINT "parcels_origin_facility_id_fkey" FOREIGN KEY ("origin_facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
