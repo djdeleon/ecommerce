@@ -139,7 +139,7 @@ test('Order Logistics', function () {
     dump("Order Package ID: " . $orderPackage->id);
 });
 
-test('only run this test case after sucessfully running the webhookShipmentTest.test.ts to check order package status changes', function () {
+test('only run this test case after sucessfully running the simulateShipmentState.test.ts to check order package status changes', function () {
     expect(OrderPackage::first()->orderPackageStatuses)->toHaveCount(4);
 
     $orderPackageStatuses = [

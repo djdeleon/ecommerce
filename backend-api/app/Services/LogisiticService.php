@@ -38,23 +38,57 @@ class LogisiticService
          * The facility should be in the orderPackage as well for sender details
          */
 
-        // lets restructure the payload into:
-        // $newPayload = [
-        //     'sender_details' => [
-        //         'barangay' => 'brgy 123',
-        //         'city' => 'city 123',
-        //         'full_address' => 'full address 123',
-        //     ],
-        //     'recipient_details' => [
-        //         'barangay' => 'brgy 123',
-        //         'city' => 'city 123',
-        //         'full_address' => 'full address 123',
-        //         'coordinates' => [
-        //             'latitude' => "12.02",
-        //             'longitude' => "12.02",
-        //         ]
-        //     ]
-        // ]
+        /**
+         * Once the vendor set the warehouse configuration to 'pickup', this should already ping the J&T.
+         * 
+         * You might ask how the vendor will set the configuration for the warehouse?
+         * - what I'm thinking is Laravel will send an api request with a payload containing the location to the Fastify
+         * - This is doable since local branches are now having polygons and they are happy
+         */
+
+        $newPayload = [
+            'merchant_details' => [
+                'name' => 'Gadget Hub PH',
+                'contact_number' => '+639171234567',
+                'pickup_address' => [
+                    'region' => 'Central Luzon',
+                    'province' => 'Bulacan',
+                    'city' => 'City of San Jose Del Monte',
+                    'barangay' => 'San Manuel',
+                    'full_address' => 'Bulacan, City of San Jose Del Monte, San Manuel, Garnet Street',
+                    'coordinates' => [
+                        'longitude' => "121.0673907",
+                        'latitude' => "14.7787567",
+                    ]
+                ],
+            ],
+            'customer_details' => [
+                'name' => 'John Doe',
+                'contact_number' => '+639646875348',
+                'email' => 'johndoe@email.com',
+                'delivery_address' => [
+                    'region' => 'Metro Manila',
+                    'province' => '',
+                    'city' => 'Quezon City',
+                    'barangay' => 'Pinyahan',
+                    'full_address' => 'Garnet Street, Barangay Pinyahan, Diliman, Quezon City, Metro Manila',
+                    'coordinates' => [
+                        'longitude' => "121.0468066",
+                        'latitude' => "14.6411298",
+                    ]
+                ],
+            ],
+            'parcel_info' => [
+                'weight_grams' => 1200,
+                'length_cm' => 20.0,
+                'width_cm' => 15.0,
+                'height_cm' => 10.0,
+                'item_description' => 'Wireless Mechanical Keyboard',
+                'declared_value' => 1250.00
+            ],
+
+        ];
+
         $facility = $orderPackage->orderPackageItems[0]->orderPackageItemFacilities[0];
         $payload = [
             'external_order_id' => (string) $orderPackage->id,
