@@ -1,8 +1,10 @@
 import { CourierStatus, UserRole } from "@prisma/client";
 import { createFacility } from "./facility.factory.js";
-import { prisma } from "../../src/prisma.js";
+import { PrismaClient } from "@prisma/client/extension";
 
 export async function createCourier(overrides = {}, withNetwork = false) {
+  const prisma = (globalThis as any).testPrisma as PrismaClient
+  
   const randomSuffix = Math.floor(Math.random() * 10000);
   let facilityId = (overrides as any).currentFacilityId;
 

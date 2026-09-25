@@ -1,6 +1,6 @@
 import { ShipmentStatus } from "@prisma/client"
-import { generateEventDescription } from "../../src/logisticsEventDictionary.js"
-import { prisma } from "../../src/prisma.js"
+import { generateEventDescription } from "../../src/modules/tracking-logs/logisticsEventDictionary.js"
+import { prisma } from "../../src/commons/plugins/prisma.js"
 
 export async function createTrackingLog(parcelId: number, status: ShipmentStatus = ShipmentStatus.PendingPickup) {
   const description = generateEventDescription({ status })

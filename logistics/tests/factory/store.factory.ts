@@ -1,4 +1,4 @@
-import { prisma } from "../../src/prisma.js"
+import { prisma } from "../../src/commons/plugins/prisma.js"
 
 export async function createStore(overrides = {}) {
   const longitude = (overrides as any).longitude ?? 14.59

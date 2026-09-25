@@ -8,11 +8,14 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "#commons/*": ["./src/commons/*"]
+    }
   },
   "include": [
     "src/**/*",
+    "tests/**/*",
     "prisma.config.ts",
-    "app.test.ts",
   ]
 }

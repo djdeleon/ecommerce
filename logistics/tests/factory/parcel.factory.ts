@@ -1,6 +1,6 @@
 import { FacilityType, ShipmentStatus } from "@prisma/client";
 import { createCourier, createFacility } from "#factory";
-import { prisma } from "../../src/prisma.js";
+import { prisma } from "../../src/commons/plugins/prisma.js";
 
 export async function createParcel(overrides = {}) {
   const origin = await createFacility({

@@ -1,5 +1,5 @@
+import { calculateDigest, decryptSecret, encryptSecret } from "#commons/utils/crypto.js";
 import { beforeAll, describe, expect, it } from "vitest";
-import { calculateDigest, decryptSecret, encryptSecret } from "../../src/utils/crypto";
 
 describe('Crypto Utilities', () => {
   const MOCK_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'

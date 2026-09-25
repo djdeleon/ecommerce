@@ -1,7 +1,10 @@
 import { FacilityType } from "@prisma/client";
-import { prisma } from "../../src/prisma.js";
+import { PrismaClient } from "@prisma/client/extension";
 
 export async function createFacility(overrides = {}) {
+
+  const prisma = (globalThis as any).testPrisma as PrismaClient
+
   const randomSuffix = Math.floor(Math.random() * 10000);
 
   const latitude = (overrides as any).latitude ?? 120.98
