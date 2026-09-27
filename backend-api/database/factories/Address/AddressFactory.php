@@ -384,8 +384,11 @@ class AddressFactory
         }
 
         if ($region === 'region_3') {
-            $region = Region::firstOrCreate([
+            $region = Region::firstOrCreate(
+            [
                 'code' => '0300000000',
+            ],
+            [
                 'correspondence_code' => '030000000',
                 'name' => 'Central Luzon (Region III)',
                 'slug' => 'region_3',
@@ -458,8 +461,10 @@ class AddressFactory
 
                 $addresses['province_id'] = $provinceModel->id;
 
-                $city = $provinceModel->cities()->firstOrCreate([
+                $city = $provinceModel->cities()->firstOrCreate(
+                [
                     'code' => '0304906000',
+                ],[
                     'correspondence_code' => '034906000',
                     'name' => 'City of Cabanatuan',
                 ]);

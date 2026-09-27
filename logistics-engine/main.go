@@ -31,6 +31,6 @@ func main() {
 	}
 
 	for _, f := range facilities {
-		fmt.Printf("Facility: %s \n", f.Name)
+		fmt.Printf("Facility: %s \n", f.Location)
 	}
 }
