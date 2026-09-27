@@ -23,17 +23,17 @@ export const StoreSchema = {
       minLength: 5,
       description: "Physical street address of the facility"
     }),
-    latitude: Type.Number({
-      minimum: -90,
-      maximum: 90,
-      description: "Geographic latitude coordinate",
-      examples: [14.5995]
-    }),
     longitude: Type.Number({
       minimum: -180,
       maximum: 180,
       description: "Geographic longitude coordinate",
       examples: [120.9842]
+    }),
+    latitude: Type.Number({
+      minimum: -90,
+      maximum: 90,
+      description: "Geographic latitude coordinate",
+      examples: [14.5995]
     }),
     parentId: Type.Optional(Type.Integer({
       minimum: 1,
