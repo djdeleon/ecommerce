@@ -1,18 +1,17 @@
 import { FacilityType } from "@prisma/client";
-import { PrismaClient } from "@prisma/client/extension";
+import { FastifyInstance } from "fastify";
 
 export async function createFacility(overrides = {}) {
-
-  const prisma = (globalThis as any).testPrisma as PrismaClient
+  const app = (globalThis as any).app as FastifyInstance
 
   const randomSuffix = Math.floor(Math.random() * 10000);
 
-  const latitude = (overrides as any).latitude ?? 120.98
-  const longitude = (overrides as any).longitude ?? 14.59
+  const longitude = (overrides as any).longitude ?? 121.0673907
+  const latitude = (overrides as any).latitude ?? 14.7787567
 
   const { longitude: _, latitude: __, ...cleanOverrides } = overrides as any;
 
-  const facility = await prisma.facility.create({
+  const facility = await app.prisma.facility.create({
     data: {
       name: `Test Hub ${randomSuffix}`,
       type: FacilityType.RegionalHub,
@@ -22,11 +21,27 @@ export async function createFacility(overrides = {}) {
     }
   })
 
-  await prisma.$executeRaw`
+  await app.prisma.$executeRaw`
     UPDATE facilities
     SET location = ST_SetSRID(ST_MakePoint(${parseFloat(longitude)}, ${parseFloat(latitude)}), 4326)
     WHERE id = ${facility.id}
   `
 
-  return facility
+  const [facilityWithLocation] = await app.prisma.$queryRaw<any[]>`
+    SELECT 
+      id, 
+      name, 
+      type, 
+      "sorting_code" AS "sortingCode", 
+      address, 
+      "parent_id" AS "parentId", 
+      "isActive", 
+      "created_at" AS "createdAt", 
+      "updated_at" AS "updatedAt",
+      ST_AsGeoJSON(location) AS location
+    FROM "facilities"
+    WHERE id = ${facility.id}
+  `;
+
+  return facilityWithLocation
 }

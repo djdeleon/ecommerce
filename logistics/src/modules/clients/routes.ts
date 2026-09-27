@@ -4,7 +4,7 @@ import { IndexSchema, StoreBody, StoreSchema } from "./schema.js";
 
 export default async function clientRoutes(fastify: FastifyInstance) {
   fastify.get(IndexSchema.url, async (req, rep) => {
-    const data = await dashboardData(fastify)
+    const data = await dashboardData()
 
     return rep.status(200).send({
       message: "Clients retrieved.",
@@ -13,7 +13,7 @@ export default async function clientRoutes(fastify: FastifyInstance) {
   })
 
   fastify.post<{ Body: StoreBody }>(StoreSchema.url, { schema: StoreSchema }, async (req, rep) => {
-    const client = await createClient(fastify, req.body.name)
+    const client = await createClient(req.body.name)
 
     return rep.status(201).send({
       message: 'Client registered.',

@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { StoreSchema, StoreBody, IndexSchema } from "./schema.js";
 import { dashboardData, registerCourier } from "./service.js";
+import { userAuth } from "#commons/middlewares/user-auth.js";
 
 export default async function courierRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: StoreBody }>(StoreSchema.url, { schema: StoreSchema }, async (req, rep) => {
@@ -21,7 +22,7 @@ export default async function courierRoutes(fastify: FastifyInstance) {
     })
   })
 
-  fastify.get(IndexSchema.url, async (req, rep) => {
+  fastify.get(IndexSchema.url, { preHandler: [userAuth] }, async (req, rep) => {
     const data = await dashboardData(fastify);
 
     return rep.status(200).send({

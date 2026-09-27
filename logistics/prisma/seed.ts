@@ -1,43 +1,18 @@
-import { prisma, disconnectPrisma } from '../src/prisma.js';
-import { encryptSecret } from '../src/utils/crypto';
 import crypto from 'crypto';
+import { encryptSecret } from '#commons/utils/crypto.js';
+import { disconnectDb, pool, prisma } from '#commons/database/prisma.js';
+import { createClient } from '../src/modules/clients/service.js';
 
 async function main() {
+  const randomSuffix = Math.floor(Math.random() * 10000);
+
   await prisma.$executeRawUnsafe(`
     TRUNCATE TABLE clients, tracking_number_pools, tracking_logs, parcels, couriers, delivery_boundaries, facilities, users CASCADE;
   `);
 
-  const devClients = [
-    {
-      name: 'Laravel E-Commerce PH',
-      webhookUrl: 'http://reverse-proxy/api/v1/logistics/webhook'
-    }
-  ]
+  const client = await createClient('Laravel E-Commerce PH')
 
-  for (const devClient of devClients) {
-    const apiKey = 'apk_' + crypto.randomBytes(16).toString('hex')
-    const apiTextSecret = crypto.randomBytes(32).toString('hex')
-    const webhookTextSecret = crypto.randomBytes(32).toString('hex')
-
-    const encryptedApiSecret = encryptSecret(apiTextSecret)
-    const encryptedWebhookSecret = encryptSecret(webhookTextSecret)
-
-    await prisma.client.create({
-      data: {
-        name: devClient.name,
-        apiKey,
-        apiSecret: encryptedApiSecret,
-        webhookUrl: devClient.webhookUrl,
-        webhookSecret: encryptedWebhookSecret
-      }
-    })
-  }
-
-  const clients = await prisma.client.findMany()
-
-  console.log(clients)
-
-  const laravel = clients[0]
+  console.log(client)
 
   interface TrackingNumberPoolInput {
     clientId: number;
@@ -45,7 +20,7 @@ async function main() {
   }
 
   const trackingNumberPoolPayload: TrackingNumberPoolInput = {
-    clientId: laravel.id,
+    clientId: client.id,
     size: 10000
   }
 
@@ -81,7 +56,13 @@ async function main() {
   }
 
   const trackingNumberPools = await prisma.trackingNumberPool.count()
+  const clientTrackingNumbers = await prisma.client.findFirstOrThrow({
+    include: {
+      trackingNumberPools: true
+    }
+  })
 
+  console.log(clientTrackingNumbers.trackingNumberPools[0])
   console.log(trackingNumberPools)
 
   const megaALocation = JSON.stringify({
@@ -214,17 +195,21 @@ async function main() {
     coordinates: [121.0468066, 14.6411298]
   });
 
+  const storeName = `Vendor Warehouse ${randomSuffix}`
+
   const [store] = await prisma.$queryRaw<any[]>`
     INSERT INTO "stores" (
       "name",
       "contact_number",
       "address",
-      "location"
+      "location",
+      "updated_at"
     ) VALUES (
-      'Vendor Warehouse QC',
+      ${storeName},
       '09225356435',
       'Quezon City, Diliman, 123 Main St.',
-      ST_GeomFromGeoJSON(${sellerWarehouse})
+      ST_GeomFromGeoJSON(${sellerWarehouse}),
+      NOW()
     )
     RETURNING *;
   `
@@ -242,5 +227,5 @@ main()
     process.exit(1);
   })
   .finally(async () => {
-    await disconnectPrisma();
+    await disconnectDb()
   });

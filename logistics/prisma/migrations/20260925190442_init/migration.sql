@@ -98,9 +98,9 @@ CREATE TABLE "parcels" (
     "tracking_number" VARCHAR(50) NOT NULL,
     "external_order_id" TEXT NOT NULL,
     "weight_grams" INTEGER NOT NULL,
-    "length_cm" INTEGER,
-    "height_cm" INTEGER,
-    "width_cm" INTEGER,
+    "length_cm" DOUBLE PRECISION,
+    "height_cm" DOUBLE PRECISION,
+    "width_cm" DOUBLE PRECISION,
     "declared_value" DECIMAL(10,2) NOT NULL,
     "origin_facility_id" INTEGER NOT NULL,
     "destination_facility_id" INTEGER NOT NULL,
@@ -109,8 +109,8 @@ CREATE TABLE "parcels" (
     "routing_pipeline_cache" TEXT NOT NULL,
     "store_id" INTEGER NOT NULL,
     "customer_name" TEXT NOT NULL,
-    "customer_address" TEXT NOT NULL,
     "customer_phone" TEXT NOT NULL,
+    "customer_address" TEXT NOT NULL,
     "customer_location" geometry(Point, 4326),
     "assigned_courier_id" INTEGER,
     "status" "shipment_status" NOT NULL DEFAULT 'pending_pickup',
@@ -127,6 +127,8 @@ CREATE TABLE "stores" (
     "contact_number" TEXT NOT NULL,
     "address" TEXT NOT NULL,
     "location" geometry(Point, 4326),
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "stores_pkey" PRIMARY KEY ("id")
 );
@@ -172,6 +174,9 @@ CREATE UNIQUE INDEX "parcels_tracking_number_key" ON "parcels"("tracking_number"
 
 -- CreateIndex
 CREATE UNIQUE INDEX "parcels_external_order_id_key" ON "parcels"("external_order_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "stores_name_key" ON "stores"("name");
 
 -- AddForeignKey
 ALTER TABLE "facilities" ADD CONSTRAINT "facilities_parent_id_fkey" FOREIGN KEY ("parent_id") REFERENCES "facilities"("id") ON DELETE SET NULL ON UPDATE CASCADE;

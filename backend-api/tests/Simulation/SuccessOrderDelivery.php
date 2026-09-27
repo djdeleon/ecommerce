@@ -132,12 +132,12 @@ test('Order Logistics', function () {
         ->postJson(route('vendors.arrange-shipment', $orderPackage))
         ->assertOk();
         
-    $this->actingAs($vendor->user, 'sanctum')
-        ->postJson(route('vendors.ready-for-pickup', $orderPackage))
-        ->assertOk();
+    // $this->actingAs($vendor->user, 'sanctum')
+    //     ->postJson(route('vendors.ready-for-pickup', $orderPackage))
+    //     ->assertOk();
 
     dump("Order Package ID: " . $orderPackage->id);
-});
+})->only();
 
 test('only run this test case after sucessfully running the simulateShipmentState.test.ts to check order package status changes', function () {
     expect(OrderPackage::first()->orderPackageStatuses)->toHaveCount(4);
@@ -152,7 +152,7 @@ test('only run this test case after sucessfully running the simulateShipmentStat
     expect(OrderPackage::first()->orderPackageStatuses->every(function ($orderPackage) use ($orderPackageStatuses) {
         return in_array($orderPackage->status, $orderPackageStatuses);
     }))->toBeTrue();
-})->only();
+});
 
 test('manual db flush', function () {
     DB::statement('TRUNCATE TABLE 

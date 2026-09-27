@@ -1,22 +1,20 @@
 import { beforeAll, describe, expect, test } from "vitest";
-import { CourierStatus, FacilityType } from "@prisma/client";
+import { CourierStatus, FacilityType, UserRole } from "@prisma/client";
 import { createCourier, createFacility } from "#factory";
 import { FastifyInstance } from "fastify";
-import { PrismaClient } from "@prisma/client/extension";
 import { API_ROUTES } from "#commons/constants/routes.js";
+import { createuser } from "../factory/user.factory.js";
 
-describe('Facilities Domain', () => {
+describe('Facilities Domain', async () => {
   let app: FastifyInstance
-  let prisma: PrismaClient
 
   beforeAll(async () => {
-    app = (globalThis as any).testApp as FastifyInstance
-    prisma = (globalThis as any).testApp as PrismaClient
+    app = (globalThis as any).app as FastifyInstance
   })
 
-  const expectedKey = process.env.LOGISTICS_KEY
+  test('an admin can view facility dashboard', async () => {
+    const admin = await createuser(UserRole.Admin)
 
-  test('an admin can view all facilities', async () => {
     await createFacility();
 
     await createCourier();
@@ -27,9 +25,9 @@ describe('Facilities Domain', () => {
     const response = await app.inject({
       method: 'GET',
       url: API_ROUTES.facilities.index,
-      // headers: {
-      //   authorization: `Bearer ${expectedKey}`
-      // }
+      headers: {
+        authorization: `Bearer ${admin.token}`
+      }
     })
 
     expect(response.statusCode).toBe(200)
@@ -40,12 +38,14 @@ describe('Facilities Domain', () => {
   })
 
   test('an admin can create a facility', async () => {
+    const admin = await createuser(UserRole.Admin)
+
     const response = await app.inject({
       method: 'POST',
       url: API_ROUTES.facilities.store,
-      // headers: {
-      //   authorization: `Bearer ${expectedKey}`
-      // },
+      headers: {
+        authorization: `Bearer ${admin.token}`
+      },
       body: {
         name: "Marilao Mega Gateway",
         type: FacilityType.MegaGateway,
@@ -59,6 +59,8 @@ describe('Facilities Domain', () => {
   })
 
   test('a facility can have couriers', async () => {
+    const admin = await createuser(UserRole.Admin)
+
     const facility = await createFacility();
     const facilityId = facility.id
     const courier = await createCourier();
@@ -67,7 +69,7 @@ describe('Facilities Domain', () => {
       method: 'PATCH',
       url: API_ROUTES.facilities.assignCourier(facilityId),
       headers: {
-        authorization: `Bearer ${expectedKey}`
+        authorization: `Bearer ${admin.token}`
       },
       body: {
         courierId: courier.id

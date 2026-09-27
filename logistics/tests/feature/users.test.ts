@@ -1,15 +1,13 @@
 import { FastifyInstance } from "fastify";
 import { beforeAll, describe, expect, test } from "vitest";
-import { PrismaClient, UserRole } from "@prisma/client";
+import { UserRole } from "@prisma/client";
 import { API_ROUTES } from "../../src/commons/constants/routes.js";
 
 describe('User HTTP Routes', () => {
   let app: FastifyInstance
-  let prisma: PrismaClient
 
   beforeAll(() => {
-    app = (globalThis as any).testApp as FastifyInstance
-    prisma = (globalThis as any).testPrisma as PrismaClient
+    app = (globalThis as any).app as FastifyInstance
   })
 
   test('admin can register', async () => {
@@ -18,7 +16,7 @@ describe('User HTTP Routes', () => {
     const response = await app.inject({
       method: 'POST',
       url: API_ROUTES.users.register,
-      payload: {
+      body: {
         email: `user-${randomSuffix}@example.com`,
         password: 'secretPassword123',
         role: UserRole.Admin
@@ -28,7 +26,7 @@ describe('User HTTP Routes', () => {
     expect(response.statusCode).toBe(201)
 
     const user = response.json().data.user
-    const userCount = await prisma.user.count()
+    const userCount = await app.prisma.user.count()
 
     expect(user.role).toBe(UserRole.Admin)
     expect(userCount).toBe(1)
@@ -42,19 +40,19 @@ describe('User HTTP Routes', () => {
     await app.inject({
       method: 'POST',
       url: API_ROUTES.users.register,
-      payload: {
+      body: {
         email: `user-${randomSuffix}@example.com`,
         password: 'secretPassword123',
         role: UserRole.Admin
       }
     })
 
-    const [user] = await prisma.user.findMany()
+    const [user] = await app.prisma.user.findMany()
 
     const response = await app.inject({
       method: 'POST',
       url: API_ROUTES.users.register,
-      payload: {
+      body: {
         email: user.email,
         password: 'secretPassword123',
         role: UserRole.Admin

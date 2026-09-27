@@ -2,6 +2,7 @@ import { compilePath } from "#commons/utils/path-compiler.js";
 import { CLIENT_PATHS } from "../../modules/clients/schema.js";
 import { COURIER_PATHS } from "../../modules/couriers/schema.js";
 import { FACILITY_PATHS } from "../../modules/facilities/schema.js";
+import { PARCEL_PATHS } from "../../modules/parcels/schema.js";
 import { TRACKING_NUMBER_PATHS } from "../../modules/tracking-numbers/schema.js";
 import { USER_PATHS } from "../../modules/users/schemas.js";
 
@@ -30,5 +31,8 @@ export const API_ROUTES = {
   trackingNumbers: {
     index: TRACKING_NUMBER_PATHS.index,
     store: TRACKING_NUMBER_PATHS.store,
+  },
+  parcels: {
+    store: PARCEL_PATHS.store,
   },
 }

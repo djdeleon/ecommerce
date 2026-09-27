@@ -1,9 +1,9 @@
 import { CourierStatus, UserRole } from "@prisma/client";
 import { createFacility } from "./facility.factory.js";
-import { PrismaClient } from "@prisma/client/extension";
+import { FastifyInstance } from "fastify";
 
 export async function createCourier(overrides = {}, withNetwork = false) {
-  const prisma = (globalThis as any).testPrisma as PrismaClient
+  const app = (globalThis as any).app as FastifyInstance
   
   const randomSuffix = Math.floor(Math.random() * 10000);
   let facilityId = (overrides as any).currentFacilityId;
@@ -13,7 +13,7 @@ export async function createCourier(overrides = {}, withNetwork = false) {
     facilityId = facility.id;
   }
 
-  const user = await prisma.user.create({
+  const user = await app.prisma.user.create({
     data: {
       email: `user-${randomSuffix}@example.com`,
       password: 'secretPassword123',
@@ -21,7 +21,7 @@ export async function createCourier(overrides = {}, withNetwork = false) {
     }
   })
 
-  return await prisma.courier.create({
+  return await app.prisma.courier.create({
     data: {
       userId: user.id,
       firstName: "Fastification",

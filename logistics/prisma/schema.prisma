@@ -146,25 +146,31 @@ model Parcel {
   trackingNumber        String             @db.VarChar(50) @unique @map("tracking_number")
   trackingNumberRel     TrackingNumberPool @relation(fields: [trackingNumber], references: [trackingNumber], onDelete: Restrict)
   externalOrderId       String             @unique @map("external_order_id")
+
   weightGrams           Int                @map("weight_grams")
-  lengthCm              Int?               @map("length_cm")
-  heightCm              Int?               @map("height_cm")
-  widthCm               Int?               @map("width_cm")
+  lengthCm              Float?             @map("length_cm")
+  heightCm              Float?             @map("height_cm")
+  widthCm               Float?             @map("width_cm")
   declaredValue         Decimal            @db.Decimal(10, 2) @map("declared_value")
+
   originFacilityId      Int                @map("origin_facility_id")
   originFacility        Facility           @relation("ParcelOrigin", fields: [originFacilityId], references: [id], onDelete: Restrict)
   destinationFacilityId Int                @map("destination_facility_id")
   destinationFacility   Facility           @relation("ParcelDestination", fields: [destinationFacilityId], references: [id], onDelete: Restrict)
   currentFacilityId     Int?               @map("current_facility_id")
   currentFacility       Facility?          @relation("ParcelCurrent", fields: [currentFacilityId], references: [id], onDelete: Restrict)
+
   sortingCodeCache      String             @db.VarChar(50) @map("sorting_code_cache")
   routingPipelineCache  String             @map("routing_pipeline_cache")
+
   storeId               Int                @map("store_id")
   store                 Store              @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
   customerName          String             @map("customer_name")
-  customerAddress       String             @map("customer_address")
   customerPhone         String             @map("customer_phone")
+  customerAddress       String             @map("customer_address")
   customerLocation      Unsupported("geometry(Point, 4326)")? @map("customer_location")
+  
   assignedCourierId     Int?               @map("assigned_courier_id")
   assignedCourier       Courier?           @relation(fields: [assignedCourierId], references: [id], onDelete: SetNull)
   status                ShipmentStatus     @default(PendingPickup)
@@ -178,10 +184,12 @@ model Parcel {
 
 model Store {
   id            Int          @id @default(autoincrement())
-  name          String
+  name          String       @unique
   contactNumber String       @map("contact_number")
   address       String       @map("address")
   location      Unsupported("geometry(Point, 4326)")?
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
 
   parcels       Parcel[]
 

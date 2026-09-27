@@ -4,8 +4,9 @@ import fastifyBcrypt from "fastify-bcrypt";
 import autoLoad from "@fastify/autoload"
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
+import fp from "fastify-plugin";
 
-export default async function main(fastify: FastifyInstance) {
+export default fp(async function main(fastify: FastifyInstance) {
   const __filename = fileURLToPath(import.meta.url)
   const __dirname = dirname(__filename)
   const isTsRuntime = __filename.endsWith('.ts')
@@ -35,4 +36,4 @@ export default async function main(fastify: FastifyInstance) {
     matchFilter: (path) => path.endsWith(`.${scriptExtension}`),
     dirNameRoutePrefix: false
   })
-}
+})

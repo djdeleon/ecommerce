@@ -1,29 +1,27 @@
 import { beforeAll, describe, expect, test } from "vitest";
-import { CourierStatus, PrismaClient } from "@prisma/client";
+import { CourierStatus, PrismaClient, UserRole } from "@prisma/client";
 import { createCourier } from "#factory";
 import { FastifyInstance } from "fastify";
 import { API_ROUTES } from "#commons/constants/routes.js";
+import { createuser } from "../factory/user.factory.js";
 
 describe('Couriers Domain', () => {
   let app: FastifyInstance
-  let prisma: PrismaClient
 
   beforeAll(async () => {
-    app = (globalThis as any).testApp as FastifyInstance
-    prisma = (globalThis as any).testPrisma as PrismaClient
+    app = (globalThis as any).app as FastifyInstance
   })
 
-  const expectedKey = process.env.LOGISTICS_KEY
+  test('an admin can view courier dashboard', async () => {
+    const admin = await createuser(UserRole.Admin)
 
-
-  test('an admin can create a facility', async () => {
     await createCourier();
 
     const response = await app.inject({
       method: 'GET',
       url: API_ROUTES.couriers.index,
       headers: {
-        authorization: `Bearer ${expectedKey}`
+        authorization: `Bearer ${admin.token}`
       }
     })
 
@@ -39,9 +37,6 @@ describe('Couriers Domain', () => {
     const response = await app.inject({
       method: 'POST',
       url: API_ROUTES.couriers.store,
-      headers: {
-        authorization: `Bearer ${expectedKey}`
-      },
       body: {
         email: `courier-${randomSuffix}@example.com`,
         password: 'secretPassword123',
@@ -55,7 +50,7 @@ describe('Couriers Domain', () => {
     })
 
     expect(response.statusCode).toBe(201)
-    expect(await prisma.user.count()).toBe(1)
-    expect(await prisma.courier.count()).toBe(1)
+    expect(await app.prisma.user.count()).toBe(1)
+    expect(await app.prisma.courier.count()).toBe(1)
   })
 })

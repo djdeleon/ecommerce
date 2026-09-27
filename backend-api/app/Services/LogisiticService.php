@@ -2,14 +2,11 @@
 
 namespace App\Services;
 
-use App\DataObjects\Coordinate;
-use App\Enums\OrderPackageStatus;
 use App\Models\Customer;
 use App\Models\OrderPackage;
 use App\Models\Vendor;
 use Exception;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
 
 class LogisiticService
 {
@@ -46,9 +43,9 @@ class LogisiticService
          * - This is doable since local branches are now having polygons and they are happy
          */
 
-        $newPayload = [
+        $payload = [
             'merchant_details' => [
-                'name' => 'Gadget Hub PH',
+            'name' => 'Gadget Hub PH',
                 'contact_number' => '+639171234567',
                 'pickup_address' => [
                     'region' => 'Central Luzon',
@@ -68,7 +65,7 @@ class LogisiticService
                 'email' => 'johndoe@email.com',
                 'delivery_address' => [
                     'region' => 'Metro Manila',
-                    'province' => '',
+                    'province' => 'Metro Manila',
                     'city' => 'Quezon City',
                     'barangay' => 'Pinyahan',
                     'full_address' => 'Garnet Street, Barangay Pinyahan, Diliman, Quezon City, Metro Manila',
@@ -86,29 +83,52 @@ class LogisiticService
                 'item_description' => 'Wireless Mechanical Keyboard',
                 'declared_value' => 1250.00
             ],
-
+            'order_info' => [
+                'order_id' => '260924ABC123XYZ',
+                'tracking_number' => 'FSTFY5947F86756PH',
+                'service_type' => 'Standard Delivery',
+                'payment_method' => 'online',
+                'cod_amount' => 1250.00,
+                'currency' => 'PHP'
+            ]
         ];
 
-        $facility = $orderPackage->orderPackageItems[0]->orderPackageItemFacilities[0];
-        $payload = [
-            'external_order_id' => (string) $orderPackage->id,
-            'store_name' => $facility->inventoryStock->inventorable->name,
-            'store_contact_number' => $facility->inventoryStock->inventorable->contact_number,
-            'store_address' => $facility->fullAddress(),
-            'store_location' => new Coordinate(125.10, 14.42),
-            'customer_name' => $customer->user->name,
-            'customer_phone' => '09440857284', // column to be added
-            'customer_address' => $customer->customerAddresses[0]->fullAddress(),
-            'customer_location' => new Coordinate(124.00, 12.42),
-            'weight_grams' => (int) $orderPackage->orderPackageItems[0]->variant->actual_weight_kg, // column to be added in orderPackageItem (snapshot)
-        ];
+        $rawBody = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-        $camelCasePayload = collect($payload)->mapWithKeys(function ($value, $key) {
-            return [Str::camel($key) => $value];
-        })->all();
+        $apiKey = 'apk_75be549890f8d07a8090b6ecb7bc66c6';
+        $apiSecret = '35ee3a8d87204183876610daf3c77b390dcd3675e493397706d75cb1227a4a84';
+        $signature = $this->calculateSignature($rawBody, $apiSecret);
 
-        $response = Http::withToken(config('services.logistics.key'))
-            ->post('http://logistics:8000/jnt/parcels', $camelCasePayload);
+        dump($signature);
+
+        $response = Http::withHeaders([
+            'x-api-key' => $apiKey,
+            'x-signature' => $signature,
+            'Content-Type' => 'application/json',
+        ])->post('http://logistics:8000/parcels', $payload);
+
+        dd($response->json());
+
+        // $facility = $orderPackage->orderPackageItems[0]->orderPackageItemFacilities[0];
+        // $payload = [
+        //     'external_order_id' => (string) $orderPackage->id,
+        //     'store_name' => $facility->inventoryStock->inventorable->name,
+        //     'store_contact_number' => $facility->inventoryStock->inventorable->contact_number,
+        //     'store_address' => $facility->fullAddress(),
+        //     'store_location' => new Coordinate(125.10, 14.42),
+        //     'customer_name' => $customer->user->name,
+        //     'customer_phone' => '09440857284', // column to be added
+        //     'customer_address' => $customer->customerAddresses[0]->fullAddress(),
+        //     'customer_location' => new Coordinate(124.00, 12.42),
+        //     'weight_grams' => (int) $orderPackage->orderPackageItems[0]->variant->actual_weight_kg, // column to be added in orderPackageItem (snapshot)
+        // ];
+
+        // $camelCasePayload = collect($payload)->mapWithKeys(function ($value, $key) {
+        //     return [Str::camel($key) => $value];
+        // })->all();
+
+        // $response = Http::withToken(config('services.logistics.key'))
+        //     ->post('http://logistics:8000/parcels', $camelCasePayload);
 
         // The shipment id response can be stored in the order_package_statuses or creat a new table named order_package_shipment_logs
 
@@ -157,5 +177,12 @@ class LogisiticService
         }
 
         return $response->json()['data'];
+    }
+
+    public function calculateSignature(string $rawBody, string $plainTextSecret): string
+    {
+        $inputString = $rawBody . $plainTextSecret;
+
+        return base64_encode(md5($inputString, true));
     }
 }

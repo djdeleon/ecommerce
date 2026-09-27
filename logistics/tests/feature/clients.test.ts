@@ -1,15 +1,12 @@
 import { API_ROUTES } from "#commons/constants/routes.js";
-import { PrismaClient } from "@prisma/client/extension";
 import { FastifyInstance } from "fastify";
 import { beforeAll, describe, expect, test } from "vitest";
 
 describe('Clients Domain', () => {
   let app: FastifyInstance
-  let prisma: PrismaClient
 
   beforeAll(() => {
-    app = (globalThis as any).testApp as FastifyInstance
-    prisma = (globalThis as any).testPrisma as PrismaClient
+    app = (globalThis as any).app as FastifyInstance
   })
 
   test('an admin can view the client dashboard', async () => {

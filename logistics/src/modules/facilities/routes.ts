@@ -2,9 +2,10 @@ import { FastifyInstance } from "fastify";
 import { AssignBody, AssignParams, AssignSchema, IndexSchema, StoreBody, StoreSchema } from "./schema.js";
 import { createFacility, dashboardData, updateFacility } from "./service.js";
 import parseId from "#commons/utils/id-parser.js";
+import { userAuth } from "#commons/middlewares/user-auth.js";
 
 export default async function facilityRoutes(fastify: FastifyInstance) {
-  fastify.get(IndexSchema.url, async (req, rep) => {
+  fastify.get(IndexSchema.url, { preHandler: [userAuth] }, async (req, rep) => {
     const data = await dashboardData(fastify)
 
     return rep.status(200).send({
@@ -13,7 +14,7 @@ export default async function facilityRoutes(fastify: FastifyInstance) {
     })
   })
 
-  fastify.post<{ Body: StoreBody }>(StoreSchema.url, { schema: StoreSchema }, async (req, rep) => {
+  fastify.post<{ Body: StoreBody }>(StoreSchema.url, { schema: StoreSchema, preHandler: [userAuth] }, async (req, rep) => {
     const data = await createFacility(fastify, {
       name: req.body.name,
       type: req.body.type,
@@ -31,7 +32,7 @@ export default async function facilityRoutes(fastify: FastifyInstance) {
   fastify.patch<{
     Body: AssignBody,
     Params: AssignParams
-  }>(AssignSchema.url, { schema: AssignSchema }, async (req, rep) => {
+  }>(AssignSchema.url, { schema: AssignSchema, preHandler: [userAuth] }, async (req, rep) => {
     const data = await updateFacility(fastify, {
       facilityId: parseId(req.params.facilityId),
       courierId: req.body.courierId
