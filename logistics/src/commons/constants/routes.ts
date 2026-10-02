@@ -34,5 +34,10 @@ export const API_ROUTES = {
   },
   parcels: {
     store: PARCEL_PATHS.store,
+    waybill: (trackingNumber: string) => {
+      const staticFullUrl = PARCEL_PATHS.waybill
+
+      return compilePath(staticFullUrl, { trackingNumber })
+    }
   },
 }

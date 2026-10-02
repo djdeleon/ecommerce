@@ -71,4 +71,15 @@ class OrderPackage extends Model
 
         return true;
     }
+
+    public function maskedOrderId(): string {
+        $dateTag = $this->created_at->format('ymd');
+        
+        $salt = "lrvl_ecommerce";
+        $hashMask = substr(str_shuffle(strtoupper(md5($this->id. $salt))), 0, 5);
+
+        $clusterCode = "LRVL";
+
+        return "{$dateTag}{$hashMask}{$clusterCode}";    
+    }
 }

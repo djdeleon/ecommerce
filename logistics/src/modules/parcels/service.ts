@@ -60,32 +60,71 @@ export async function createParcel(prisma: PrismaClient, data: CreateParcelData)
   const customerLat = customer_details.delivery_address.coordinates.latitude
   const randomSuffix = Math.floor(Math.random() * 10000);
 
+  console.dir({
+    merchantLng,
+    merchantLat
+  })
+
   const [closestOriginHub] = await prisma.$queryRaw<any[]>`
-    SELECT id FROM "facilities" 
+    SELECT id, name, parent_id FROM "facilities" 
     ORDER BY location <-> ST_SetSRID(ST_MakePoint(${merchantLng}, ${merchantLat}), 4326) 
     LIMIT 1;
   `;
 
-  console.log(closestOriginHub)
+  console.log({ 'closestOriginHub': closestOriginHub })
 
-  console.log({
-    'Merchant Coordinates': {
-      merchantLng,
-      merchantLat
-    }
+  console.dir({
+    customerLng,
+    customerLat
   })
 
   const [closestDestinationHub] = await prisma.$queryRaw<any[]>`
-    SELECT id FROM "facilities" 
+    SELECT id, name, parent_id FROM "facilities" 
     ORDER BY location <-> ST_SetSRID(ST_MakePoint(${customerLng}, ${customerLat}), 4326) 
     LIMIT 1;
   `;
 
+  console.log({ 'closestDestinationHub': closestDestinationHub })
+
+  /**
+   * I think I now need to handle the Trucks and their assigned routes
+   * 
+   * Now let's make the parcel arrival at the origin local branch a big deal, this way we can simulate the schedule of the 4 wheeler truck to the nearest gateway for the midmile
+   */
+
   console.log(closestDestinationHub)
 
-  const { province, city, barangay } = customer_details.delivery_address;
+  const ancestry: any[] = await prisma.$queryRaw`
+    WITH RECURSIVE facility_tree AS (
+      SELECT id, name, parent_id, type, sorting_code, 1 as level
+      FROM facilities
+      WHERE id = ${closestOriginHub.id}
 
-  const { sortingCodeCache, routingPipelineCache } = generateSortingCodes(province, city, barangay)
+      UNION ALL
+
+      SELECT f.id, f.name, f.parent_id, f.type, f.sorting_code, ft.level + 1
+      FROM facilities f
+      INNER JOIN facility_tree ft ON f.id = ft.parent_id
+    )
+    
+    SELECT id, name, type, sorting_code, level FROM facility_tree ORDER BY level ASC;
+  `;
+
+  console.log({
+    ancestry
+  })
+
+  const routingPipelineCache = ancestry.map(node => node.name).join(' ➔  ')
+  const sortingCodeCache = ancestry.map(node => node.sorting_code).join('-')
+
+  console.log({
+    routingPipelineCache,
+    sortingCodeCache
+  })
+
+  // const { province, city, barangay } = customer_details.delivery_address;
+  // const { sortingCodeCache, routingPipelineCache } = generateSortingCodes(province, city, barangay)
+
   const storeName = `${merchant_details.name} ${randomSuffix}`
 
   const [store] = await createStore(prisma, {

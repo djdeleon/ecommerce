@@ -14,9 +14,21 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  await prisma.$executeRawUnsafe(`
-    TRUNCATE TABLE clients, tracking_number_pools, tracking_logs, parcels, couriers, users, delivery_boundaries, facilities, stores CASCADE;
-  `);
+  await prisma.trackingLog.deleteMany();
+  await prisma.parcel.deleteMany();
+  await prisma.trackingNumberPool.deleteMany();
+
+  // 2. Drop facility/entity operational boundaries
+  await prisma.store.deleteMany();
+  await prisma.sector.deleteMany();
+  await prisma.localBranch.deleteMany();
+  await prisma.distributionCenter.deleteMany();
+  await prisma.megaGateway.deleteMany();
+
+  // 3. Drop base core actors
+  await prisma.client.deleteMany();
+  await prisma.courier.deleteMany();
+  await prisma.user.deleteMany();
 });
 
 afterAll(async () => {
