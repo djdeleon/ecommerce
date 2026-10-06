@@ -25,6 +25,10 @@ export async function seedGeographicAreas(prisma: PrismaClient) {
   try {
     const { regions, provinces, cities, barangays } = getParsedGeoData();
 
+    if (regions.length || provinces.length || cities.length || barangays.length) {
+      return;
+    }
+
     console.log(`Injecting pre-cached geodata: ${regions.length} Regions, ${provinces.length} Provinces, ${cities.length} Cities, ${barangays.length} Barangays...`);
 
     await prisma.$transaction([

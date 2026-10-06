@@ -11,7 +11,7 @@ import { DOMImplementation, XMLSerializer } from "@xmldom/xmldom";
 export default async function parcelRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: StoreBody }>(StoreSchema.url, {
     schema: StoreSchema,
-    preHandler: [parcelAuth]
+    // preHandler: [parcelAuth]
   }, async (req, rep) => {
     const { merchant_details, order_info, parcel_info, customer_details } = req.body
 

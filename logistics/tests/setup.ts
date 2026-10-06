@@ -21,6 +21,7 @@ beforeEach(async () => {
   // 2. Drop facility/entity operational boundaries
   await prisma.store.deleteMany();
   await prisma.sector.deleteMany();
+  await prisma.networkLeg.deleteMany();
   await prisma.localBranch.deleteMany();
   await prisma.distributionCenter.deleteMany();
   await prisma.megaGateway.deleteMany();

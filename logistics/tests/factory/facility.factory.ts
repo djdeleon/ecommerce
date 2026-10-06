@@ -54,16 +54,17 @@ async function generateBranchCode(prisma: PrismaClient, coverageCode: string): P
   return `BR-${cityAbbr}-${sequence}`; // ➔ BR-SJD-1001
 }
 
-export async function createDistributionCenter(prisma: PrismaClient, data: { name: string; address: string; lng: number; lat: number; megaGatewayId?: number | null }) {
+export async function createDistributionCenter(prisma: PrismaClient, data: { name: string; coverageCode: string; address: string; lng: number; lat: number; megaGatewayId?: number | null }) {
   const code = generateCode(data.name);
 
   const [distributionCenter] = await prisma.$queryRaw<any[]>`
-    INSERT INTO "distribution_centers" ("name", "code", "address", "location", "mega_gateway_id")
+    INSERT INTO "distribution_centers" ("name", "code", "address", "location", "coverage_code", "mega_gateway_id")
     VALUES (
       ${data.name}, 
       ${code}, 
       ${data.address}, 
       ST_SetSRID(ST_MakePoint(${data.lng}, ${data.lat}), 4326),
+      ${data.coverageCode},
       ${data.megaGatewayId || null}
     )
     RETURNING *;
