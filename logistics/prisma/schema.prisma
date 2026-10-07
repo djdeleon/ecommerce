@@ -578,7 +578,7 @@ model PhysicalVehicle {
   assignedFacilityId     Int                   @map("assigned_facility_id")
   assignedFacility       Facility              @relation(fields: [assignedFacilityId], references: [id], onDelete: Restrict)
 
-  plateNumber            String                @unique
+  plateNumber            String                @unique @map("plate_number")
 
   gps                    Unsupported("geometry(Point, 4326)")
                

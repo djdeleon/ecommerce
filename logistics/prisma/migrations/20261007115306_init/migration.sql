@@ -19,16 +19,16 @@ CREATE TYPE "shipping_service_type" AS ENUM ('regular', 'express', 'bulky');
 CREATE TYPE "transit_mode" AS ENUM ('land_shuttle', 'highway_linehaul', 'maritime_roro', 'air_freight');
 
 -- CreateEnum
-CREATE TYPE "SortingType" AS ENUM ('manual', 'automated');
-
--- CreateEnum
-CREATE TYPE "SortationBatchStatus" AS ENUM ('scheduled', 'active', 'completed', 'cancelled');
+CREATE TYPE "VehicleType" AS ENUM ('van', 'truck', 'motorcycle');
 
 -- CreateEnum
 CREATE TYPE "MasterBagStatus" AS ENUM ('open', 'sealed', 'dispatched', 'delivered');
 
 -- CreateEnum
-CREATE TYPE "VehicleType" AS ENUM ('van', 'truck', 'motorcycle');
+CREATE TYPE "SortingType" AS ENUM ('manual', 'automated');
+
+-- CreateEnum
+CREATE TYPE "SortationBatchStatus" AS ENUM ('scheduled', 'active', 'completed', 'cancelled');
 
 -- CreateTable
 CREATE TABLE "regions" (
@@ -161,6 +161,18 @@ CREATE TABLE "courier_schedules" (
 );
 
 -- CreateTable
+CREATE TABLE "dispatch_logs" (
+    "id" SERIAL NOT NULL,
+    "assigned_courier_id" INTEGER NOT NULL,
+    "dispatched_at" TIMESTAMP(3) NOT NULL,
+    "arrived_at" TIMESTAMP(3) NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "dispatch_logs_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "sortation_batches" (
     "id" SERIAL NOT NULL,
     "code" TEXT NOT NULL,
@@ -173,16 +185,6 @@ CREATE TABLE "sortation_batches" (
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "sortation_batches_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "dispatch_logs" (
-    "id" SERIAL NOT NULL,
-    "assigned_courier_id" INTEGER NOT NULL,
-    "dispatched_at" TIMESTAMP(3) NOT NULL,
-    "arrived_at" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "dispatch_logs_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -353,7 +355,7 @@ CREATE TABLE "physical_vehicles" (
     "id" SERIAL NOT NULL,
     "vehicle_profile_id" INTEGER NOT NULL,
     "assigned_facility_id" INTEGER NOT NULL,
-    "plateNumber" TEXT NOT NULL,
+    "plate_number" TEXT NOT NULL,
     "gps" geometry(Point, 4326) NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -404,7 +406,7 @@ CREATE UNIQUE INDEX "parcels_external_order_id_key" ON "parcels"("external_order
 CREATE UNIQUE INDEX "stores_name_key" ON "stores"("name");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "physical_vehicles_plateNumber_key" ON "physical_vehicles"("plateNumber");
+CREATE UNIQUE INDEX "physical_vehicles_plate_number_key" ON "physical_vehicles"("plate_number");
 
 -- AddForeignKey
 ALTER TABLE "provinces" ADD CONSTRAINT "provinces_region_id_fkey" FOREIGN KEY ("region_id") REFERENCES "regions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -446,10 +448,10 @@ ALTER TABLE "courier_schedules" ADD CONSTRAINT "courier_schedules_physical_vehic
 ALTER TABLE "courier_schedules" ADD CONSTRAINT "courier_schedules_network_leg_id_fkey" FOREIGN KEY ("network_leg_id") REFERENCES "network_legs"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "sortation_batches" ADD CONSTRAINT "sortation_batches_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "dispatch_logs" ADD CONSTRAINT "dispatch_logs_assigned_courier_id_fkey" FOREIGN KEY ("assigned_courier_id") REFERENCES "couriers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "dispatch_logs" ADD CONSTRAINT "dispatch_logs_assigned_courier_id_fkey" FOREIGN KEY ("assigned_courier_id") REFERENCES "couriers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "sortation_batches" ADD CONSTRAINT "sortation_batches_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "master_bags" ADD CONSTRAINT "master_bags_courier_schedule_id_fkey" FOREIGN KEY ("courier_schedule_id") REFERENCES "courier_schedules"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -5,6 +5,8 @@ import { FACILITY_PATHS } from "../../modules/facilities/schema.js";
 import { PARCEL_PATHS } from "../../modules/parcels/schema.js";
 import { TRACKING_NUMBER_PATHS } from "../../modules/tracking-numbers/schema.js";
 import { USER_PATHS } from "../../modules/users/schemas.js";
+import { PHYSICAL_VEHICLE_PATHS } from "../../modules/vehicles/schemas/physical-vehicle.schema.js";
+import { VEHICLE_PROFILE_PATHS } from "../../modules/vehicles/schemas/vehicle-profile.schema.js";
 
 export const API_ROUTES = {
   users: {
@@ -40,4 +42,32 @@ export const API_ROUTES = {
       return compilePath(staticFullUrl, { trackingNumber })
     }
   },
+  vehicles: {
+    vehicleProfile: {
+      store: VEHICLE_PROFILE_PATHS.store,
+      update: (vehicleProfileId: string | number) => {
+        const staticFullUrl = VEHICLE_PROFILE_PATHS.update
+  
+        return compilePath(staticFullUrl, { vehicleProfileId })
+      },
+      delete: (vehicleProfileId: string | number) => {
+        const staticFullUrl = VEHICLE_PROFILE_PATHS.delete
+  
+        return compilePath(staticFullUrl, { vehicleProfileId })
+      },
+    },
+    physicalVehicle: {
+      store: PHYSICAL_VEHICLE_PATHS.store,
+      update: (physicalVehicleId: string | number) => {
+        const staticFullUrl = PHYSICAL_VEHICLE_PATHS.update
+  
+        return compilePath(staticFullUrl, { physicalVehicleId })
+      },
+      delete: (physicalVehicleId: string | number) => {
+        const staticFullUrl = PHYSICAL_VEHICLE_PATHS.update
+  
+        return compilePath(staticFullUrl, { physicalVehicleId })
+      },
+    }
+  }
 }

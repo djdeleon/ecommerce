@@ -1,4 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import { FacilityType, PrismaClient } from "@prisma/client";
+import { FastifyInstance } from "fastify";
 
 const generateCode = (name: string) => name.replace(/[^A-Z0-9]/gi, '').substring(0, 6).toUpperCase();
 const randomSuffix = Math.floor(Math.random() * 10000);
@@ -226,47 +227,43 @@ export async function createSector(prisma: PrismaClient, data: { code: string, l
 //   return gatewayWithLocation
 // }
 
-// export async function createFacility(overrides = {}) {
-//   const app = (globalThis as any).app as FastifyInstance
+export async function createFacility(fastify: FastifyInstance, overrides = {}) {
+  const randomSuffix = Math.floor(Math.random() * 10000);
+  
+  const longitude = (overrides as any).longitude ?? 121.0673907
+  const latitude = (overrides as any).latitude ?? 14.7787567
+  const { longitude: _, latitude: __, ...cleanOverrides } = overrides as any;
 
-//   const randomSuffix = Math.floor(Math.random() * 10000);
+  const facility = await fastify.prisma.facility.create({
+    data: {
+      name: `Test Facility ${randomSuffix}`,
+      code: `FAC-${randomSuffix}`,
+      type: FacilityType.MegaGateway, // Adjust default type if needed (MegaGateway, DistributionCenter, LocalBranch)
+      address: `${randomSuffix} Test Street, Manila`,
+      ...cleanOverrides,
+    }
+  })
 
-//   const longitude = (overrides as any).longitude ?? 121.0673907
-//   const latitude = (overrides as any).latitude ?? 14.7787567
+  await fastify.prisma.$executeRaw`
+    UPDATE facilities
+    SET location = ST_SetSRID(ST_MakePoint(${parseFloat(longitude)}, ${parseFloat(latitude)}), 4326)
+    WHERE id = ${facility.id}
+  `
 
-//   const { longitude: _, latitude: __, ...cleanOverrides } = overrides as any;
+  const [facilityWithLocation] = await fastify.prisma.$queryRaw<any[]>`
+    SELECT 
+      id, 
+      name, 
+      code,
+      type, 
+      address, 
+      "parent_id" AS "parentId", 
+      "created_at" AS "createdAt", 
+      "updated_at" AS "updatedAt",
+      ST_AsGeoJSON(location) AS location
+    FROM "facilities"
+    WHERE id = ${facility.id}
+  `;
 
-//   const facility = await app.prisma.facility.create({
-//     data: {
-//       name: `Test Hub ${randomSuffix}`,
-//       type: FacilityType.RegionalHub,
-//       sortingCode: `HUB-${randomSuffix}`,
-//       address: `${randomSuffix} Test Street, Manila`,
-//       ...cleanOverrides,
-//     }
-//   })
-
-//   await app.prisma.$executeRaw`
-//     UPDATE facilities
-//     SET location = ST_SetSRID(ST_MakePoint(${parseFloat(longitude)}, ${parseFloat(latitude)}), 4326)
-//     WHERE id = ${facility.id}
-//   `
-
-//   const [facilityWithLocation] = await app.prisma.$queryRaw<any[]>`
-//     SELECT 
-//       id, 
-//       name, 
-//       type, 
-//       "sorting_code" AS "sortingCode", 
-//       address, 
-//       "parent_id" AS "parentId", 
-//       "isActive", 
-//       "created_at" AS "createdAt", 
-//       "updated_at" AS "updatedAt",
-//       ST_AsGeoJSON(location) AS location
-//     FROM "facilities"
-//     WHERE id = ${facility.id}
-//   `;
-
-//   return facilityWithLocation
-// }
+  return facilityWithLocation
+}
