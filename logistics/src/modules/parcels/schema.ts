@@ -2,6 +2,7 @@ import { Static, Type } from "@sinclair/typebox"
 
 export const PARCEL_PATHS = {
   store: '/parcels',
+  waybill: '/parcels/:trackingNumber/waybill',
 }
 
 const AddressSchema = Type.Object({
@@ -122,6 +123,10 @@ export const StoreSchema = {
       }),
     })
   })
+}
+
+export const waybillSchema = {
+  url: PARCEL_PATHS.waybill
 }
 
 export type StoreBody = Static<typeof StoreSchema.body>

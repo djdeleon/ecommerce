@@ -1,0 +1,46 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.347677,
+          15.927732
+        ]
+      },
+      "properties": {
+        "name": "FSTFY San Carlose Delivery Hub"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.566889,
+          15.975714
+        ]
+      },
+      "properties": {
+        "marker-size": "medium",
+        "name": "Urdaneta DC"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.557514,
+          15.180604
+        ]
+      },
+      "properties": {
+        "marker-size": "large",
+        "name": "Clark Mega Gateway"
+      }
+    }
+  ]
+}

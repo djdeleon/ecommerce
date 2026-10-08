@@ -7,6 +7,12 @@ export const FACILITY_PATHS = {
   assignCourier: '/facilities/:facilityId/assign-courier',
 } as const;
 
+export const FacilityTypeEnum = Type.Union([
+  Type.Literal('MegaGateway'),
+  Type.Literal('DistributionCenter'),
+  Type.Literal('LocalBranch'),
+]);
+
 export const StoreSchema = {
   url: FACILITY_PATHS.store,
   body: Type.Object({
@@ -16,9 +22,7 @@ export const StoreSchema = {
       description: "Official name of the logistics facility or hub",
       examples: ["Bulacan Mega Gateway"]
     }),
-    type: Type.Enum(FacilityType, {
-      description: "Hierarchy classification of the facility"
-    }),
+    type: FacilityTypeEnum,
     address: Type.String({
       minLength: 5,
       description: "Physical street address of the facility"
@@ -47,7 +51,7 @@ export const StoreSchema = {
         id: Type.Number(),
         name: Type.String(),
         type: Type.String(),
-        sorting_code: Type.String(),
+        code: Type.String(),
         address: Type.String(),
         parent_id: Type.Union([Type.Number(), Type.Null()]),
       })
@@ -90,6 +94,11 @@ export const AssignSchema = {
   }
 }
 
+const CreateFacilityDataSchema = Type.Omit(StoreSchema.body, [
+  'parentId',
+])
+
 export type StoreBody = Static<typeof StoreSchema.body>
 export type AssignBody = Static<typeof AssignSchema.body>
 export type AssignParams = Static<typeof AssignSchema.params>
+export type CreateFacilityData = Static<typeof CreateFacilityDataSchema>

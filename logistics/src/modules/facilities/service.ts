@@ -1,14 +1,7 @@
 import { CourierStatus, FacilityType } from "@prisma/client";
 import { FastifyInstance } from "fastify";
 import { facilityTypeMap } from "./facilityTypeMap.js";
-
-interface CreateFacilityData {
-  name: string;
-  type: string;
-  address: string;
-  longitude: number;
-  latitude: number;
-}
+import { CreateFacilityData } from "./schema.js";
 
 interface AssignCourierData {
   facilityId: number;
@@ -29,13 +22,13 @@ export async function createFacility(fastify: FastifyInstance, data: CreateFacil
       INSERT INTO "facilities" (
         "name",
         "type",
-        "sorting_code",
+        "code",
         "address",
         "location",
         "updated_at"
       ) VALUES (
         ${data.name},
-        ${facilityType},
+        ${facilityType}::facility_type,
         ${sortingCode},
         ${data.address},
         ST_SetSRID(ST_MakePoint(${data.longitude}, ${data.latitude}), 4326),
@@ -54,7 +47,7 @@ export async function updateFacility(
   return fastify.prisma.$transaction(async (tx) => {
     await tx.courier.update({
       where: { id: data.courierId },
-      data: { currentFacilityId: data.facilityId }
+      data: { assignedFacilityId: data.facilityId }
     })
 
     return await tx.facility.findUniqueOrThrow({

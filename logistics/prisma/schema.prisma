@@ -12,9 +12,9 @@ datasource db {
 }
 
 enum FacilityType {
-  MegaGateway @map("mega_gateway")
-  RegionalHub @map("regional_hub")
-  LocalBranch @map("local_branch")
+  MegaGateway        @map("mega_gateway")
+  DistributionCenter @map("distribution_center")
+  LocalBranch        @map("local_branch")
 
   @@map("facility_type")
 }
@@ -36,6 +36,12 @@ enum ShipmentStatus {
   PendingPickup  @map("pending_pickup")
   ReadyForPickup @map("ready_for_pickup")
   PickedUp       @map("picked_up")
+
+  ArrivedAtOriginHub @map("arrived_at_origin_hub")
+  Sorting        @map("sorting")
+  Bagged         @map("bagged")
+  ArrivedAtDestinationHub @map("arrived_at_destination_hub")
+
   InTransit      @map("in_transit")
   ArrivedAtHub   @map("arrived_at_hub")
   OutForDelivery @map("out_for_delivery")
@@ -46,136 +52,473 @@ enum ShipmentStatus {
   @@map("shipment_status")
 }
 
-model Facility {
-  id                 Int                @id @default(autoincrement())
-  name               String
-  type               FacilityType
-  sortingCode        String             @db.VarChar(50) @unique @map("sorting_code")
-  address            String
-  location           Unsupported("geometry(Point, 4326)")?
-  parentId           Int?               @map("parent_id")
-  parent             Facility?          @relation("FacilityHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
-  isActive           Boolean            @default(true)
-  createdAt          DateTime           @default(now()) @map("created_at")
-  updatedAt          DateTime           @updatedAt @map("updated_at")
+enum ShippingServiceType {
+  R @map("regular")
+  E @map("express")
+  B @map("bulky")
 
-  couriers           Courier[]
-  originParcels      Parcel[]           @relation("ParcelOrigin")
-  destinationParcels Parcel[]           @relation("ParcelDestination")
-  currentParcels     Parcel[]           @relation("ParcelCurrent")
-  trackingLogs       TrackingLog[]
-  deliveryBoundaries DeliveryBoundary[]
-  children           Facility[]         @relation("FacilityHierarchy")
+  @@map("shipping_service_type")
+}
+
+enum TransitMode {
+  LandShuttle     @map("land_shuttle")     // Micro vertical hops (Branch -> Regional)
+  HighwayLinehaul @map("highway_linehaul") // Macro overland highways (North Luzon -> South Luzon)
+  MaritimeRoro    @map("maritime_roro")    // Inter-island ferry crossing (Cebu -> Luzon)
+  AirFreight      @map("air_freight")
+
+  @@map("transit_mode")
+}
+
+enum VehicleType {
+  Van        @map("van")
+  Truck      @map("truck")
+  Motorcycle @map("motorcycle")
+}
+
+enum MasterBagStatus {
+  Open       @map("open")
+  Sealed     @map("sealed")
+  Dispatched @map("dispatched")
+  Delivered  @map("delivered")
+}
+
+enum SortingType {
+  Manual    @map("manual")
+  Automated @map("automated")
+}
+
+enum SortationBatchStatus {
+  Scheduled @map("scheduled")
+  Active    @map("active")
+  Completed @map("completed")
+  Cancelled @map("cancelled")
+}
+
+model Region {
+  id                     String               @id @db.VarChar(15)
+  name                   String               @db.VarChar(100)
+  code                   String               @db.VarChar(15)
+
+  provinces              Province[]
+
+  @@map("regions")
+}
+
+model Province {
+  id                     String               @id @db.VarChar(15)
+  name                   String               @db.VarChar(100)
+  code                   String               @db.VarChar(15)
+
+  regionId               String               @map("region_id")
+  region                 Region               @relation(fields: [regionId], references: [id], onDelete: Restrict)
+
+  cities                 City[]
+
+  @@map("provinces")
+}
+
+model City {
+  id                     String               @id @db.VarChar(15)
+  name                   String               @db.VarChar(100)
+  code                   String               @db.VarChar(15)
+
+  provinceId             String?              @map("province_id")
+  province               Province?            @relation(fields: [provinceId], references: [id], onDelete: Restrict)
+
+  barangays              Barangay[]
+
+  @@map("cities")
+}
+
+model Sector {
+  id                     Int                  @id @default(autoincrement())
+  code                   String               @db.VarChar(15) // REG-PROV-CIT-(2-Digit Alphanumeric) e.g., R03-BUL-SJD-01, R03-BUL-SJD-02, R03-BUL-PAM-01
+  zone                   Unsupported("geometry(Polygon, 4326)")?
+
+  localBranchId          Int                  @map("local_branch_id")
+  localBranch            Facility             @relation(fields: [localBranchId], references: [id], onDelete: Restrict)
+
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
+
+  barangays              Barangay[]
+  couriers               SectorCourier[]
+
+  @@map("sectors")
+}
+
+model Barangay {
+  id                     String               @id @db.VarChar(15)
+  name                   String               @db.VarChar(100)
+  code                   String               @db.VarChar(15)
+
+  cityId                 String               @map("city_id")
+  city                   City                 @relation(fields: [cityId], references: [id], onDelete: Restrict)
+
+  sectorId               Int?                 @map("sector_id")
+  sector                 Sector?              @relation(fields: [sectorId], references: [id], onDelete: Restrict)
+
+  @@map("barangays")
+}
+
+model Facility {
+  id                     Int                  @id @default(autoincrement())
+  name                   String               @db.VarChar(100)
+  code                   String               @db.VarChar(15)
+  address                String
+  location               Unsupported("geometry(Point, 4326)")?
+
+  type                   FacilityType
+
+  parentId               Int?                 @map("parent_id")
+  parent                 Facility?            @relation("FacilityHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children               Facility[]           @relation("FacilityHierarchy")
+
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
+
+  sectors                Sector[]
+  sourceLegs             NetworkLeg[]         @relation("SourceLegs")
+  destinationLegs        NetworkLeg[]         @relation("DestinationLegs")
+  vehicles               PhysicalVehicle[]
+  couriers               Courier[]
+  currentMasterBags      MasterBag[]          @relation("CurrentMasterBag")
+  nextMasterBags         MasterBag[]          @relation("NextMasterBag")
+  trackingLogs           TrackingLog[]
+  currentParcels         Parcel[]             @relation("CurrentFacility")
+  originParcels          Parcel[]             @relation("OriginFacility")
+  destinationParcels     Parcel[]             @relation("DestinationFacility")
+  sortationBatches       SortationBatch[]
+  operation              FacilityOperation?
+  schedule               FacilitySchedule?
+  chutes                 FacilityChute[]      @relation("FacilityChutes")
+  chuteDestinations      FacilityChute[]      @relation("ChuteDestination")
+  dispatchLogs           DispatchLog[]
 
   @@map("facilities")
 }
 
-model DeliveryBoundary {
-  id           Int          @id @default(autoincrement())
-  facilityId   Int          @map("facility_id")
-  facility     Facility     @relation(fields: [facilityId], references: [id], onDelete: Restrict)
-  deliveryArea Unsupported("geometry(Polygon, 4326)")? @map("delivery_area")
+model FacilityOperation {
+  id                     Int                  @id @default(autoincrement())
 
-  @@map("delivery_boundaries")
+  facilityId             Int                  @unique @map("facility_id")
+  facility               Facility             @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+
+  sortingType            SortingType          @map("sorting_type")
+
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
+  
+  @@map("facility_operations")
+}
+
+model FacilitySchedule {
+  id                     Int                  @id @default(autoincrement())
+
+  facilityId             Int                  @unique @map("facility_id")
+  facility               Facility             @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+
+  openingTime            DateTime             @db.Time() @map("opening_time")
+  closingTime            DateTime             @db.Time() @map("closing_time")
+
+  cutOffTime             DateTime             @db.Time() @map("cut_off_time")
+
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
+
+  @@map("facility_schedules")
+}
+
+model NetworkLeg {
+  id                     Int                  @id @default(autoincrement())
+
+  sourceFacilityId       Int                  @map("source_facility_id")
+  sourceFacility         Facility             @relation("SourceLegs", fields: [sourceFacilityId], references: [id], onDelete: Restrict)
+
+  destinationFacilityId  Int                  @map("destination_facility_id")
+  destinationFacility    Facility             @relation("DestinationLegs", fields: [destinationFacilityId], references: [id], onDelete: Restrict)
+
+  laneCode               String               @db.VarChar(20) @map("lane_code")  // e.g., "N-C-LZN", "CEB-LZN-RORO"
+  route                  Unsupported("geometry(LineString, 4326)")
+  distanceKm             Int                  @map("distance_km")                // stored in meters
+  vehicleProfile         String               @map("vehicle_profile")
+  baseTransitDuration    Int                  @map("base_transit_duration")      // e.g., 3600 (in secords) 1 hour
+  mode                   TransitMode
+
+  cutOffTime             DateTime             @db.Time() @map("cut_off_time")
+
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
+
+  courierSchedules       CourierSchedule[]
+
+  @@map("network_legs")
+}
+
+model FacilityChute {
+  id                     Int                  @id @default(autoincrement())
+  code                   String               @db.VarChar(20) @map("code")
+
+  facilityId             Int                  @map("facility_id")
+  facility               Facility             @relation("FacilityChutes", fields: [facilityId], references: [id], onDelete: Cascade)
+
+  destinationFacilityId  Int                  @map("destination_facility_id")
+  destinationFacility    Facility             @relation("ChuteDestination", fields: [destinationFacilityId], references: [id], onDelete: Restrict)
+
+  isActive               Boolean              @default(true) @map("is_active")
+
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
+
+  masterBags             MasterBag[]
+
+  @@map("facility_chutes")
+}
+
+model CourierSchedule {
+  id                     Int                  @id @default(autoincrement())
+
+  courierId              Int?                 @map("courier_id")                 
+  courier                Courier?             @relation(fields: [courierId], references: [id], onDelete: SetNull)
+
+  physicalVehicleId      Int                  @map("physical_vehicle_id")
+  physicalVehicle        PhysicalVehicle      @relation(fields: [physicalVehicleId], references: [id], onDelete: Restrict)
+
+  networkLegId           Int                  @map("network_leg_id")
+  networkLeg             NetworkLeg           @relation(fields: [networkLegId], references: [id], onDelete: Cascade)
+
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
+
+  masterBags             MasterBag[]
+
+  @@map("courier_schedules")
+}
+
+model DispatchLog {
+  id                     Int                  @id @default(autoincrement())
+
+  assignedCourierId      Int                  @map("assigned_courier_id")
+  assignedCourier        Courier              @relation(fields: [assignedCourierId], references: [id], onDelete: Restrict)
+
+  originFacilityId       Int?                 @map("origin_facility_id") // Add this
+  originFacility         Facility?            @relation(fields: [originFacilityId], references: [id], onDelete: SetNull)
+
+  dispatchedAt           DateTime             @map("dispatched_at")
+  arrivedAt              DateTime?             @map("arrived_at")
+
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
+
+  @@map("dispatch_logs")
+}
+
+model SortationBatch {
+  id                     Int                  @id @default(autoincrement())
+  code                   String
+
+  startTime              DateTime?            @map("start_time")
+  endTime                DateTime?            @map("end_time")
+
+  facilityId             Int                  @map("facility_id")
+  facility               Facility             @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+
+  status                 SortationBatchStatus @default(Scheduled)
+
+  completedAt            DateTime?            @map("completed_at")
+
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
+
+  looseParcels           Parcel[]
+  masterBags             MasterBag[]
+  
+  @@map("sortation_batches")
+}
+
+model MasterBag {
+  id                     Int                  @id @default(autoincrement())
+  code                   String               @unique @db.VarChar(50)
+
+  courierScheduleId      Int                  @map("courier_schedule_id")
+  courierSchedule        CourierSchedule      @relation(fields: [courierScheduleId], references: [id], onDelete: Restrict)
+
+  sortingBatchId         Int                  @map("sorting_batch_id")
+  sortingBatch           SortationBatch       @relation(fields: [sortingBatchId], references: [id], onDelete: Restrict)
+
+  facilityChuteId        Int?                 @map("facility_chute_id")
+  facilityChute          FacilityChute?       @relation(fields: [facilityChuteId], references: [id], onDelete: SetNull)
+
+  currentFacilityId      Int                  @map("current_facility_id")
+  currentFacility        Facility             @relation("CurrentMasterBag", fields: [currentFacilityId], references: [id], onDelete: Restrict)
+
+  nextFacilityId         Int                  @map("next_facility_id")
+  nextFacility           Facility             @relation("NextMasterBag", fields: [nextFacilityId], references: [id], onDelete: Restrict)
+
+  totalWeight            Int                  @map("total_weight")
+  totalParcels           Int                  @map("total_parcels")
+
+  status                 MasterBagStatus      @default(Open)
+
+  sealedAt               DateTime?            @map("sealed_at")
+
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
+
+  parcels                Parcel[]
+
+  @@map("master_bags")
+}
+
+
+model SectorCourier {
+  id                     Int                  @id @default(autoincrement())
+
+  sectorId               Int                  @map("sector_id")
+  sector                 Sector               @relation(fields: [sectorId], references: [id], onDelete: Restrict)
+
+  courierId              Int                  @map("courier_id")
+  courier                Courier              @relation(fields: [courierId], references: [id], onDelete: Restrict)
+
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
+
+  @@unique([sectorId, courierId])
+  @@map("sector_couriers")
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  role      UserRole @default(Courier)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                     Int                  @id @default(autoincrement())
 
-  courier   Courier?
+  firstName              String               @db.VarChar(100) @map("first_name")
+  lastName               String               @db.VarChar(100) @map("last_name")
+
+  email                  String               @unique
+  password               String
+  
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
+
+  courier                Courier?
+  role                   UserRole             @default(Courier)
 
   @@map("users")
 }
 
 model Courier {
-  id                Int           @id @default(autoincrement()) @db.Integer
-  userId            Int           @unique @map("user_id")
-  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  firstName         String        @db.VarChar(100) @map("first_name")
-  lastName          String        @db.VarChar(100) @map("last_name")
-  phoneNumber       String        @db.VarChar(20) @unique @map("phone_number")
-  vehicleType       String        @db.VarChar(50) @map("vehicle_type")
-  plateNumber       String        @db.VarChar(20) @unique @map("plate_number")
-  status            CourierStatus
-  currentFacilityId Int?          @db.SmallInt @map("current_facility_id")
-  currentFacility   Facility?     @relation(fields: [currentFacilityId], references: [id], onDelete: Restrict)
-  createdAt         DateTime      @default(now()) @map("created_at")
-  updatedAt         DateTime      @updatedAt @map("updated_at")
+  id                     Int                  @id @default(autoincrement())
 
-  parcels           Parcel[]
-  trackingLogs      TrackingLog[]
+  userId                 Int                  @unique @map("user_id")
+  user                   User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  phoneNumber            String               @db.VarChar(20) @unique @map("phone_number")
+  vehicleType            String               @db.VarChar(50) @map("vehicle_type")
+  plateNumber            String               @db.VarChar(20) @unique @map("plate_number")
+  status                 CourierStatus
+
+  assignedFacilityId     Int                  @map("assigned_facility_id")
+  assignedFacility       Facility             @relation(fields: [assignedFacilityId], references: [id], onDelete: Restrict)
+  
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
+
+  parcels                Parcel[]
+  trackingLogs           TrackingLog[]
+  sectors                SectorCourier[]
+  dispatchLogs           DispatchLog[]
+  courierSchedules       CourierSchedule[]
 
   @@map("couriers")
 }
 
 model Client {
-  id                  Int      @id @default(autoincrement())
-  name                String   @unique
-  apiKey              String   @unique @map("api_key")
-  apiSecret           String   @map("api_secret")
-  webhookUrl          String   @map("webhook_url")
-  webhookSecret       String   @map("webhook_secret")
-  isActive            Boolean  @default(true) @map("is_active")
-  createdAt           DateTime @default(now()) @map("created_at")
-  updatedAt           DateTime @updatedAt @map("updated_at")
+  id                     Int                  @id @default(autoincrement())
+  name                   String               @unique
 
-  trackingNumberPools TrackingNumberPool[]
+  apiKey                 String               @unique @map("api_key")
+  apiSecret              String               @map("api_secret")
+
+  webhookUrl             String               @map("webhook_url")
+  webhookSecret          String               @map("webhook_secret")
+
+  isActive               Boolean              @default(true) @map("is_active")
+
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
+
+  trackingNumberPools    TrackingNumberPool[]
 
   @@map("clients")
 }
 
 model TrackingNumberPool {
-  id             Int       @id @default(autoincrement())
-  trackingNumber String    @unique @db.VarChar(50) @map("tracking_number")
-  clientId       Int       @map("client_id")
-  client         Client    @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  isAssigned     Boolean   @default(false) @map("is_assigned")
-  assignedAt     DateTime? @map("assigned_at")
-  parcel         Parcel?
+  id                    Int                   @id @default(autoincrement())
+  trackingNumber        String                @unique @db.VarChar(50) @map("tracking_number")
+
+  clientId              Int                   @map("client_id")
+  client                Client                @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  isAssigned            Boolean               @default(false) @map("is_assigned")
+  assignedAt            DateTime?             @map("assigned_at")
+
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime              @updatedAt @map("updated_at")
+
+  parcel                Parcel?  
 
   @@map("tracking_number_pools")
 }
 
 model Parcel {
-  id                    Int                @id @default(autoincrement())
-  trackingNumber        String             @db.VarChar(50) @unique @map("tracking_number")
-  trackingNumberRel     TrackingNumberPool @relation(fields: [trackingNumber], references: [trackingNumber], onDelete: Restrict)
-  externalOrderId       String             @unique @map("external_order_id")
+  id                    Int                   @id @default(autoincrement())
 
-  weightGrams           Int                @map("weight_grams")
-  lengthCm              Float?             @map("length_cm")
-  heightCm              Float?             @map("height_cm")
-  widthCm               Float?             @map("width_cm")
-  declaredValue         Decimal            @db.Decimal(10, 2) @map("declared_value")
+  trackingNumber        String                @db.VarChar(50) @unique @map("tracking_number")
+  trackingNumberRel     TrackingNumberPool    @relation(fields: [trackingNumber], references: [trackingNumber], onDelete: Restrict)
 
-  originFacilityId      Int                @map("origin_facility_id")
-  originFacility        Facility           @relation("ParcelOrigin", fields: [originFacilityId], references: [id], onDelete: Restrict)
-  destinationFacilityId Int                @map("destination_facility_id")
-  destinationFacility   Facility           @relation("ParcelDestination", fields: [destinationFacilityId], references: [id], onDelete: Restrict)
-  currentFacilityId     Int?               @map("current_facility_id")
-  currentFacility       Facility?          @relation("ParcelCurrent", fields: [currentFacilityId], references: [id], onDelete: Restrict)
+  externalOrderId       String                @unique @map("external_order_id")
 
-  sortingCodeCache      String             @db.VarChar(50) @map("sorting_code_cache")
-  routingPipelineCache  String             @map("routing_pipeline_cache")
+  weightGrams           Int                   @map("weight_grams")
+  lengthCm              Float?                @map("length_cm")
+  heightCm              Float?                @map("height_cm")
+  widthCm               Float?                @map("width_cm")
+  declaredValue         Decimal               @db.Decimal(10, 2) @map("declared_value")
 
-  storeId               Int                @map("store_id")
-  store                 Store              @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  shippingServiceType   ShippingServiceType   @default(R) @map("shipping_service_type")
 
-  customerName          String             @map("customer_name")
-  customerPhone         String             @map("customer_phone")
-  customerAddress       String             @map("customer_address")
+  originFacilityId      Int?                  @map("origin_facility_id")
+  originFacility        Facility?             @relation("OriginFacility", fields: [originFacilityId], references: [id], onDelete: Restrict)
+
+  destinationFacilityId Int?                  @map("destination_facility_id")
+  destinationFacility   Facility?             @relation("DestinationFacility", fields: [destinationFacilityId], references: [id], onDelete: Restrict)
+
+  currentFacilityId     Int?                  @map("current_facility_id")
+  currentFacility       Facility?             @relation("CurrentFacility", fields: [currentFacilityId], references: [id], onDelete: Restrict)
+
+  sortingCodeCache      String                @db.VarChar(50) @map("sorting_code_cache")
+  routingPipelineCache  String                @map("routing_pipeline_cache")
+
+  storeId               Int                   @map("store_id")
+  store                 Store                 @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
+  customerName          String                @map("customer_name")
+  customerPhone         String                @map("customer_phone")
+  customerAddress       String                @map("customer_address")
   customerLocation      Unsupported("geometry(Point, 4326)")? @map("customer_location")
   
-  assignedCourierId     Int?               @map("assigned_courier_id")
-  assignedCourier       Courier?           @relation(fields: [assignedCourierId], references: [id], onDelete: SetNull)
-  status                ShipmentStatus     @default(PendingPickup)
-  createdAt             DateTime           @default(now()) @map("created_at")
-  updatedAt             DateTime           @updatedAt @map("updated_at")
+  assignedCourierId     Int?                  @map("assigned_courier_id")
+  assignedCourier       Courier?              @relation(fields: [assignedCourierId], references: [id], onDelete: SetNull)
+
+  status                ShipmentStatus        @default(PendingPickup)
+
+  masterBagId           Int?                  @map("master_bag_id")
+  masterBag             MasterBag?            @relation(fields: [masterBagId], references: [id], onDelete: SetNull)
+
+  // Tracks loose unbagged parcels for bulky cargo
+  sortationBatchId      Int?                  @map("sortation_batch_id")
+  sortationBatch        SortationBatch?       @relation(fields: [sortationBatchId], references: [id], onDelete: Restrict)
+
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime              @updatedAt @map("updated_at")
 
   trackingLogs          TrackingLog[]
 
@@ -183,29 +526,83 @@ model Parcel {
 }
 
 model Store {
-  id            Int          @id @default(autoincrement())
-  name          String       @unique
-  contactNumber String       @map("contact_number")
-  address       String       @map("address")
-  location      Unsupported("geometry(Point, 4326)")?
-  createdAt     DateTime     @default(now()) @map("created_at")
-  updatedAt     DateTime     @updatedAt @map("updated_at")
+  id                    Int                   @id @default(autoincrement())
+  name                  String                @unique
+  contactNumber         String                @map("contact_number")
+  address               String                @map("address")
+  location              Unsupported("geometry(Point, 4326)")?
 
-  parcels       Parcel[]
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime              @updatedAt @map("updated_at")
+
+  parcels               Parcel[]
 
   @@map("stores")
 }
 
 model TrackingLog {
-  id          Int            @id @default(autoincrement())
-  parcelId    Int            @map("parcel_id")
-  parcel      Parcel         @relation(fields: [parcelId], references: [id], onDelete: Cascade)
-  status      ShipmentStatus
-  description String
-  facilityId  Int?           @map("facility_id")
-  facility    Facility?      @relation(fields: [facilityId], references: [id], onDelete: SetNull)
-  courierId   Int?           @map("courier_id")
-  courier     Courier?       @relation(fields: [courierId], references: [id], onDelete: SetNull)
+  id                    Int                   @id @default(autoincrement())
+
+  parcelId              Int                   @map("parcel_id")
+  parcel                Parcel                @relation(fields: [parcelId], references: [id], onDelete: Cascade)
+
+  status                ShipmentStatus
+  description           String
+
+  facilityId            Int?                   @map("facility_id")
+  facility              Facility?              @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  
+  courierId             Int?                  @map("courier_id")
+  courier               Courier?              @relation(fields: [courierId], references: [id], onDelete: SetNull)
+  
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime              @updatedAt @map("updated_at")
 
   @@map("tracking_logs")
+}
+
+model VehicleProfile {
+  id                     Int                   @id @default(autoincrement())
+
+  brand                  String                @db.VarChar(50)                    // Mitsubishi
+  modelName              String                @db.VarChar(50) @map("model_name") // L300
+  variant                String                @db.VarChar(50)                    // Aluminum Van
+
+  maxWeightCapacityG     Int                   @map("max_weight_capacity_g")      // 1000000 -> 1,000kg
+  maxUsableVolumeCbm     Float                 @map("max_usable_volume_cbm")      // 3.3
+  allocationVolumeTarget Float                 @map("allocation_volume_target")   // 0.75 -> 75% Utilization Target
+
+  lengthMm               Int                   @map("length_mm")
+  widthMm                Int                   @map("width_mm")
+  heightMm               Int                   @map("height_mm")
+
+  type                   VehicleType
+
+  createdAt              DateTime              @default(now()) @map("created_at")
+  updatedAt              DateTime              @updatedAt @map("updated_at")
+
+  vehicles               PhysicalVehicle[]
+
+  @@map("vehicle_profiles")
+}
+
+model PhysicalVehicle {
+  id                     Int                   @id @default(autoincrement())
+
+  vehicleProfileId       Int                   @map("vehicle_profile_id")
+  vehicleProfile         VehicleProfile        @relation(fields: [vehicleProfileId], references: [id], onDelete: Restrict)
+
+  assignedFacilityId     Int                   @map("assigned_facility_id")
+  assignedFacility       Facility              @relation(fields: [assignedFacilityId], references: [id], onDelete: Restrict)
+
+  plateNumber            String                @unique @map("plate_number")
+
+  gps                    Unsupported("geometry(Point, 4326)")
+               
+  createdAt              DateTime              @default(now()) @map("created_at")
+  updatedAt              DateTime              @updatedAt @map("updated_at")
+
+  courierSchedules       CourierSchedule[]
+
+  @@map("physical_vehicles")
 }
