@@ -4,6 +4,7 @@ import { createCourier, createFacility } from "#factory";
 import { FastifyInstance } from "fastify";
 import { API_ROUTES } from "#commons/constants/routes.js";
 import { createuser } from "../factory/user.factory.js";
+import { facilityTypeMap } from "../../src/modules/facilities/facilityTypeMap.js";
 
 describe('Facilities Domain', async () => {
   let app: FastifyInstance
@@ -14,13 +15,9 @@ describe('Facilities Domain', async () => {
 
   test('an admin can view facility dashboard', async () => {
     const admin = await createuser(UserRole.Admin)
-
-    await createFacility();
-
-    await createCourier();
-    await createCourier({
-      status: CourierStatus.Offline
-    });
+    const facility = await createFacility(app);
+    const availableCourier = await createCourier();
+    await createCourier({ status: CourierStatus.Offline });
 
     const response = await app.inject({
       method: 'GET',
@@ -30,15 +27,44 @@ describe('Facilities Domain', async () => {
       }
     })
 
+    const body = response.json()
+
     expect(response.statusCode).toBe(200)
-    expect(response.json().message).toBe('Facilities retrieved.')
-    expect(response.json().data.facilities.length).toBe(1)
-    expect(response.json().data.facilityTypes.length).toBe(3)
-    expect(response.json().data.availableCouriers.length).toBe(1)
+    expect(body.message).toBe('Facilities retrieved.')
+
+    expect(body.data.facilities).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: facility.id,
+          name: facility.name,
+          code: facility.code,
+          address: facility.address,
+        })
+      ])
+    )
+
+    expect(body.data.facilityTypes).toEqual([
+      'MegaGateway',
+      'DistributionCenter',
+      'LocalBranch',
+    ])
+
+    expect(body.data.availableCouriers.length).toBe(1)
+    expect(body.data.availableCouriers[0]).toMatchObject({
+      id: availableCourier.id,
+      status: CourierStatus.Available,
+    })
   })
 
   test('an admin can create a facility', async () => {
     const admin = await createuser(UserRole.Admin)
+    const payload = {
+      name: "Marilao Mega Gateway",
+      type: FacilityType.MegaGateway,
+      address: "Marilao, Lias Road, ABC Main St.",
+      longitude: 120.9542427,
+      latitude: 14.7570638,
+    }
 
     const response = await app.inject({
       method: 'POST',
@@ -46,22 +72,26 @@ describe('Facilities Domain', async () => {
       headers: {
         authorization: `Bearer ${admin.token}`
       },
-      body: {
-        name: "Marilao Mega Gateway",
-        type: FacilityType.MegaGateway,
-        address: "Marilao, Lias Road, ABC Main St.",
-        longitude: 120.9542427,
-        latitude: 14.7570638,
-      }
+      body: payload
     })
 
-    expect(response.json().data.name).toBe("Marilao Mega Gateway")
+    const body = response.json()
+
+    expect(response.statusCode).toBe(201)
+    expect(body.message).toBeDefined()
+    expect(body.data).toMatchObject({
+      id: expect.any(Number),
+      name: payload.name,
+      code: expect.any(String),
+      type: facilityTypeMap[payload.type],
+      address: payload.address,
+    })
   })
 
   test('a facility can have couriers', async () => {
     const admin = await createuser(UserRole.Admin)
 
-    const facility = await createFacility();
+    const facility = await createFacility(app);
     const facilityId = facility.id
     const courier = await createCourier();
 
@@ -76,8 +106,20 @@ describe('Facilities Domain', async () => {
       }
     })
 
+    const body = response.json()
+
     expect(response.statusCode).toBe(200)
-    expect(response.json().data.couriers.length).toBe(1)
-    expect(response.json().data.couriers[0].id).toBe(courier.id)
+    expect(body.message).toBe('Courier assigned.')
+    expect(body.data).toMatchObject({
+      id: facilityId,
+      name: facility.name,
+      code: facility.code,
+    })
+    expect(body.data.couriers).toHaveLength(1)
+    expect(body.data.couriers[0]).toMatchObject({
+      id: courier.id,
+      plateNumber: courier.plateNumber,
+      status: courier.status,
+    })
   })
 })

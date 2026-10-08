@@ -191,6 +191,9 @@ model Facility {
   sortationBatches       SortationBatch[]
   operation              FacilityOperation?
   schedule               FacilitySchedule?
+  chutes                 FacilityChute[]      @relation("FacilityChutes")
+  chuteDestinations      FacilityChute[]      @relation("ChuteDestination")
+  dispatchLogs           DispatchLog[]
 
   @@map("facilities")
 }
@@ -232,7 +235,7 @@ model NetworkLeg {
   sourceFacilityId       Int                  @map("source_facility_id")
   sourceFacility         Facility             @relation("SourceLegs", fields: [sourceFacilityId], references: [id], onDelete: Restrict)
 
-  destinationFacilityId  Int                  @map("destination_gateway_id")
+  destinationFacilityId  Int                  @map("destination_facility_id")
   destinationFacility    Facility             @relation("DestinationLegs", fields: [destinationFacilityId], references: [id], onDelete: Restrict)
 
   laneCode               String               @db.VarChar(20) @map("lane_code")  // e.g., "N-C-LZN", "CEB-LZN-RORO"
@@ -254,12 +257,20 @@ model NetworkLeg {
 
 model FacilityChute {
   id                     Int                  @id @default(autoincrement())
+  code                   String               @db.VarChar(20) @map("code")
 
-  // The idea here is, every chute has its designated route.
-  // if a facility is connected to several facilities, each connected facilities should have chute for them
+  facilityId             Int                  @map("facility_id")
+  facility               Facility             @relation("FacilityChutes", fields: [facilityId], references: [id], onDelete: Cascade)
+
+  destinationFacilityId  Int                  @map("destination_facility_id")
+  destinationFacility    Facility             @relation("ChuteDestination", fields: [destinationFacilityId], references: [id], onDelete: Restrict)
+
+  isActive               Boolean              @default(true) @map("is_active")
 
   createdAt              DateTime             @default(now()) @map("created_at")
   updatedAt              DateTime             @updatedAt @map("updated_at")
+
+  masterBags             MasterBag[]
 
   @@map("facility_chutes")
 }
@@ -290,8 +301,11 @@ model DispatchLog {
   assignedCourierId      Int                  @map("assigned_courier_id")
   assignedCourier        Courier              @relation(fields: [assignedCourierId], references: [id], onDelete: Restrict)
 
+  originFacilityId       Int?                 @map("origin_facility_id") // Add this
+  originFacility         Facility?            @relation(fields: [originFacilityId], references: [id], onDelete: SetNull)
+
   dispatchedAt           DateTime             @map("dispatched_at")
-  arrivedAt              DateTime             @map("arrived_at")
+  arrivedAt              DateTime?             @map("arrived_at")
 
   createdAt              DateTime             @default(now()) @map("created_at")
   updatedAt              DateTime             @updatedAt @map("updated_at")
@@ -331,6 +345,9 @@ model MasterBag {
 
   sortingBatchId         Int                  @map("sorting_batch_id")
   sortingBatch           SortationBatch       @relation(fields: [sortingBatchId], references: [id], onDelete: Restrict)
+
+  facilityChuteId        Int?                 @map("facility_chute_id")
+  facilityChute          FacilityChute?       @relation(fields: [facilityChuteId], references: [id], onDelete: SetNull)
 
   currentFacilityId      Int                  @map("current_facility_id")
   currentFacility        Facility             @relation("CurrentMasterBag", fields: [currentFacilityId], references: [id], onDelete: Restrict)

@@ -14,6 +14,7 @@ export default async function courierRoutes(fastify: FastifyInstance) {
       vehicleType: req.body.vehicleType,
       plateNumber: req.body.plateNumber,
       status: req.body.status,
+      assignedFacilityId: req.body.assignedFacilityId,
     })
 
     rep.status(201).send({

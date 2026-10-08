@@ -1,6 +1,7 @@
 import { VehicleType } from "@prisma/client";
 import { FastifyInstance } from "fastify";
 import { createFacility } from "./facility.factory.js";
+import { createNetworkLeg } from "./network-leg.factory.js";
 
 export async function createVehicleProfile(
   fastify: FastifyInstance,
@@ -65,4 +66,32 @@ export async function createPhysicalVehicle(
   `;
 
   return physicalVehicle;
+}
+
+export async function createCourierSchedule(
+  fastify: FastifyInstance,
+  overrides?: Record<string, any>
+) {
+  let physicalVehicleId = overrides?.physicalVehicleId;
+  if (!physicalVehicleId) {
+    const physicalVehicle = await createPhysicalVehicle(fastify);
+    physicalVehicleId = physicalVehicle.id;
+  }
+
+  let networkLegId = overrides?.networkLegId;
+  if (!networkLegId) {
+    const networkLeg = await createNetworkLeg(fastify);
+    networkLegId = networkLeg.id;
+  }
+
+  const courierId = overrides?.courierId ?? null;
+
+  return await fastify.prisma.courierSchedule.create({
+    data: {
+      physicalVehicleId,
+      networkLegId,
+      courierId,
+      ...overrides,
+    },
+  });
 }

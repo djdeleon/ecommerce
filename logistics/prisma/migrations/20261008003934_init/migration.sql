@@ -125,7 +125,7 @@ CREATE TABLE "facility_schedules" (
 CREATE TABLE "network_legs" (
     "id" SERIAL NOT NULL,
     "source_facility_id" INTEGER NOT NULL,
-    "destination_gateway_id" INTEGER NOT NULL,
+    "destination_facility_id" INTEGER NOT NULL,
     "lane_code" VARCHAR(20) NOT NULL,
     "route" geometry(LineString, 4326) NOT NULL,
     "distance_km" INTEGER NOT NULL,
@@ -142,6 +142,10 @@ CREATE TABLE "network_legs" (
 -- CreateTable
 CREATE TABLE "facility_chutes" (
     "id" SERIAL NOT NULL,
+    "code" VARCHAR(20) NOT NULL,
+    "facility_id" INTEGER NOT NULL,
+    "destination_facility_id" INTEGER NOT NULL,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -164,8 +168,9 @@ CREATE TABLE "courier_schedules" (
 CREATE TABLE "dispatch_logs" (
     "id" SERIAL NOT NULL,
     "assigned_courier_id" INTEGER NOT NULL,
+    "origin_facility_id" INTEGER,
     "dispatched_at" TIMESTAMP(3) NOT NULL,
-    "arrived_at" TIMESTAMP(3) NOT NULL,
+    "arrived_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -193,6 +198,7 @@ CREATE TABLE "master_bags" (
     "code" VARCHAR(50) NOT NULL,
     "courier_schedule_id" INTEGER NOT NULL,
     "sorting_batch_id" INTEGER NOT NULL,
+    "facility_chute_id" INTEGER,
     "current_facility_id" INTEGER NOT NULL,
     "next_facility_id" INTEGER NOT NULL,
     "total_weight" INTEGER NOT NULL,
@@ -436,7 +442,13 @@ ALTER TABLE "facility_schedules" ADD CONSTRAINT "facility_schedules_facility_id_
 ALTER TABLE "network_legs" ADD CONSTRAINT "network_legs_source_facility_id_fkey" FOREIGN KEY ("source_facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "network_legs" ADD CONSTRAINT "network_legs_destination_gateway_id_fkey" FOREIGN KEY ("destination_gateway_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "network_legs" ADD CONSTRAINT "network_legs_destination_facility_id_fkey" FOREIGN KEY ("destination_facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "facility_chutes" ADD CONSTRAINT "facility_chutes_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "facilities"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "facility_chutes" ADD CONSTRAINT "facility_chutes_destination_facility_id_fkey" FOREIGN KEY ("destination_facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "courier_schedules" ADD CONSTRAINT "courier_schedules_courier_id_fkey" FOREIGN KEY ("courier_id") REFERENCES "couriers"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -451,6 +463,9 @@ ALTER TABLE "courier_schedules" ADD CONSTRAINT "courier_schedules_network_leg_id
 ALTER TABLE "dispatch_logs" ADD CONSTRAINT "dispatch_logs_assigned_courier_id_fkey" FOREIGN KEY ("assigned_courier_id") REFERENCES "couriers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "dispatch_logs" ADD CONSTRAINT "dispatch_logs_origin_facility_id_fkey" FOREIGN KEY ("origin_facility_id") REFERENCES "facilities"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "sortation_batches" ADD CONSTRAINT "sortation_batches_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -458,6 +473,9 @@ ALTER TABLE "master_bags" ADD CONSTRAINT "master_bags_courier_schedule_id_fkey" 
 
 -- AddForeignKey
 ALTER TABLE "master_bags" ADD CONSTRAINT "master_bags_sorting_batch_id_fkey" FOREIGN KEY ("sorting_batch_id") REFERENCES "sortation_batches"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "master_bags" ADD CONSTRAINT "master_bags_facility_chute_id_fkey" FOREIGN KEY ("facility_chute_id") REFERENCES "facility_chutes"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "master_bags" ADD CONSTRAINT "master_bags_current_facility_id_fkey" FOREIGN KEY ("current_facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -39,6 +39,8 @@ export const LoginSchema = {
 export const RegisterSchema = {
   url: USER_PATHS.register,
   body: Type.Object({
+    firstName: Type.String({ minLength: 1 }),
+    lastName: Type.String({ minLength: 1 }),
     email: Type.String({ format: "email" }),
     password: Type.String({ minLength: 6 }),
     role: Type.Enum(UserRole),

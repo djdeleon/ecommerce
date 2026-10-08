@@ -92,23 +92,23 @@ export async function createLocalBranch(prisma: PrismaClient, data: { name: stri
   return localBranch;
 }
 
-export async function createSector(prisma: PrismaClient, data: { code: string, localBranchId: number; zone: object }) {
-  // I think it is better to make the code 0A1, 0A2, 0A3, 0B1, 0B2
-  // For Sectors in San Carlos City (0A1, 0A2, 0A3)
-  // For Sectors in Calaciao (0B1, 0B2)
-  // The letter increments and the number is reset back to 1
-  const [sector] = await prisma.$queryRaw<any[]>`
-    INSERT INTO "sectors" ("code","local_branch_id", "zone")
-    VALUES (
-      ${data.code}, 
-      ${data.localBranchId},
-      ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(data.zone)}), 4326)
-    )
-    RETURNING *;
-  `;
+// export async function createSector(prisma: PrismaClient, data: { code: string, localBranchId: number; zone: object }) {
+//   // I think it is better to make the code 0A1, 0A2, 0A3, 0B1, 0B2
+//   // For Sectors in San Carlos City (0A1, 0A2, 0A3)
+//   // For Sectors in Calaciao (0B1, 0B2)
+//   // The letter increments and the number is reset back to 1
+//   const [sector] = await prisma.$queryRaw<any[]>`
+//     INSERT INTO "sectors" ("code","local_branch_id", "zone")
+//     VALUES (
+//       ${data.code}, 
+//       ${data.localBranchId},
+//       ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(data.zone)}), 4326)
+//     )
+//     RETURNING *;
+//   `;
 
-  return sector;
-}
+//   return sector;
+// }
 
 // export async function createMegaGateway(overrides = {}) {
 //   const app = (globalThis as any).app as FastifyInstance
@@ -229,6 +229,8 @@ export async function createSector(prisma: PrismaClient, data: { code: string, l
 
 export async function createFacility(fastify: FastifyInstance, overrides = {}) {
   const randomSuffix = Math.floor(Math.random() * 10000);
+  const name = (overrides as any).name ?? `Test Facility ${randomSuffix}`;
+  const code = (overrides as any).code ?? generateCode(name);
   
   const longitude = (overrides as any).longitude ?? 121.0673907
   const latitude = (overrides as any).latitude ?? 14.7787567
@@ -236,9 +238,9 @@ export async function createFacility(fastify: FastifyInstance, overrides = {}) {
 
   const facility = await fastify.prisma.facility.create({
     data: {
-      name: `Test Facility ${randomSuffix}`,
-      code: `FAC-${randomSuffix}`,
-      type: FacilityType.MegaGateway, // Adjust default type if needed (MegaGateway, DistributionCenter, LocalBranch)
+      name,
+      code,
+      type: FacilityType.MegaGateway,
       address: `${randomSuffix} Test Street, Manila`,
       ...cleanOverrides,
     }
@@ -266,4 +268,18 @@ export async function createFacility(fastify: FastifyInstance, overrides = {}) {
   `;
 
   return facilityWithLocation
+}
+
+export async function createSector(prisma: PrismaClient, data: { code: string; localBranchId: number; zone: object }) {
+  const [sector] = await prisma.$queryRaw<any[]>`
+    INSERT INTO "sectors" ("code","local_branch_id", "zone")
+    VALUES (
+      ${data.code}, 
+      ${data.localBranchId},
+      ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(data.zone)}), 4326)
+    )
+    RETURNING *;
+  `;
+
+  return sector;
 }

@@ -3,15 +3,16 @@ import { CreateVehicleProfile, CreateVehicleSchema, DeleteVehicleParams, DeleteV
 import { VehicleType } from "@prisma/client";
 import parseId from "#commons/utils/id-parser.js";
 import { CreatePhysicalVehicleBody, CreatePhysicalVehicleSchema, DeletePhysicalVehicleParams, DeletePhysicalVehicleSchema, PHYSICAL_VEHICLE_PATHS, UpdatePhysicalVehicleBody, UpdatePhysicalVehicleParams, UpdatePhysicalVehicleSchema } from "./schemas/physical-vehicle.schema.js";
+import { COURIER_SCHEDULE_PATHS, CreateCourierScheduleBody, CreateCourierScheduleSchema, DeleteCourierScheduleParams, DeleteCourierScheduleSchema, UpdateCourierScheduleBody, UpdateCourierScheduleParams, UpdateCourierScheduleSchema } from "./schemas/courier-schedule.schema.js";
+import { createVehicleProfile, deleteVehicleProfile, updateVehicleProfile } from "./services/vehicle-profile.service.js";
+import { createPhysicalVehicle, deletePhysicalVehicle, updatePhysicalVehicle } from "./services/physical-vehicle.service.js";
+import { createCourierSchedule, deleteCourierSchedule, updateCourierSchedule } from "./services/courier-schedule.service.js";
+import { CreateDispatchLogBody, DISPATCH_LOG_PATHS, CreateDispatchLogSchema, UpdateDispatchLogBody, UpdateDispatchLogParams, UpdateDispatchLogSchema, DeleteDispatchLogParams, DeleteDispatchLogSchema } from "./schemas/dispatch-log.schema.js";
+import { createDispatchLog, updateDispatchLog, deleteDispatchLog } from "./services/dispatch-log.service.js";
 
 export async function vehicleProfileRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: CreateVehicleProfile }>(VEHICLE_PROFILE_PATHS.store, { schema: CreateVehicleSchema }, async (req, rep) => {
-    const vehicleProfile = await fastify.prisma.vehicleProfile.create({
-      data: {
-        ...req.body,
-        type: req.body.type as unknown as VehicleType,
-      },
-    })
+    const vehicleProfile = await createVehicleProfile(fastify, req.body)
 
     return rep.code(201).send({
       message: 'Vehicle profile created successfully',
@@ -25,13 +26,7 @@ export async function vehicleProfileRoutes(fastify: FastifyInstance) {
     async (req, rep) => {
       const { vehicleProfileId } = req.params
 
-      const updatedProfile = await fastify.prisma.vehicleProfile.update({
-        where: { id: parseId(vehicleProfileId) },
-        data: {
-          ...req.body,
-          ...(req.body.type && { type: req.body.type as unknown as VehicleType }),
-        },
-      })
+      const updatedProfile = await updateVehicleProfile(fastify, vehicleProfileId, req.body)
 
       return rep.code(200).send({
         message: 'Vehicle profile updated successfully',
@@ -46,9 +41,7 @@ export async function vehicleProfileRoutes(fastify: FastifyInstance) {
     async (req, rep) => {
       const { vehicleProfileId } = req.params
 
-      await fastify.prisma.vehicleProfile.delete({
-        where: { id: parseId(vehicleProfileId) },
-      })
+      await deleteVehicleProfile(fastify, vehicleProfileId)
 
       return rep.code(200).send({
         message: 'Vehicle profile deleted successfully',
@@ -62,27 +55,7 @@ export async function physicalVehicleRoutes(fastify: FastifyInstance) {
     PHYSICAL_VEHICLE_PATHS.store,
     { schema: CreatePhysicalVehicleSchema },
     async (req, rep) => {
-      const { gps, ...rest } = req.body
-
-      // Create record and insert PostGIS point using raw SQL via transaction or direct execution
-      const [physicalVehicle] = await fastify.prisma.$queryRaw<any[]>`
-        INSERT INTO physical_vehicles (vehicle_profile_id, assigned_facility_id, plate_number, gps, created_at, updated_at)
-        VALUES (
-          ${rest.vehicleProfileId}, 
-          ${rest.assignedFacilityId}, 
-          ${rest.plateNumber}, 
-          ST_SetSRID(ST_MakePoint(${gps.longitude}, ${gps.latitude}), 4326),
-          NOW(),
-          NOW()
-        )
-        RETURNING 
-          id, 
-          vehicle_profile_id AS "vehicleProfileId", 
-          assigned_facility_id AS "assignedFacilityId", 
-          plate_number AS "plateNumber", 
-          created_at AS "createdAt", 
-          updated_at AS "updatedAt"
-      `
+      const physicalVehicle = await createPhysicalVehicle(fastify, req.body)
 
       return rep.code(201).send({
         message: 'Physical vehicle created successfully',
@@ -96,38 +69,8 @@ export async function physicalVehicleRoutes(fastify: FastifyInstance) {
     { schema: UpdatePhysicalVehicleSchema },
     async (req, rep) => {
       const { physicalVehicleId } = req.params
-      const { gps, ...rest } = req.body
-      const id = parseId(physicalVehicleId)
 
-      if (gps) {
-        await fastify.prisma.$executeRaw`
-          UPDATE physical_vehicles
-          SET 
-            plate_number = COALESCE(${rest.plateNumber ?? null}, plate_number),
-            vehicle_profile_id = COALESCE(${rest.vehicleProfileId ?? null}, vehicle_profile_id),
-            assigned_facility_id = COALESCE(${rest.assignedFacilityId ?? null}, assigned_facility_id),
-            gps = ST_SetSRID(ST_MakePoint(${gps.longitude}, ${gps.latitude}), 4326),
-            updated_at = NOW()
-          WHERE id = ${id}
-        `
-      } else {
-        await fastify.prisma.physicalVehicle.update({
-          where: { id },
-          data: rest,
-        })
-      }
-
-      const [updatedVehicle] = await fastify.prisma.$queryRaw<any[]>`
-        SELECT 
-          id, 
-          vehicle_profile_id AS "vehicleProfileId", 
-          assigned_facility_id AS "assignedFacilityId", 
-          plate_number AS "plateNumber", 
-          created_at AS "createdAt", 
-          updated_at AS "updatedAt"
-        FROM physical_vehicles
-        WHERE id = ${id}
-      `
+      const updatedVehicle = await updatePhysicalVehicle(fastify, physicalVehicleId, req.body)
 
       return rep.code(200).send({
         message: 'Physical vehicle updated successfully',
@@ -141,14 +84,99 @@ export async function physicalVehicleRoutes(fastify: FastifyInstance) {
     { schema: DeletePhysicalVehicleSchema },
     async (req, rep) => {
       const { physicalVehicleId } = req.params
-      const id = parseId(physicalVehicleId)
 
-      await fastify.prisma.physicalVehicle.delete({
-        where: { id },
-      })
+      await deletePhysicalVehicle(fastify, physicalVehicleId)
 
       return rep.code(200).send({
         message: 'Physical vehicle deleted successfully',
+      })
+    }
+  )
+}
+
+export async function courierScheduleRoutes(fastify: FastifyInstance) {
+  fastify.post<{ Body: CreateCourierScheduleBody }>(
+    COURIER_SCHEDULE_PATHS.store,
+    { schema: CreateCourierScheduleSchema },
+    async (req, rep) => {
+      const courierSchedule = await createCourierSchedule(fastify, req.body)
+
+      return rep.code(201).send({
+        message: 'Courier schedule created successfully.',
+        data: courierSchedule,
+      })
+    }
+  )
+
+  fastify.put<{ Body: UpdateCourierScheduleBody; Params: UpdateCourierScheduleParams }>(
+    COURIER_SCHEDULE_PATHS.update,
+    { schema: UpdateCourierScheduleSchema },
+    async (req, rep) => {
+      const { courierScheduleId } = req.params
+
+      const updatedCourierSchedule = await updateCourierSchedule(fastify, courierScheduleId, req.body)
+
+      return rep.code(200).send({
+        message: 'Courier schedule updated successfully.',
+        data: updatedCourierSchedule,
+      })
+    }
+  )
+
+  fastify.delete<{ Params: DeleteCourierScheduleParams }>(
+    COURIER_SCHEDULE_PATHS.delete,
+    { schema: DeleteCourierScheduleSchema },
+    async (req, rep) => {
+      const { courierScheduleId } = req.params
+
+      await deleteCourierSchedule(fastify, courierScheduleId)
+
+      return rep.code(200).send({
+        message: 'Courier schedule deleted successfully.',
+      })
+    }
+  )
+}
+
+export async function dispatchLogRoutes(fastify: FastifyInstance) {
+  fastify.post<{ Body: CreateDispatchLogBody }>(
+    DISPATCH_LOG_PATHS.store,
+    { schema: CreateDispatchLogSchema },
+    async (req, rep) => {
+      const dispatchLog = await createDispatchLog(fastify, req.body)
+
+      return rep.code(201).send({
+        message: 'Dispatch log created successfully.',
+        data: dispatchLog,
+      })
+    }
+  )
+
+  fastify.put<{ Body: UpdateDispatchLogBody; Params: UpdateDispatchLogParams }>(
+    DISPATCH_LOG_PATHS.update,
+    { schema: UpdateDispatchLogSchema },
+    async (req, rep) => {
+      const { dispatchLogId } = req.params
+
+      const updatedDispatchLog = await updateDispatchLog(fastify, dispatchLogId, req.body)
+
+      return rep.code(200).send({
+        message: 'Dispatch log updated successfully.',
+        data: updatedDispatchLog,
+      })
+    }
+  )
+
+  fastify.delete<{ Params: DeleteDispatchLogParams }>(
+    DISPATCH_LOG_PATHS.delete,
+    { schema: DeleteDispatchLogSchema },
+    async (req, rep) => {
+      const { dispatchLogId } = req.params
+
+      await deleteDispatchLog(fastify, dispatchLogId)
+
+      return rep.code(200).send({
+        message: 'Dispatch log deleted successfully.',
       })
     }
   )

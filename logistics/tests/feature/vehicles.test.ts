@@ -1,14 +1,20 @@
 import { API_ROUTES } from "#commons/constants/routes.js";
 import { VehicleType } from "@prisma/client";
 import { FastifyInstance } from "fastify";
-import { describe, expect, test } from "vitest";
-import { createPhysicalVehicle, createVehicleProfile } from "../factory/vehicles.factory.js";
-import { createFacility } from "#factory";
+import { beforeAll, describe, expect, test } from "vitest";
+import { createCourierSchedule, createPhysicalVehicle, createVehicleProfile } from "../factory/vehicles.factory.js";
+import { createCourier, createFacility } from "#factory";
+import { createNetworkLeg } from "../factory/network-leg.factory.js";
 
 describe('Vehicle Domain', () => {
+  let app: FastifyInstance
+
+  beforeAll(() => {
+    app = (globalThis as any).app as FastifyInstance
+  })
+
   describe('Vehicle Profile Management', () => {
     test('a vehicle profile can be create', async () => {
-      const app = (globalThis as any).app as FastifyInstance
       const payload = {
         brand: 'Mitsubishi',
         modelName: 'L300',
@@ -50,7 +56,6 @@ describe('Vehicle Domain', () => {
     })
 
     test('a vehicle profile can be updated', async () => {
-      const app = (globalThis as any).app as FastifyInstance
       const createdProfile = await createVehicleProfile(app)
       const updatePayload = {
         variant: 'FB Body',
@@ -75,7 +80,6 @@ describe('Vehicle Domain', () => {
     })
 
     test('a vehicle profile can be deleted', async () => {
-      const app = (globalThis as any).app as FastifyInstance
       const createdProfile = await createVehicleProfile(app)
 
       const response = await app.inject({
@@ -95,9 +99,8 @@ describe('Vehicle Domain', () => {
     })
   })
 
-  describe('Physical Vehicle Management', async () => {
+  describe('Physical Vehicle Management', () => {
     test('a physical vehicle can be created', async () => {
-      const app = (globalThis as any).app as FastifyInstance
       const vehicleProfile = await createVehicleProfile(app)
       const facility = await createFacility(app)
       const payload = {
@@ -131,7 +134,6 @@ describe('Vehicle Domain', () => {
     })
 
     test('a physical vehicle can be updated', async () => {
-      const app = (globalThis as any).app as FastifyInstance
       const createdVehicle = await createPhysicalVehicle(app)
       const updatePayload = {
         plateNumber: 'NEW-8888',
@@ -158,8 +160,6 @@ describe('Vehicle Domain', () => {
     })
 
     test('a physical vehicle can be deleted', async () => {
-      const app = (globalThis as any).app as FastifyInstance
-
       const createdVehicle = await createPhysicalVehicle(app)
 
       const response = await app.inject({
@@ -174,6 +174,166 @@ describe('Vehicle Domain', () => {
 
       const deletedRecord = await app.prisma.physicalVehicle.findUnique({
         where: { id: createdVehicle.id },
+      })
+      expect(deletedRecord).toBeNull()
+    })
+  })
+
+  describe('Courier Schedule Management', () => {
+    test('a courier schedule can be created', async () => {
+      const physicalVehicle = await createPhysicalVehicle(app)
+      const networkLeg = await createNetworkLeg(app)
+
+      const payload = {
+        physicalVehicleId: physicalVehicle.id,
+        networkLegId: networkLeg.id,
+      }
+
+      const response = await app.inject({
+        method: 'POST',
+        url: API_ROUTES.vehicles.courierSchedule.store,
+        body: payload,
+      })
+
+      const body = response.json()
+
+      expect(response.statusCode).toBe(201)
+      expect(body.message).toBe('Courier schedule created successfully.')
+      expect(body.data).toMatchObject({
+        id: expect.any(Number),
+        physicalVehicleId: payload.physicalVehicleId,
+        networkLegId: payload.networkLegId,
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String),
+      })
+    })
+
+    test('a courier schedule can be updated', async () => {
+      const physicalVehicle = await createPhysicalVehicle(app)
+      const createdSchedule = await createCourierSchedule(app)
+
+      const updatePayload = {
+        physicalVehicleId: physicalVehicle.id,
+      }
+
+      const response = await app.inject({
+        method: 'PUT',
+        url: API_ROUTES.vehicles.courierSchedule.update(createdSchedule.id),
+        body: updatePayload,
+      })
+
+      const body = response.json()
+
+      expect(response.statusCode).toBe(200)
+      expect(body.message).toBe('Courier schedule updated successfully.')
+      expect(body.data).toMatchObject({
+        id: createdSchedule.id,
+        physicalVehicleId: updatePayload.physicalVehicleId,
+      })
+    })
+
+    test('a courier schedule can be deleted', async () => {
+      const createdSchedule = await createCourierSchedule(app)
+
+      const response = await app.inject({
+        method: 'DELETE',
+        url: API_ROUTES.vehicles.courierSchedule.delete(createdSchedule.id),
+      })
+
+      const body = response.json()
+
+      expect(response.statusCode).toBe(200)
+      expect(body.message).toBe('Courier schedule deleted successfully.')
+
+      const deletedRecord = await app.prisma.courierSchedule.findUnique({
+        where: { id: createdSchedule.id },
+      })
+      expect(deletedRecord).toBeNull()
+    })
+  })
+
+  describe('Dispatch Log Management', () => {
+    test('a dispatch log can be created', async () => {
+      const courier = await createCourier()
+      const facility = await createFacility(app)
+
+      const payload = {
+        assignedCourierId: courier.id,
+        originFacilityId: facility.id,
+        dispatchedAt: new Date().toISOString(),
+      }
+
+      const response = await app.inject({
+        method: 'POST',
+        url: API_ROUTES.vehicles.dispatchLog.store, // Ensure you have this path defined in API_ROUTES
+        body: payload,
+      })
+
+      const body = response.json()
+
+      expect(response.statusCode).toBe(201)
+      expect(body.message).toBe('Dispatch log created successfully.')
+      expect(body.data).toMatchObject({
+        id: expect.any(Number),
+        assignedCourierId: payload.assignedCourierId,
+        originFacilityId: payload.originFacilityId,
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String),
+      })
+    })
+
+    test('a dispatch log can be updated', async () => {
+      const courier = await createCourier()
+
+      const createdLog = await app.prisma.dispatchLog.create({
+        data: {
+          assignedCourierId: courier.id,
+          dispatchedAt: new Date(),
+        }
+      })
+
+      const updatePayload = {
+        arrivedAt: new Date().toISOString(),
+      }
+
+      const response = await app.inject({
+        method: 'PUT',
+        url: API_ROUTES.vehicles.dispatchLog.update(createdLog.id),
+        body: updatePayload,
+      })
+
+      const body = response.json()
+
+      expect(response.statusCode).toBe(200)
+      expect(body.message).toBe('Dispatch log updated successfully.')
+      expect(body.data).toMatchObject({
+        id: createdLog.id,
+        arrivedAt: expect.any(String),
+      })
+    })
+
+    test('a dispatch log can be deleted', async () => {
+      const courier = await createCourier()
+
+      const createdLog = await app.prisma.dispatchLog.create({
+        data: {
+          assignedCourierId: courier.id,
+          dispatchedAt: new Date(),
+        }
+      })
+
+      const response = await app.inject({
+        method: 'DELETE',
+        url: API_ROUTES.vehicles.dispatchLog.delete(createdLog.id),
+      })
+
+      const body = response.json()
+
+      expect(response.statusCode).toBe(200)
+      expect(body.message).toBe('Dispatch log deleted successfully.')
+
+      const deletedRecord = await app.prisma.dispatchLog.findUnique({
+        where: { id: createdLog.id },
       })
       expect(deletedRecord).toBeNull()
     })
