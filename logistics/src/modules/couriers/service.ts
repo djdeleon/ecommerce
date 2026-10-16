@@ -1,17 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { createUser } from "../users/service.js";
 import { CourierStatus } from "@prisma/client";
-
-interface RegisterCourierData {
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  phoneNumber: string;
-  vehicleType: string;
-  plateNumber: string;
-  status: CourierStatus;
-}
+import { RegisterCourierData } from "./schema.js";
 
 export async function dashboardData(fastify: FastifyInstance) {
     const couriers = await fastify.prisma.courier.findMany();
@@ -28,12 +18,11 @@ export async function registerCourier(fastify: FastifyInstance, data: RegisterCo
   const courier = await fastify.prisma.courier.create({
     data: {
       userId: user.id,
-      firstName: data.firstName,
-      lastName: data.lastName,
       phoneNumber: data.phoneNumber,
       vehicleType: data.vehicleType,
       plateNumber: data.plateNumber,
-      status: data.status
+      status: data.status,
+      assignedFacilityId: data.assignedFacilityId
     },
     include: {
       user: true

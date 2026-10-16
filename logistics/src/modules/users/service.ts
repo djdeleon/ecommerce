@@ -2,6 +2,8 @@ import { FastifyInstance } from "fastify"
 import { UserRole } from "@prisma/client";
 
 interface RegisterUserData {
+  firstName: string;
+  lastName: string;
   email: string;
   password: string;
   role: UserRole;
@@ -25,6 +27,8 @@ export async function createUser(fastify: FastifyInstance, data: any) {
 
   const user = await fastify.prisma.user.create({
     data: {
+      firstName: data.firstName,
+      lastName: data.lastName,
       email: data.email,
       password: hashedPassword,
       role: data.role

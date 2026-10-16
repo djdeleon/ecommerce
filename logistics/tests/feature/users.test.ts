@@ -17,6 +17,8 @@ describe('User HTTP Routes', () => {
       method: 'POST',
       url: API_ROUTES.users.register,
       body: {
+        firstName: 'Admin',
+        lastName: 'User',
         email: `user-${randomSuffix}@example.com`,
         password: 'secretPassword123',
         role: UserRole.Admin
@@ -41,6 +43,8 @@ describe('User HTTP Routes', () => {
       method: 'POST',
       url: API_ROUTES.users.register,
       body: {
+        firstName: 'Admin',
+        lastName: 'User',
         email: `user-${randomSuffix}@example.com`,
         password: 'secretPassword123',
         role: UserRole.Admin
@@ -53,6 +57,8 @@ describe('User HTTP Routes', () => {
       method: 'POST',
       url: API_ROUTES.users.register,
       body: {
+        firstName: 'Another',
+        lastName: 'Admin',
         email: user.email,
         password: 'secretPassword123',
         role: UserRole.Admin
@@ -70,6 +76,8 @@ describe('User HTTP Routes', () => {
       method: 'POST',
       url: API_ROUTES.users.register,
       body: {
+        firstName: 'Admin',
+        lastName: 'User',
         email: `user-${randomSuffix}@example.com`,
         password: 'secretPassword123',
         role: UserRole.Admin

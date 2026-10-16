@@ -1,41 +1,43 @@
 import { CourierStatus, UserRole } from "@prisma/client";
 import { createFacility } from "./facility.factory.js";
 import { FastifyInstance } from "fastify";
+import { createuser } from "./user.factory.js";
 
-export async function createCourier(overrides = {}, withNetwork = false) {
+export async function createCourier(overrides = {}) {
   const app = (globalThis as any).app as FastifyInstance
-  
   const randomSuffix = Math.floor(Math.random() * 10000);
-  let facilityId = (overrides as any).currentFacilityId;
 
-  if (!facilityId && withNetwork === true) {
-    const facility = await createFacility();
+  // 1. If assignedFacilityId is not provided in overrides, create a facility automatically
+  let facilityId = (overrides as any).assignedFacilityId;
+  if (!facilityId) {
+    const facility = await createFacility(app);
     facilityId = facility.id;
   }
 
-  const user = await app.prisma.user.create({
-    data: {
-      email: `user-${randomSuffix}@example.com`,
-      password: 'secretPassword123',
-      role: UserRole.Courier
-    }
+  // 2. A courier requires a user (UserRole.Courier)
+  const { user } = await createuser(UserRole.Courier, {
+    email: `courier-${randomSuffix}@example.com`,
+    password: 'secretPassword123',
+    ...(overrides as any).userOverrides,
   })
 
+  // 3. Clean up temporary override helpers before spreading into prisma create
+  const { userOverrides: _, assignedFacilityId: __, ...cleanOverrides } = overrides as any;
+
+  // 4. Create the courier matching your exact schema fields
   return await app.prisma.courier.create({
     data: {
       userId: user.id,
-      firstName: "Fastification",
-      lastName: "JavaScript",
-      phoneNumber: `09${Math.floor(100000000 + Math.random() * 900000000)}`, // Random 11-digit string
+      phoneNumber: `09${Math.floor(100000000 + Math.random() * 900000000)}`,
       vehicleType: "truck",
       plateNumber: `ABC-${randomSuffix}`,
       status: CourierStatus.Available,
-      currentFacilityId: facilityId,
-      ...overrides,
+      assignedFacilityId: facilityId,
+      ...cleanOverrides,
     },
     include: {
-      currentFacility: true,
-      user: true
+      assignedFacility: true,
+      user: true,
     }
   });
 }

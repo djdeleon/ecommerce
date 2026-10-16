@@ -33,6 +33,7 @@ export default async function facilityRoutes(fastify: FastifyInstance) {
     Body: AssignBody,
     Params: AssignParams
   }>(AssignSchema.url, { schema: AssignSchema, preHandler: [userAuth] }, async (req, rep) => {
+    console.log('patch')
     const data = await updateFacility(fastify, {
       facilityId: parseId(req.params.facilityId),
       courierId: req.body.courierId

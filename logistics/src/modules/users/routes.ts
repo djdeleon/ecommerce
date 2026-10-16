@@ -5,6 +5,8 @@ import { loginUser, registerUser } from "./service.js"
 export default async function userRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: RegisterBody }>(RegisterSchema.url, { schema: RegisterSchema }, async (req, rep) => {
     const data = await registerUser(fastify, {
+      firstName: req.body.firstName,
+      lastName: req.body.lastName,
       email: req.body.email,
       password: req.body.password,
       role: req.body.role,

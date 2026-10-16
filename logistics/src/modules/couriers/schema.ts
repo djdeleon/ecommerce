@@ -43,7 +43,11 @@ export const StoreSchema = {
       description: "Official vehicle license plate number",
       examples: ["ABC-1234"]
     }),
-    status: Type.Enum(CourierStatus)
+    status: Type.Enum(CourierStatus),
+    assignedFacilityId: Type.Integer({
+      minimum: 1,
+      description: "ID of the assigned facility where the courier reports"
+    })
   }),
   response: {
     201: Type.Object({
@@ -52,12 +56,22 @@ export const StoreSchema = {
         courier: Type.Object({
           id: Type.Number(),
           userId: Type.Number(),
-          firstName: Type.String(),
-          lastName: Type.String(),
           phoneNumber: Type.String(),
           vehicleType: Type.String(),
           plateNumber: Type.String(),
           status: Type.Enum(CourierStatus),
+          assignedFacilityId: Type.Number(),
+          createdAt: Type.String(),
+          updatedAt: Type.String(),
+          user: Type.Object({
+            id: Type.Number(),
+            firstName: Type.String(),
+            lastName: Type.String(),
+            email: Type.String(),
+            role: Type.String(),
+            createdAt: Type.String(),
+            updatedAt: Type.String(),
+          }),
         }),
         token: Type.String()
       })
@@ -72,4 +86,7 @@ export const IndexSchema = {
   url: COURIER_PATHS.index,
 }
 
+const RegisterCourierDataSchema = StoreSchema.body
+
 export type StoreBody = Static<typeof StoreSchema.body>
+export type RegisterCourierData = Static<typeof RegisterCourierDataSchema>

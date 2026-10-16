@@ -84,8 +84,8 @@ class LogisiticService
                 'declared_value' => 1250.00
             ],
             'order_info' => [
-                'order_id' => '260924ABC123XYZ',
-                'tracking_number' => 'FSTFY5947F86756PH',
+                'order_id' => $orderPackage->maskedOrderId(),
+                'tracking_number' => 'FSTFYFD70A0F4CEPH',
                 'service_type' => 'Standard Delivery',
                 'payment_method' => 'online',
                 'cod_amount' => 1250.00,
@@ -95,8 +95,8 @@ class LogisiticService
 
         $rawBody = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-        $apiKey = 'apk_75be549890f8d07a8090b6ecb7bc66c6';
-        $apiSecret = '35ee3a8d87204183876610daf3c77b390dcd3675e493397706d75cb1227a4a84';
+        $apiKey = 'apk_3a5b4c33b691f9ba0663ce2c81d8b3c7';
+        $apiSecret = '746fd12df8bed9931f7df94b56f33924804da1647162eabf008ba205e8279efe';
         $signature = $this->calculateSignature($rawBody, $apiSecret);
 
         dump($signature);
@@ -108,6 +108,19 @@ class LogisiticService
         ])->post('http://logistics:8000/parcels', $payload);
 
         dd($response->json());
+
+        if ($response->json()['success']) {
+            $data = $response->json()->data;
+
+            $orderPackage->orderPackageShipmentLogs()->create([
+                'tracking_number' => $data['tracking_number'],
+                'logistics_status' => $data['status'],
+                'sorting_code_cache' => $data['sorting_code'],
+                'routing_pipeline_cache' => $data['pipeline'],
+            ]);
+
+            $waybillUrl = "http://logistics:8000/{$data['tracking_number']}/waybill";
+        }
 
         // $facility = $orderPackage->orderPackageItems[0]->orderPackageItemFacilities[0];
         // $payload = [
