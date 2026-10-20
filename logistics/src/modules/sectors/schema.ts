@@ -17,6 +17,7 @@ export const SectorSchema = Type.Object({
   code: Type.String({ minLength: 3, maxLength: 15 }),
   localBranchId: Type.Integer({ minimum: 1 }),
   zone: GeoJsonPolygonSchema,
+  barangayIds: Type.Optional(Type.Array(Type.String())),
   createdAt: Type.String({ format: 'date-time' }),
   updatedAt: Type.String({ format: 'date-time' }),
 })

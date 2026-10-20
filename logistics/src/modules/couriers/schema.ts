@@ -37,17 +37,7 @@ export const StoreSchema = {
       description: "Type of vehicle used for deliveries",
       examples: ["Motorcycle", "Van", "Bicycle", "Car"]
     }),
-    plateNumber: Type.String({
-      minLength: 4,
-      maxLength: 15,
-      description: "Official vehicle license plate number",
-      examples: ["ABC-1234"]
-    }),
     status: Type.Enum(CourierStatus),
-    assignedFacilityId: Type.Integer({
-      minimum: 1,
-      description: "ID of the assigned facility where the courier reports"
-    })
   }),
   response: {
     201: Type.Object({

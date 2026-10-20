@@ -3,11 +3,15 @@ import { PrismaClient } from "@prisma/client/extension";
 import crypto from "crypto"
 
 interface GenerateTrackingNumberData {
-  clientId: number;
+  apiKey: string;
   size: number;
 }
 
 export async function generateTrackingNumbers(data: GenerateTrackingNumberData) {
+  const { id: clientId } = await prisma.client.findUniqueOrThrow({
+    where: { apiKey: data.apiKey },
+    select: { id: true }
+  })
   const trackingNumbers = [];
   const CHUNK_SIZE = 1000;
 
@@ -18,7 +22,7 @@ export async function generateTrackingNumbers(data: GenerateTrackingNumberData) 
     const trackingNumber = `${prefix}${body}${suffix}`
 
     trackingNumbers.push({
-      clientId: data.clientId,
+      clientId,
       trackingNumber
     })
 
@@ -40,7 +44,8 @@ export async function generateTrackingNumbers(data: GenerateTrackingNumberData) 
   }
 
   return await prisma.trackingNumberPool.findMany({
-    where: { clientId: data.clientId }
+    where: { clientId },
+    select: { trackingNumber: true }
   })
 }
 
