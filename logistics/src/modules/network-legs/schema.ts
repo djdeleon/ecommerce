@@ -25,7 +25,7 @@ export const NetworkLegSchema = Type.Object({
   destinationFacilityId: Type.Integer({ minimum: 1 }),
   laneCode: Type.String({ minLength: 2, maxLength: 20 }),
   route: GeoJsonLineStringSchema,
-  distanceKm: Type.Integer({ minimum: 1 }),
+  distanceMtr: Type.Integer({ minimum: 1 }),
   vehicleProfile: Type.String({ minLength: 1, maxLength: 50 }),
   baseTransitDuration: Type.Integer({ minimum: 1 }), // in seconds
   mode: TransitModeEnum,

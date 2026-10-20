@@ -25,12 +25,15 @@ export async function seedGeographicAreas(prisma: PrismaClient) {
   try {
     const { regions, provinces, cities, barangays } = getParsedGeoData();
 
-    if (regions.length || provinces.length || cities.length || barangays.length) {
+    // Exit early ONLY if the arrays are completely empty (Parsing failed)
+    if (!regions.length && !provinces.length && !cities.length && !barangays.length) {
+      console.warn("No geographic data found to inject. Aborting execution.");
       return;
     }
 
     console.log(`Injecting pre-cached geodata: ${regions.length} Regions, ${provinces.length} Provinces, ${cities.length} Cities, ${barangays.length} Barangays...`);
 
+    // Clean out any stale relational elements safely in reverse order
     await prisma.$transaction([
       prisma.barangay.deleteMany(),
       prisma.city.deleteMany(),
@@ -38,21 +41,22 @@ export async function seedGeographicAreas(prisma: PrismaClient) {
       prisma.region.deleteMany(),
     ]);
 
-    // Hydrate tables (No truncate needed here since your setup.ts handles it)
+    // Hydrate top-tier records (Safe with direct database primary key anchors)
     await prisma.region.createMany({ data: regions, skipDuplicates: true });
     await prisma.province.createMany({ data: provinces, skipDuplicates: true });
     await prisma.city.createMany({ data: cities, skipDuplicates: true });
 
-    // Chunk barangay insertions to protect PostgreSQL parameter limits
+    // Chunk barangay insertions to protect PostgreSQL parameter/payload limits
     const chunkSize = 5000;
     for (let i = 0; i < barangays.length; i += chunkSize) {
       const chunk = barangays.slice(i, i + chunkSize);
       await prisma.barangay.createMany({ data: chunk, skipDuplicates: true });
+      console.log(`Progress: Injected ${Math.min(i + chunkSize, barangays.length)} / ${barangays.length} Barangays...`);
     }
 
-    console.log("✅ Geodata insertion complete!");
+    console.log("Geodata insertion complete!");
   } catch (error) {
-    console.error("❌ Seeding process failed:", error);
+    console.error("Seeding process failed:", error);
   }
 }
 

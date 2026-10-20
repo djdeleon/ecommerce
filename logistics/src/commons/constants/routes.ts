@@ -2,6 +2,7 @@ import { compilePath } from "#commons/utils/path-compiler.js";
 import { CLIENT_PATHS } from "../../modules/clients/schema.js";
 import { COURIER_PATHS } from "../../modules/couriers/schema.js";
 import { FACILITY_PATHS } from "../../modules/facilities/schema.js";
+import { MANIFEST_PATHS } from "../../modules/manifests/schema.js";
 import { NETWORK_LEG_PATHS } from "../../modules/network-legs/schema.js";
 import { PARCEL_PATHS } from "../../modules/parcels/schema.js";
 import { SECTOR_PATHS } from "../../modules/sectors/schema.js";
@@ -54,12 +55,12 @@ export const API_ROUTES = {
       store: VEHICLE_PROFILE_PATHS.store,
       update: (vehicleProfileId: string | number) => {
         const staticFullUrl = VEHICLE_PROFILE_PATHS.update
-  
+
         return compilePath(staticFullUrl, { vehicleProfileId })
       },
       delete: (vehicleProfileId: string | number) => {
         const staticFullUrl = VEHICLE_PROFILE_PATHS.delete
-  
+
         return compilePath(staticFullUrl, { vehicleProfileId })
       },
     },
@@ -67,12 +68,12 @@ export const API_ROUTES = {
       store: PHYSICAL_VEHICLE_PATHS.store,
       update: (physicalVehicleId: string | number) => {
         const staticFullUrl = PHYSICAL_VEHICLE_PATHS.update
-  
+
         return compilePath(staticFullUrl, { physicalVehicleId })
       },
       delete: (physicalVehicleId: string | number) => {
         const staticFullUrl = PHYSICAL_VEHICLE_PATHS.update
-  
+
         return compilePath(staticFullUrl, { physicalVehicleId })
       },
     },
@@ -80,12 +81,12 @@ export const API_ROUTES = {
       store: COURIER_SCHEDULE_PATHS.store,
       update: (courierScheduleId: string | number) => {
         const staticFullUrl = COURIER_SCHEDULE_PATHS.update
-  
+
         return compilePath(staticFullUrl, { courierScheduleId })
       },
       delete: (courierScheduleId: string | number) => {
         const staticFullUrl = COURIER_SCHEDULE_PATHS.update
-  
+
         return compilePath(staticFullUrl, { courierScheduleId })
       },
     },
@@ -93,12 +94,12 @@ export const API_ROUTES = {
       store: DISPATCH_LOG_PATHS.store,
       update: (dispatchLogId: string | number) => {
         const staticFullUrl = DISPATCH_LOG_PATHS.update
-  
+
         return compilePath(staticFullUrl, { dispatchLogId })
       },
       delete: (dispatchLogId: string | number) => {
         const staticFullUrl = DISPATCH_LOG_PATHS.update
-  
+
         return compilePath(staticFullUrl, { dispatchLogId })
       },
     },
@@ -134,12 +135,12 @@ export const API_ROUTES = {
       store: SORTATION_BATCH_PATHS.store,
       update: (sortingBatchId: string | number) => {
         const staticFullUrl = SORTATION_BATCH_PATHS.update
-  
+
         return compilePath(staticFullUrl, { sortingBatchId })
       },
       delete: (sortingBatchId: string | number) => {
         const staticFullUrl = SORTATION_BATCH_PATHS.update
-  
+
         return compilePath(staticFullUrl, { sortingBatchId })
       },
     },
@@ -147,12 +148,12 @@ export const API_ROUTES = {
       store: MASTER_BAG_PATHS.store,
       update: (masterBagId: string | number) => {
         const staticFullUrl = MASTER_BAG_PATHS.update
-  
+
         return compilePath(staticFullUrl, { masterBagId })
       },
       delete: (masterBagId: string | number) => {
         const staticFullUrl = MASTER_BAG_PATHS.update
-  
+
         return compilePath(staticFullUrl, { masterBagId })
       },
     },
@@ -160,14 +161,18 @@ export const API_ROUTES = {
       store: FACILITY_CHUTE_PATHS.store,
       update: (facilityChuteId: string | number) => {
         const staticFullUrl = FACILITY_CHUTE_PATHS.update
-  
+
         return compilePath(staticFullUrl, { facilityChuteId })
       },
       delete: (facilityChuteId: string | number) => {
         const staticFullUrl = FACILITY_CHUTE_PATHS.update
-  
+
         return compilePath(staticFullUrl, { facilityChuteId })
       },
     },
+  },
+  manifest: {
+    index: MANIFEST_PATHS.index,
+    store: MANIFEST_PATHS.store,
   },
 }

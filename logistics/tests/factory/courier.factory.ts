@@ -1,43 +1,24 @@
 import { CourierStatus, UserRole } from "@prisma/client";
-import { createFacility } from "./facility.factory.js";
 import { FastifyInstance } from "fastify";
 import { createuser } from "./user.factory.js";
+import { registerCourier } from "../../src/modules/couriers/service.js";
 
-export async function createCourier(overrides = {}) {
-  const app = (globalThis as any).app as FastifyInstance
+export async function createCourier(fastify: FastifyInstance, overrides: any = {}) {
   const randomSuffix = Math.floor(Math.random() * 10000);
 
-  // 1. If assignedFacilityId is not provided in overrides, create a facility automatically
-  let facilityId = (overrides as any).assignedFacilityId;
-  if (!facilityId) {
-    const facility = await createFacility(app);
-    facilityId = facility.id;
-  }
+  const { userOverrides, ...courierOverride } = overrides
 
-  // 2. A courier requires a user (UserRole.Courier)
-  const { user } = await createuser(UserRole.Courier, {
+  const payload = {
     email: `courier-${randomSuffix}@example.com`,
     password: 'secretPassword123',
-    ...(overrides as any).userOverrides,
-  })
+    phoneNumber: `09${Math.floor(100000000 + Math.random() * 900000000)}`,
+    vehicleType: "truck",
+    status: CourierStatus.Available,
+    firstName: 'Test User',
+    lastName: 'Test Last Name',
+    ...overrides.userOverrides,
+    ...courierOverride
+  }
 
-  // 3. Clean up temporary override helpers before spreading into prisma create
-  const { userOverrides: _, assignedFacilityId: __, ...cleanOverrides } = overrides as any;
-
-  // 4. Create the courier matching your exact schema fields
-  return await app.prisma.courier.create({
-    data: {
-      userId: user.id,
-      phoneNumber: `09${Math.floor(100000000 + Math.random() * 900000000)}`,
-      vehicleType: "truck",
-      plateNumber: `ABC-${randomSuffix}`,
-      status: CourierStatus.Available,
-      assignedFacilityId: facilityId,
-      ...cleanOverrides,
-    },
-    include: {
-      assignedFacility: true,
-      user: true,
-    }
-  });
+  return await registerCourier(fastify, payload)
 }

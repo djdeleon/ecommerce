@@ -3,10 +3,10 @@ import { CreateSectorBody, UpdateSectorBody } from "./schema.js";
 import parseId from "#commons/utils/id-parser.js";
 
 export async function createSector(
-  fastify: FastifyInstance, 
+  fastify: FastifyInstance,
   data: CreateSectorBody
 ) {
-  const { code, localBranchId, zone } = data
+  const { code, localBranchId, zone, barangayIds } = data
 
   const [sector] = await fastify.prisma.$queryRaw<any[]>`
     INSERT INTO "sectors" ("code", "local_branch_id", "zone", "created_at", "updated_at")
@@ -25,6 +25,13 @@ export async function createSector(
       "updated_at" AS "updatedAt"
   `
 
+  if (barangayIds) {
+    await fastify.prisma.barangay.updateMany({
+      where: { id: { in: barangayIds } },
+      data: { sectorId: sector.id }
+    })
+  }
+
   return sector
 }
 
@@ -33,7 +40,7 @@ export async function updateSector(
   idParam: string,
   data: UpdateSectorBody
 ) {
-  const { code, localBranchId, zone } = data
+  const { code, localBranchId, zone, barangayIds } = data
   const id = parseId(idParam)
 
   if (zone) {
@@ -66,6 +73,13 @@ export async function updateSector(
     FROM "sectors"
     WHERE id = ${id}
   `
+
+  if (barangayIds) {
+    await fastify.prisma.barangay.updateMany({
+      where: { id: { in: barangayIds } },
+      data: { sectorId: updatedSector.id }
+    })
+  }
 
   return updatedSector
 }

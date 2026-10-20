@@ -4,7 +4,7 @@ import { createStore } from "../stores/service.js";
 import { PrismaClient } from "@prisma/client/extension";
 import { prisma as db } from "#commons/database/prisma.js";
 import { activateTrackingNumber } from "../tracking-numbers/service.js";
-import { FacilityType } from "@prisma/client";
+import { FacilityType, ShipmentStatus } from "@prisma/client";
 
 export interface StructuredAddress {
   region: string;
@@ -42,11 +42,10 @@ export interface OrderInfo {
   tracking_number: string;
   service_type: string;
   payment_method: string;
-  cod_amount: number;
-  currency: string;
 }
 
 export interface CreateParcelData {
+  apiKey: string;
   merchant_details: MerchantDetails;
   customer_details: CustomerDetails;
   parcel_info: ParcelInfo;
@@ -122,6 +121,13 @@ export async function createParcel(prisma: PrismaClient, data: CreateParcelData)
   //   routingPipelineCache,
   //   sortingCodeCache
   // })
+
+  const clientId = (await prisma.client.findUniqueOrThrow({
+    where: { apiKey: data.apiKey },
+  })).id
+
+  await activateTrackingNumber(clientId, order_info.tracking_number, prisma)
+
   const [matchingSellerSector] = await prisma.$queryRaw<any[]>`
     SELECT id FROM "sectors"
     WHERE ST_Contains(
@@ -129,6 +135,9 @@ export async function createParcel(prisma: PrismaClient, data: CreateParcelData)
       ST_SetSRID(ST_MakePoint(${merchantLng}, ${merchantLat}), 4326)
     );
   `;
+  if (!matchingSellerSector) {
+      throw new Error(`No Near Sector Facility`);
+  }
 
   console.log(matchingSellerSector.id)
 
@@ -150,6 +159,7 @@ export async function createParcel(prisma: PrismaClient, data: CreateParcelData)
     );
   `;
 
+
   console.log(matchingBuyerSector.id)
 
   // this sector can point to the city if you store the city code as a prefix of the sector's code, and bubble up from there
@@ -163,6 +173,7 @@ export async function createParcel(prisma: PrismaClient, data: CreateParcelData)
   console.log(matchingBuyerSectorData)
 
   const sortingCode = matchingBuyerSectorData.code
+  console.log({sortingCode})
 
   const sortingCodeSegments = sortingCode.split('-')
   const regKey = sortingCode.substring(0, 3)
@@ -188,16 +199,16 @@ export async function createParcel(prisma: PrismaClient, data: CreateParcelData)
   // console.log(matchingSellerSectorData.code)
 
 
-  const megaGateway = await prisma.megaGateway.findFirstOrThrow({
-    where: { coverageCode: regKey }
-  })
+  // const megaGateway = await prisma.megaGateway.findFirstOrThrow({
+  //   where: { coverageCode: regKey }
+  // })
 
-  const distributionCenter = await prisma.distributionCenter.findFirstOrThrow({
-    where: { coverageCode: provKey }
-  })
+  // const distributionCenter = await prisma.distributionCenter.findFirstOrThrow({
+  //   where: { coverageCode: provKey }
+  // })
 
-  console.log(megaGateway)
-  console.log(distributionCenter)
+  // console.log(megaGateway)
+  // console.log(distributionCenter)
   console.log(matchingBuyerSectorData.localBranch.name)
 
   console.log(matchingSellerSectorData.localBranch)
@@ -245,33 +256,20 @@ export async function createParcel(prisma: PrismaClient, data: CreateParcelData)
     // - the last freight should arrive 1 hour before the cutoff.
     // - - we have to take into account the parcel preparation for the vehicle, the freight, the offloading, 
     // - - - also every when a facility runs the sortation?
-    console.log(sellerLocalBranchNearestFacility)
-    const facilityDelegates: any = {
-      [FacilityType.LocalBranch]: prisma.localBranch,
-      [FacilityType.DistributionCenter]: prisma.distributionCenter,
-      [FacilityType.MegaGateway]: prisma.megaGateway,
-    }
+    console.log({sellerLocalBranchNearestFacility})
 
-    const delegate = facilityDelegates[sellerLocalBranchNearestFacility.destinationFacility];
-
-    if (!delegate) {
-      throw new Error(`Unsupported facility type: ${sellerLocalBranchNearestFacility.destinationFacility}`);
-    }
-
-    const nearestFacility = await delegate.findFirstOrThrow({
+    const nearestFacility = await prisma.facility.findFirstOrThrow({
       where: { id: sellerLocalBranchNearestFacility.destinationFacilityId }
     });
     
-    routingPipelineCache = `${matchingSellerSectorData.localBranch.name} -> ${nearestFacility.name} -> ${sectorKey}`
+    routingPipelineCache = `${matchingSellerSectorData.localBranch.name} -> ${nearestFacility.name} -> ${matchingBuyerSectorData.localBranch.name} -> ${sectorKey}`
   }
 
   else {
     routingPipelineCache = `${megaGateway.name} -> ${distributionCenter.name} -> ${matchingBuyerSectorData.localBranch.name}`
   }
 
-
-  console.log(routingPipelineCache)
-  process.exit(1)
+  console.log({routingPipelineCache})
 
   // const { province, city, barangay } = customer_details.delivery_address;
   // const { sortingCodeCache, routingPipelineCache } = generateSortingCodes(province, city, barangay)
@@ -290,38 +288,68 @@ export async function createParcel(prisma: PrismaClient, data: CreateParcelData)
 
   console.log(store)
 
+  const volumetricWeight = (parcel_info.length_cm * parcel_info.height_cm * parcel_info.width_cm) / 1000000
+  console.log({volumetricWeight})
+
   const [parcel] = await prisma.$queryRaw<any[]>`
     INSERT INTO "parcels" (
       "tracking_number",
       "external_order_id",
+
       "weight_grams",
       "length_cm",
       "height_cm",
       "width_cm",
+      "calculated_cbm",
       "declared_value",
+
+      "origin_sector_id",
+      "current_sector_id",
+      "destination_sector_id",
+
       "origin_facility_id",
       "destination_facility_id",
+      "current_facility_id",
+
       "sorting_code_cache",
       "routing_pipeline_cache",
+
       "store_id",
+
+      "status",
+
       "customer_name",
       "customer_phone",
       "customer_address",
       "customer_location",
+
       "updated_at"
     ) VALUES (
       ${order_info.tracking_number},
       ${order_info.order_id},
+
       ${parcel_info.weight_grams},
       ${parcel_info.length_cm},
       ${parcel_info.height_cm},
       ${parcel_info.width_cm},
+      ${volumetricWeight},
       ${parcel_info.declared_value},
-      ${closestOriginHub.id},
-      ${closestDestinationHub.id},
-      ${sortingCodeCache},
+
+      ${matchingSellerSectorData.id},
+      null,
+      ${matchingBuyerSectorData.id},
+
+      ${matchingSellerSectorData.localBranch.id},
+      ${matchingBuyerSectorData.localBranch.id},
+      null,
+
+      ${sortingCode},
       ${routingPipelineCache},
+
       ${store.id},
+
+      'ready_for_pickup'::shipment_status,
+
       ${customer_details.name},
       ${customer_details.contact_number},
       ${customer_details.delivery_address.full_address},

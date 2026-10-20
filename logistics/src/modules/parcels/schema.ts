@@ -7,7 +7,7 @@ export const PARCEL_PATHS = {
 
 const AddressSchema = Type.Object({
   region: Type.String({ minLength: 2 }),
-  province: Type.String({ minLength: 2 }),
+  province: Type.Union([Type.String({ minLength: 2 }), Type.Null()]),
   city: Type.String({ minLength: 2 }),
   barangay: Type.String({ minLength: 2 }),
   full_address: Type.String({ minLength: 5 }),
@@ -29,7 +29,12 @@ export const StoreSchema = {
     merchant_details: Type.Object({
       name: Type.String({
         minLength: 2,
-        description: "Name of the merchant store or sender",
+        description: "Name of the sender",
+        examples: ["Johnny Dee"]
+      }),
+      shop_name: Type.String({
+        minLength: 2,
+        description: "Name of the merchant store",
         examples: ["Acme E-Commerce Store"]
       }),
       contact_number: Type.String({
@@ -110,16 +115,6 @@ export const StoreSchema = {
         minLength: 2,
         description: "Payment mode used by the customer",
         examples: ["COD", "Prepaid", "Credit Card"]
-      }),
-      cod_amount: Type.Number({
-        minimum: 0,
-        description: "Cash on delivery amount to be collected (0 if fully prepaid)"
-      }),
-      currency: Type.String({
-        minLength: 3,
-        maxLength: 3,
-        description: "ISO 4217 currency code",
-        examples: ["PHP", "USD"]
       }),
     })
   })

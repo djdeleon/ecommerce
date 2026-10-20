@@ -16,7 +16,7 @@ export async function createClient(name: string) {
 
   console.log(`SAVE: ${plainTextSecret}`)
 
-  return prisma.client.create({
+  const client = await prisma.client.create({
     data: {
       name,
       apiKey,
@@ -25,4 +25,6 @@ export async function createClient(name: string) {
       webhookSecret: encryptedWebhookSecret
     }
   })
+
+  return { client, plainTextSecret }
 }

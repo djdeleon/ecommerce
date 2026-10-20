@@ -1,18 +1,19 @@
 import { FastifyInstance } from "fastify";
 import { createFacility } from "./facility.factory.js";
+import { createSector as createSectorService } from "../../src/modules/sectors/service.js";
 
-export async function createSector(fastify: FastifyInstance, overrides = {}) {
+export async function createSector(fastify: FastifyInstance, overrides: any = {}) {
   const randomSuffix = Math.floor(Math.random() * 100);
-  
-  let localBranchId = (overrides as any).localBranchId;
+
+  let localBranchId = overrides.localBranchId;
   if (!localBranchId) {
     const facility = await createFacility(fastify);
     localBranchId = facility.id;
   }
 
-  const code = (overrides as any).code ?? `R03-BUL-SJD-${randomSuffix.toString()}`;
+  const code = overrides.code ?? `R03-BUL-SJD-${randomSuffix.toString()}`;
 
-  const zone = (overrides as any).zone ?? {
+  const zone = overrides.zone ?? {
     type: "Polygon",
     coordinates: [
       [
@@ -25,22 +26,10 @@ export async function createSector(fastify: FastifyInstance, overrides = {}) {
     ]
   };
 
-  const [sector] = await fastify.prisma.$queryRaw<any[]>`
-    INSERT INTO "sectors" ("code", "local_branch_id", "zone", "created_at", "updated_at")
-    VALUES (
-      ${code}, 
-      ${localBranchId}, 
-      ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(zone)}), 4326),
-      NOW(),
-      NOW()
-    )
-    RETURNING 
-      id, 
-      code, 
-      "local_branch_id" AS "localBranchId", 
-      "created_at" AS "createdAt", 
-      "updated_at" AS "updatedAt"
-  `;
-
-  return sector;
+  return await createSectorService(fastify, {
+    code,
+    localBranchId,
+    zone,
+    barangayIds: overrides.barangayIds
+  })
 }

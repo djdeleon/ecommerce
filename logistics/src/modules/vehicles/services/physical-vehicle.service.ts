@@ -3,18 +3,15 @@ import { CreatePhysicalVehicleBody, UpdatePhysicalVehicleBody } from "../schemas
 import parseId from "#commons/utils/id-parser.js";
 
 export async function createPhysicalVehicle(
-  fastify: FastifyInstance, 
+  fastify: FastifyInstance,
   data: CreatePhysicalVehicleBody
 ) {
-  const { gps, ...rest } = data
-
   const [physicalVehicle] = await fastify.prisma.$queryRaw<any[]>`
-    INSERT INTO physical_vehicles (vehicle_profile_id, assigned_facility_id, plate_number, gps, created_at, updated_at)
+    INSERT INTO physical_vehicles (vehicle_profile_id, assigned_facility_id, plate_number, created_at, updated_at)
     VALUES (
-      ${rest.vehicleProfileId}, 
-      ${rest.assignedFacilityId}, 
-      ${rest.plateNumber}, 
-      ST_SetSRID(ST_MakePoint(${gps.longitude}, ${gps.latitude}), 4326),
+      ${data.vehicleProfileId}, 
+      ${data.assignedFacilityId}, 
+      ${data.plateNumber}, 
       NOW(),
       NOW()
     )
@@ -36,25 +33,11 @@ export async function updatePhysicalVehicle(
   data: UpdatePhysicalVehicleBody
 ) {
   const id = parseId(idParam)
-  const { gps, ...rest } = data
 
-  if (gps) {
-    await fastify.prisma.$executeRaw`
-      UPDATE physical_vehicles
-      SET 
-        plate_number = COALESCE(${rest.plateNumber ?? null}, plate_number),
-        vehicle_profile_id = COALESCE(${rest.vehicleProfileId ?? null}, vehicle_profile_id),
-        assigned_facility_id = COALESCE(${rest.assignedFacilityId ?? null}, assigned_facility_id),
-        gps = ST_SetSRID(ST_MakePoint(${gps.longitude}, ${gps.latitude}), 4326),
-        updated_at = NOW()
-      WHERE id = ${id}
-    `
-  } else {
-    await fastify.prisma.physicalVehicle.update({
-      where: { id },
-      data: rest,
-    })
-  }
+  await fastify.prisma.physicalVehicle.update({
+    where: { id },
+    data
+  })
 
   const [updatedVehicle] = await fastify.prisma.$queryRaw<any[]>`
     SELECT 

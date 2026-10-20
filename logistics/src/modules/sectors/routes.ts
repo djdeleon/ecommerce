@@ -9,7 +9,6 @@ import {
   UpdateSectorSchema,
   SECTOR_PATHS
 } from "./schema.js";
-import parseId from "#commons/utils/id-parser.js";
 import { createSector, deleteSector, updateSector } from "./service.js";
 
 export default async function sectorRoutes(fastify: FastifyInstance) {

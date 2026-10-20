@@ -6,17 +6,11 @@ export const PHYSICAL_VEHICLE_PATHS = {
   delete: '/physical-vehicles/:physicalVehicleId',
 } as const;
 
-export const GpsPointSchema = Type.Object({
-  latitude: Type.Number({ minimum: -90, maximum: 90 }),
-  longitude: Type.Number({ minimum: -180, maximum: 180 }),
-})
-
 export const PhysicalVehicleSchema = Type.Object({
   id: Type.Integer({ minimum: 1 }),
   vehicleProfileId: Type.Integer({ minimum: 1 }),
   assignedFacilityId: Type.Integer({ minimum: 1 }),
   plateNumber: Type.String({ minLength: 1, maxLength: 20 }),
-  gps: GpsPointSchema,
   createdAt: Type.String({ format: 'date-time' }),
   updatedAt: Type.String({ format: 'date-time' }),
 })

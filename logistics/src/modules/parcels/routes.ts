@@ -9,14 +9,32 @@ import JsBarcode from "jsbarcode";
 import { DOMImplementation, XMLSerializer } from "@xmldom/xmldom";
 
 export default async function parcelRoutes(fastify: FastifyInstance) {
+  fastify.post('/api/shipments/book', async (req, rep) => {
+    const body = req.body as any;
+    
+    req.log.info(`Received shipment booking for order: ${body.order_reference}`);
+
+    // Return success back to Laravel
+    return rep.code(201).send({
+      success: true,
+      message: 'Shipment successfully booked in logistics engine',
+      tracking_code: `TRK-${Math.random().toString(36).substring(7).toUpperCase()}`
+    });
+  })
+
+
+
+
   fastify.post<{ Body: StoreBody }>(StoreSchema.url, {
     schema: StoreSchema,
     // preHandler: [parcelAuth]
   }, async (req, rep) => {
     const { merchant_details, order_info, parcel_info, customer_details } = req.body
+    const apiKey = req.headers['x-api-key'] as any;
 
     const parcel = await fastify.prisma.$transaction(async (tx) => {
       const parcel = await createParcel(tx, {
+        apiKey,
         merchant_details,
         customer_details,
         order_info,
@@ -25,10 +43,8 @@ export default async function parcelRoutes(fastify: FastifyInstance) {
 
       await createTrackingLog(tx, {
         parcelId: parcel.id,
-        status: ShipmentStatus.PendingPickup,
+        status: ShipmentStatus.ReadyForPickup,
       })
-
-      await activateTrackingNumber((req as any).clientId, order_info.tracking_number, tx)
 
       return parcel
     })
@@ -36,15 +52,16 @@ export default async function parcelRoutes(fastify: FastifyInstance) {
     return rep.status(201).send({
       status: true,
       message: 'Parcel booked successfully.',
-      data: {
-        "tracking_number": parcel.tracking_number,
-        "status": parcel.status,
-        "routing": {
-          "pipeline": parcel.routing_pipeline_cache,
-          "sorting_code": parcel.sorting_code_cache,
-        },
-        "label_url": `https://logistics:8000/${parcel.tracking_number}/waybill`
-      }
+      data: parcel
+      // data: {
+      //   "tracking_number": parcel.tracking_number,
+      //   "status": parcel.status,
+      //   "routing": {
+      //     "pipeline": parcel.routing_pipeline_cache,
+      //     "sorting_code": parcel.sorting_code_cache,
+      //   },
+      //   "label_url": `http://localhost:8001/parcels/${parcel.tracking_number/waybill`
+      // }
     })
   })
 
@@ -330,7 +347,7 @@ export default async function parcelRoutes(fastify: FastifyInstance) {
           <div class="header-left-brand">FSTFY</div>
           
           <div class="header-mid-rts">
-            <div class="rts-code">B-580-${regionalHubCode}-06</div>
+            <div class="rts-code">${parcel?.sortingCodeCache}</div>
             <div class="rts-label">RTS Sort Code:</div>
           </div>
           

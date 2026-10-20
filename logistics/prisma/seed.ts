@@ -248,33 +248,71 @@
 
 
 import { disconnectDb, prisma } from '#commons/database/prisma.js';
-import { seedGeoJSONData } from '#commons/utils/spatial-seeder.js';
+import { seedGeographicAreas, seedGeoJSONData } from '#commons/utils/spatial-seeder.js';
+import fastify from 'fastify';
+import { seedVehicleProfiles } from './seeders/vehicle-profiles.seed.js';
+import main from "../src/app.js";
+import { seedFacilities } from './seeders/facilities.seed.js';
 
-async function main() {
-  await prisma.$executeRawUnsafe(`
-    TRUNCATE TABLE 
-      clients, 
-      tracking_number_pools, 
-      tracking_logs, 
-      parcels, 
-      couriers, 
-      users, 
-      regions, 
-      provinces, 
-      cities, 
-      barangays,
-      sectors,
-      mega_gateways,
-      distribution_centers,
-      local_branches, 
-      stores 
-    CASCADE;
-  `);
+let app: any
 
-  await seedGeoJSONData(prisma, '/app/src/assets/geojson/sample-facilities-dynamic-seeding.geojson')
+async function seed() {
+  app = fastify({ logger: false });
+  await app.register(main);
+  await app.ready();
+
+  (globalThis as any).app = app;
+  // 1. Leaf / Dependent child tables (no other tables depend on them)
+  await app.prisma.trackingLog.deleteMany();
+  await app.prisma.dispatchLog.deleteMany();
+  await app.prisma.delivery.deleteMany();
+  await app.prisma.manifest.deleteMany();
+
+  // 2. Parcels and Master Bags (depend on courier schedules, sortation batches, clients, stores, facilities)
+  await app.prisma.parcel.deleteMany();
+  await app.prisma.masterBag.deleteMany();
+
+  // 3. Operational batching and schedules (depend on courier, vehicles, network legs, facilities)
+  await app.prisma.sortationBatch.deleteMany();
+  await app.prisma.courierSchedule.deleteMany();
+
+  // 4. Vehicles & Network Legs (depend on vehicle profiles and facilities)
+  await app.prisma.physicalVehicle.deleteMany();
+  await app.prisma.networkLeg.deleteMany();
+
+  // 5. Core entities with parent foreign keys
+  await app.prisma.barangay.deleteMany();
+  await app.prisma.sector.deleteMany();
+  await app.prisma.courier.deleteMany();
+  await app.prisma.vehicleProfile.deleteMany();
+  await app.prisma.trackingNumberPool.deleteMany();
+  await app.prisma.store.deleteMany();
+
+  // 6. Base parent tables (referenced by almost everything else)
+  await app.prisma.client.deleteMany();
+  await app.prisma.user.deleteMany();
+
+  // 7. Root parent table
+  await app.prisma.facility.deleteMany();
+
+  await seedGeographicAreas(app.prisma);
+  // const regions = await prisma.region.findMany({ take: 2 })
+  // console.log(regions)
+
+  // await seedGeography(app);
+
+  await seedVehicleProfiles(app);
+
+  await seedFacilities(app);
+
+
+
+
+
+
+  // await seedGeoJSONData(prisma, '/app/src/assets/geojson/sample-facilities-dynamic-seeding.geojson')
 }
 
-// Check context to avoid executing main loop directly if imported by Vitest
-main()
+seed()
   .catch((e) => { console.error(e); process.exit(1); })
   .finally(async () => { await disconnectDb(); });

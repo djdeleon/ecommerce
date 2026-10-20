@@ -29,6 +29,7 @@ enum CourierStatus {
 
 enum UserRole {
   Admin   @map("admin")
+  Manager @map("manager")
   Courier @map("courier")
 }
 
@@ -96,6 +97,7 @@ enum SortationBatchStatus {
 }
 
 enum ManifestStatus {
+  Scheduled    @map("scheduled")
   Accumulating @map("accumulating")
   Dispatched   @map("dispatched")
   Arrived      @map("arrived")
@@ -157,6 +159,9 @@ model Sector {
   barangays              Barangay[]
   deliveries             Delivery[]
   manifests              Manifest[]
+  originParcels          Parcel[]            @relation("OriginSector")
+  currentparcels         Parcel[]            @relation("CurrentSector")
+  destinationParcels     Parcel[]            @relation("DestinationSector")
 
   @@map("sectors")
 }
@@ -195,7 +200,7 @@ model Facility {
   sourceLegs             NetworkLeg[]         @relation("SourceLegs")
   destinationLegs        NetworkLeg[]         @relation("DestinationLegs")
   vehicles               PhysicalVehicle[]
-  couriers               Courier[]
+  users                  User[]
   sortationBatches       SortationBatch[]
   schedule               FacilitySchedule?
   currentMasterBags      MasterBag[]          @relation("CurrentMasterBag")
@@ -237,7 +242,7 @@ model NetworkLeg {
 
   laneCode               String               @db.VarChar(20) @map("lane_code")  // e.g., "N-C-LZN", "CEB-LZN-RORO"
   route                  Unsupported("geometry(LineString, 4326)")
-  distanceKm             Int                  @map("distance_km")                // stored in meters
+  distanceMtr            Int                  @map("distance_mtr")                // stored in meters
   vehicleProfile         String               @map("vehicle_profile")
   baseTransitDuration    Int                  @map("base_transit_duration")      // e.g., 3600 (in secords) 1 hour
   mode                   TransitMode
@@ -261,16 +266,16 @@ model CourierSchedule {
   vehicleId              Int                  @map("vehicle_id")
   vehicle                PhysicalVehicle      @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
 
-  networkLegId           Int                  @map("network_leg_id")
-  networkLeg             NetworkLeg           @relation(fields: [networkLegId], references: [id], onDelete: Cascade)
+  networkLegId           Int?                 @map("network_leg_id")
+  networkLeg             NetworkLeg?          @relation(fields: [networkLegId], references: [id], onDelete: Cascade)
 
   scheduledFor           CourierScheduleType  @default(Accumulation)
 
   createdAt              DateTime             @default(now()) @map("created_at")
   updatedAt              DateTime             @updatedAt @map("updated_at")
 
-  masterBags             MasterBag[]
   manifests              Manifest[]
+  masterBags             MasterBag[]
   deliveries             Delivery[]
 
   @@map("courier_schedules")
@@ -286,7 +291,7 @@ model DispatchLog {
   originFacility         Facility?            @relation(fields: [originFacilityId], references: [id], onDelete: SetNull)
 
   dispatchedAt           DateTime             @map("dispatched_at")
-  arrivedAt              DateTime?             @map("arrived_at")
+  arrivedAt              DateTime?            @map("arrived_at")
 
   createdAt              DateTime             @default(now()) @map("created_at")
   updatedAt              DateTime             @updatedAt @map("updated_at")
@@ -348,7 +353,6 @@ model MasterBag {
   @@map("master_bags")
 }
 
-// It seems like it just repeats the Manifest phase
 model Delivery {
   id                     Int                  @id @default(autoincrement())
 
@@ -359,11 +363,11 @@ model Delivery {
   courierSchedule        CourierSchedule      @relation(fields: [courierScheduleId], references: [id], onDelete: Restrict)
 
   code                   String               @unique
-  status                 ManifestStatus       @default(Accumulating)
+  status                 ManifestStatus       @default(Scheduled)
 
   // Live aggregated counters to quickly validate against VehicleProfile gates
-  currentWeightGrams     Int                   @default(0)
-  currentVolumeCbm       Float                 @default(0.0)
+  currentWeightGrams     Int                  @default(0)
+  currentVolumeCbm       Float                @default(0.0)
 
   createdAt              DateTime             @default(now()) @map("created_at")
   updatedAt              DateTime             @updatedAt @map("updated_at")
@@ -382,11 +386,15 @@ model User {
   email                  String               @unique
   password               String
   
+  assignedFacilityId     Int?                 @map("assigned_facility_id")
+  assignedFacility       Facility?            @relation(fields: [assignedFacilityId], references: [id], onDelete: Restrict)
+  
+  role                   UserRole             @default(Courier)
+  
   createdAt              DateTime             @default(now()) @map("created_at")
   updatedAt              DateTime             @updatedAt @map("updated_at")
 
   courier                Courier?
-  role                   UserRole             @default(Courier)
 
   @@map("users")
 }
@@ -401,9 +409,6 @@ model Courier {
   vehicleType            String               @db.VarChar(50) @map("vehicle_type")
   status                 CourierStatus
 
-  assignedFacilityId     Int?                 @map("assigned_facility_id")
-  assignedFacility       Facility?            @relation(fields: [assignedFacilityId], references: [id], onDelete: Restrict)
-  
   createdAt              DateTime             @default(now()) @map("created_at")
   updatedAt              DateTime             @updatedAt @map("updated_at")
 
@@ -470,6 +475,13 @@ model Parcel {
 
   shippingServiceType   ShippingServiceType   @default(R) @map("shipping_service_type")
 
+  originSectorId        Int                   @map("origin_sector_id")
+  originSector          Sector                @relation("OriginSector", fields: [originSectorId], references: [id], onDelete: Restrict)
+  currentSectorId       Int?                  @map("current_sector_id")
+  currentSector         Sector?               @relation("CurrentSector", fields: [currentSectorId], references: [id], onDelete: Restrict)
+  destinationSectorId   Int                   @map("destination_sector_id")
+  destinationSector     Sector                @relation("DestinationSector", fields: [destinationSectorId], references: [id], onDelete: Restrict)
+
   originFacilityId      Int?                  @map("origin_facility_id")
   originFacility        Facility?             @relation("OriginFacility", fields: [originFacilityId], references: [id], onDelete: Restrict)
 
@@ -505,8 +517,8 @@ model Parcel {
   sortationBatchId      Int?                  @map("sortation_batch_id")
   sortationBatch        SortationBatch?       @relation(fields: [sortationBatchId], references: [id], onDelete: Restrict)
 
-  deliveryId            Int?                   @map("delivery_id")
-  delivery              Delivery?               @relation(fields: [deliveryId], references: [id], onDelete: SetNull)
+  deliveryId            Int?                  @map("delivery_id")
+  delivery              Delivery?             @relation(fields: [deliveryId], references: [id], onDelete: SetNull)
 
   createdAt             DateTime              @default(now()) @map("created_at")
   updatedAt             DateTime              @updatedAt @map("updated_at")
@@ -540,8 +552,8 @@ model TrackingLog {
   status                ShipmentStatus
   description           String
 
-  facilityId            Int?                   @map("facility_id")
-  facility              Facility?              @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  facilityId            Int?                  @map("facility_id")
+  facility              Facility?             @relation(fields: [facilityId], references: [id], onDelete: Restrict)
   
   courierId             Int?                  @map("courier_id")
   courier               Courier?              @relation(fields: [courierId], references: [id], onDelete: SetNull)
@@ -601,16 +613,15 @@ model PhysicalVehicle {
 model Manifest {
   id                     Int                   @id @default(autoincrement())
 
-  sectorId               Int                  @map("sector_id")
-  sector                 Sector               @relation(fields: [sectorId], references: [id], onDelete: Restrict)
+  sectorId               Int                   @map("sector_id")
+  sector                 Sector                @relation(fields: [sectorId], references: [id], onDelete: Restrict)
 
   courierScheduleId      Int                   @map("courier_schedule_id")
   courierSchedule        CourierSchedule       @relation(fields: [courierScheduleId], references: [id], onDelete: Restrict)
 
-  code                   String                @unique
-  status                 ManifestStatus        @default(Accumulating)
+  code                   String                @unique // e.g., "MNF-20261005-001"
+  status                 ManifestStatus        @default(Scheduled)
 
-  // Live aggregated counters to quickly validate against VehicleProfile gates
   currentWeightGrams     Int                   @default(0)
   currentVolumeCbm       Float                 @default(0.0)
 

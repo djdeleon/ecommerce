@@ -1,39 +1,80 @@
 import { FacilityType, ShipmentStatus } from "@prisma/client";
 import { createCourier, createFacility } from "#factory";
-import { prisma } from "../../src/commons/plugins/prisma.js";
+import { FastifyInstance } from "fastify";
+import { createSector } from "./sector.factory.js";
 
-export async function createParcel(overrides = {}) {
-  const origin = await createFacility({
-    name: 'Origin Mega Hub'
+export async function createParcel(fastify: FastifyInstance, overrides = {}) {
+  const randomSuffix = Math.floor(Math.random() * 1000000);
+
+  const origin = await createFacility(fastify, {
+    name: `Origin Mega Hub ${randomSuffix}`
   })
-  const destination = await createFacility({
-    name: 'Destination Regional Hub',
-    type: FacilityType.RegionalHub,
+  const originSector = await createSector(fastify, {
+    localBranchId: origin.id
+  })
+  const destination = await createFacility(fastify, {
+    name: `Destination Distribution Center ${randomSuffix}`,
+    type: FacilityType.DistributionCenter,
+  })
+  const destinationSector = await createSector(fastify, {
+    localBranchId: destination.id
   })
 
-  const courier = await createCourier({ currentFacilityId: origin.id });
+  const courier = await createCourier(fastify, { currentFacilityId: origin.id });
 
-  const store = await prisma.store.create({
+  const store = await fastify.prisma.store.create({
     data: {
-      name: "Store 1",
+      name: `Store ${randomSuffix}`,
       contactNumber: "09225325754",
       address: "Bulacan 123 Main St.",
     }
   })
 
-  await prisma.$executeRaw`
+  await fastify.prisma.$executeRaw`
     UPDATE stores
     SET location = ST_SetSRID(ST_MakePoint(${14.22}, ${123.423}), 4326)
     WHERE id = ${store.id}
   `
 
-  const randomSuffix = Math.floor(Math.random() * 10000);
+  const trackingNumber = `TRK-${Date.now()}-${randomSuffix}`;
+  const externalOrderId = `EXT-${randomSuffix}`;
 
-  const parcel = await prisma.parcel.create({
+  // Ensure a client and tracking pool entry exist to satisfy the foreign key constraint
+  const client = await fastify.prisma.client.upsert({
+    where: { name: `Default Client ${randomSuffix}` },
+    update: {},
+    create: {
+      name: `Default Client ${randomSuffix}`,
+      apiKey: `key-${randomSuffix}`,
+      apiSecret: `secret-${randomSuffix}`,
+      webhookUrl: "https://example.com/webhook",
+      webhookSecret: "wh-secret",
+    },
+  });
+
+  await fastify.prisma.trackingNumberPool.create({
     data: {
-      trackingNumber: `TRK-${Date.now()}-${randomSuffix}`,
-      externalOrderId: `${randomSuffix}`,
+      trackingNumber,
+      clientId: client.id,
+      isAssigned: true,
+      assignedAt: new Date(),
+    },
+  });
+
+  const parcel = await fastify.prisma.parcel.create({
+    data: {
+      trackingNumber,
+      externalOrderId,
       weightGrams: 1500,
+      lengthCm: 20,
+      heightCm: 10,
+      widthCm: 15,
+      calculatedCbm: 0.003,
+      declaredValue: 500.00,
+      shippingServiceType: "R",
+      originSectorId: originSector.id,
+      currentSectorId: null,
+      destinationSectorId: destinationSector.id,
       originFacilityId: origin.id,
       destinationFacilityId: destination.id,
       currentFacilityId: origin.id,
@@ -49,7 +90,7 @@ export async function createParcel(overrides = {}) {
     },
   });
 
-  await prisma.$executeRaw`
+  await fastify.prisma.$executeRaw`
     UPDATE parcels
     SET customer_location = ST_SetSRID(ST_MakePoint(${14.22}, ${123.423}), 4326)
     WHERE id = ${parcel.id}

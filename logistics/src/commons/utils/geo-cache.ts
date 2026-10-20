@@ -32,7 +32,6 @@ function makeLogisticsAbbr(name: string): string {
   return clean.substring(0, 3);
 }
 
-// Global memory container to hold pre-parsed data across test runs
 let cachedGeoData: {
   regions: any[];
   provinces: any[];
@@ -41,12 +40,11 @@ let cachedGeoData: {
 } | null = null;
 
 export function getParsedGeoData() {
-  // If already parsed once during this test session, immediately return the memory reference
   if (cachedGeoData) {
     return cachedGeoData;
   }
 
-  console.log("⏳ Memory Cache Miss. Initializing Excel file engine (Only happens once)...");
+  console.log("⏳ Memory Cache Miss. Initializing Adaptive Excel Engine...");
   const rootDir = path.join(process.cwd(), 'src', 'assets', 'geography', 'psgc.xlsx');
 
   const fileBuffer = fs.readFileSync(rootDir);
@@ -62,102 +60,125 @@ export function getParsedGeoData() {
   const cities: any[] = [];
   const barangays: any[] = [];
 
-  let currentRegionId: string | null = null;
-  let currentProvinceId: string | null = null;
-  let currentCityId: string | null = null;
-  let currentRegCode = '';
-  let currentProvCode = '';
-  let currentCityCode = '';
+  const regionMap: Record<string, string> = {};
+  const provinceMap: Record<string, string> = {};
+  const cityMap: Record<string, string> = {};
 
+  // ==========================================
+  // PASS 1: Seed Parent Structures & Build Maps
+  // ==========================================
   for (const row of rawData as any[]) {
     const rawCode = row['10-digit PSGC'];
     if (!rawCode) continue;
 
     const codeString = String(rawCode).trim().padStart(10, '0');
     const name = String(row['Name'] || '').trim();
-    const level = String(row['Geographic Level'] || '').trim();
+    const rawLevel = String(row['Geographic Level'] || '').trim().toLowerCase();
 
-    if (!name || name.toLowerCase().includes('total')) continue;
+    if (!name || name.includes('total')) continue;
 
     const regionPrefix = codeString.substring(0, 2);
     const regCode = LOGISTICS_REGION_CODES[regionPrefix] || 'UNK';
+    regionMap[regionPrefix] = regCode;
 
-    if (level === 'Reg') {
-      currentRegionId = codeString;
-      currentProvinceId = null;
-      currentCityId = null;
-      currentRegCode = regCode; // e.g., "NCR"
-
+    // Adaptive Matching: Handles "Reg" or "Region"
+    if (rawLevel.includes('reg')) {
       regions.push({
-        id: currentRegionId,
-        name,
-        code: currentRegCode // Target: Hub-to-Hub sorting macro
-      });
-    }
-    else if (level === 'Prov') {
-      if (!currentRegionId) currentRegionId = `${regionPrefix}00000000`;
-
-      currentProvinceId = codeString;
-      currentCityId = null;
-
-      // 🚀 CHANGED: Convert "Ilocos Sur" -> "ILS" instead of using numeric characters
-      const provAbbr = makeLogisticsAbbr(name);
-      currentProvCode = `${currentRegCode}-${provAbbr}`; // e.g., "R01-ILS"
-
-      provinces.push({
-        id: currentProvinceId,
-        name,
-        code: currentProvCode, // Target: Middle Tier Sorting Allocation
-        regionId: currentRegionId
-      });
-    }
-    else if (level === 'Mun' || level === 'City' || level === 'SubMun') {
-      if (!currentRegionId) currentRegionId = `${regionPrefix}00000000`;
-
-      if (!currentProvinceId) {
-        // Fallback guard block tracking
-        const provAbbr = makeLogisticsAbbr(name);
-        currentProvCode = `${currentRegCode}-${provAbbr}`;
-      }
-
-      currentCityId = codeString;
-
-      const cityAbbr = makeLogisticsAbbr(name);
-      currentCityCode = `${currentProvCode}-${cityAbbr}`; // e.g., "R01-ILS-BAN"
-
-      cities.push({
-        id: currentCityId,
-        name,
-        code: currentCityCode, // Target: Direct Distribution Center Mapping Identifier
-        provinceId: level === 'SubMun' || regionPrefix === '13' ? null : currentProvinceId
-      });
-    }
-    else if (level === 'Bgy') {
-      if (!currentCityId) {
-        currentCityId = `${codeString.substring(0, 7)}000`;
-
-        // Reconstruct code names if previous parent rows were structural spreadsheet omissions
-        const provAbbr = 'UNK';
-        const cityAbbr = 'UNK';
-        currentCityCode = `${regCode}-${provAbbr}-${cityAbbr}`;
-      }
-
-      // Take the specific trailing 3-digit unique barangay sequence marker from the PSGC
-      const bgySegment = codeString.substring(7, 10);
-
-      // 🚀 CHANGED: Yields an exact 15-character formatted operational key!
-      const bgyLogisticsCode = `${currentCityCode}-${bgySegment}`; // e.g., "R01-ILS-BAN-001"
-
-      barangays.push({
         id: codeString,
         name,
-        code: bgyLogisticsCode, // Target: Last-Mile Delivery Rider sorting bin assignment
-        cityId: currentCityId
+        code: regCode
+      });
+    }
+    // Adaptive Matching: Handles "Prov" or "Province"
+    else if (rawLevel.includes('prov')) {
+      const provPrefix = codeString.substring(0, 5);
+      const provAbbr = makeLogisticsAbbr(name);
+      provinceMap[provPrefix] = provAbbr;
+
+      provinces.push({
+        id: codeString,
+        name,
+        code: `${regCode}-${provAbbr}`,
+        regionId: `${regionPrefix}00000000`
+      });
+    }
+    // Adaptive Matching: Captures "city", "mun", "municipality", or "submun" safely
+    else if (rawLevel.includes('city') || rawLevel.includes('mun') || rawLevel.includes('sub')) {
+      const cityPrefix = codeString.substring(0, 7);
+      const cityAbbr = makeLogisticsAbbr(name);
+      cityMap[cityPrefix] = cityAbbr;
+
+      const provPrefix = codeString.substring(0, 5);
+      const parentProvinceId = regionPrefix === '13' ? null : `${provPrefix}00000`;
+
+      let provAbbr = provinceMap[provPrefix];
+
+      // SELF-HEALING GUARD: If this is an independent city/HUC with a missing province entry
+      if (regionPrefix !== '13' && !provAbbr) {
+        // Fallback name uses the City's name context or generic identifier
+        const fallbackProvName = `${name} (HUC/Independent Area)`;
+        provAbbr = makeLogisticsAbbr(name);
+        provinceMap[provPrefix] = provAbbr; // Register into our lookup index
+
+        // Inject the missing parent province dynamically to prevent foreign key errors
+        provinces.push({
+          id: parentProvinceId!,
+          name: fallbackProvName,
+          code: `${regCode}-${provAbbr}`,
+          regionId: `${regionPrefix}00000000`
+        });
+
+        console.log(`Dynamically created missing virtual province node: ${parentProvinceId} for ${name}`);
+      }
+
+      const finalProvAbbr = provAbbr || 'MTR';
+
+      cities.push({
+        id: codeString,
+        name,
+        code: `${regCode}-${finalProvAbbr}-${cityAbbr}`,
+        provinceId: parentProvinceId
       });
     }
   }
 
-  // Save reference to global memory container
+  // ==========================================
+  // PASS 2: Independent Slicing for Barangays
+  // ==========================================
+  for (const row of rawData as any[]) {
+    const rawCode = row['10-digit PSGC'];
+    if (!rawCode) continue;
+
+    const codeString = String(rawCode).trim().padStart(10, '0');
+    const name = String(row['Name'] || '').trim();
+    const rawLevel = String(row['Geographic Level'] || '').trim().toLowerCase();
+
+    // Adaptive Matching: Captures "bgy", "bgy.", or "barangay" flawlessly
+    if (!(rawLevel.includes('bgy') || rawLevel.includes('barangay')) || !name || name.includes('total')) {
+      continue;
+    }
+
+    const rKey = codeString.substring(0, 2);
+    const pKey = codeString.substring(0, 5);
+    const cKey = codeString.substring(0, 7);
+    const bgySegment = codeString.substring(7, 10);
+
+    const rAbbr = regionMap[rKey] || 'UNK';
+    const pAbbr = provinceMap[pKey] || (rKey === '13' ? 'MTR' : 'UNK');
+    const cAbbr = cityMap[cKey] || 'UNK';
+
+    const bgyLogisticsCode = `${rAbbr}-${pAbbr}-${cAbbr}-${bgySegment}`;
+    const parentCityId = `${cKey}000`;
+
+    barangays.push({
+      id: codeString,
+      name,
+      code: bgyLogisticsCode,
+      cityId: parentCityId
+    });
+  }
+
+  console.log(`Loaded: ${regions.length} Regions, ${provinces.length} Provinces, ${cities.length} Cities, ${barangays.length} Barangays.`);
   cachedGeoData = { regions, provinces, cities, barangays };
   return cachedGeoData;
 }

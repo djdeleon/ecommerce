@@ -1,6 +1,5 @@
 import { FastifyInstance } from "fastify";
 import { createUser } from "../users/service.js";
-import { CourierStatus } from "@prisma/client";
 import { RegisterCourierData } from "./schema.js";
 
 export async function dashboardData(fastify: FastifyInstance) {
@@ -20,9 +19,7 @@ export async function registerCourier(fastify: FastifyInstance, data: RegisterCo
       userId: user.id,
       phoneNumber: data.phoneNumber,
       vehicleType: data.vehicleType,
-      plateNumber: data.plateNumber,
       status: data.status,
-      assignedFacilityId: data.assignedFacilityId
     },
     include: {
       user: true

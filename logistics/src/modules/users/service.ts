@@ -6,6 +6,7 @@ interface RegisterUserData {
   lastName: string;
   email: string;
   password: string;
+  assignedFacilityId: string|number;
   role: UserRole;
 }
 
@@ -31,7 +32,8 @@ export async function createUser(fastify: FastifyInstance, data: any) {
       lastName: data.lastName,
       email: data.email,
       password: hashedPassword,
-      role: data.role
+      role: data.role,
+      assignedFacilityId: data.assignedFacilityId
     }
   })
 
