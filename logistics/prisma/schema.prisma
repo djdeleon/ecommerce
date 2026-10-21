@@ -100,7 +100,7 @@ enum ManifestStatus {
   Scheduled    @map("scheduled")
   Accumulating @map("accumulating")
   Dispatched   @map("dispatched")
-  Arrived      @map("arrived")
+  Completed    @map("completed")
 }
 
 enum CourierScheduleType {
@@ -270,6 +270,7 @@ model CourierSchedule {
   networkLeg             NetworkLeg?          @relation(fields: [networkLegId], references: [id], onDelete: Cascade)
 
   scheduledFor           CourierScheduleType  @default(Accumulation)
+  scheduledTime          DateTime             @map("scheduled_time")
 
   createdAt              DateTime             @default(now()) @map("created_at")
   updatedAt              DateTime             @updatedAt @map("updated_at")
@@ -290,11 +291,10 @@ model DispatchLog {
   originFacilityId       Int?                 @map("origin_facility_id")
   originFacility         Facility?            @relation(fields: [originFacilityId], references: [id], onDelete: SetNull)
 
-  dispatchedAt           DateTime             @map("dispatched_at")
+  dispatchedAt           DateTime             @default(now()) @map("dispatched_at")
   arrivedAt              DateTime?            @map("arrived_at")
 
   createdAt              DateTime             @default(now()) @map("created_at")
-  updatedAt              DateTime             @updatedAt @map("updated_at")
 
   @@map("dispatch_logs")
 }
@@ -407,7 +407,7 @@ model Courier {
 
   phoneNumber            String               @db.VarChar(20) @unique @map("phone_number")
   vehicleType            String               @db.VarChar(50) @map("vehicle_type")
-  status                 CourierStatus
+  status                 CourierStatus        @default(Available)
 
   createdAt              DateTime             @default(now()) @map("created_at")
   updatedAt              DateTime             @updatedAt @map("updated_at")
@@ -416,8 +416,24 @@ model Courier {
   trackingLogs           TrackingLog[]
   dispatchLogs           DispatchLog[]
   courierSchedules       CourierSchedule[]
+  logs                   CourierLog[]
 
   @@map("couriers")
+}
+
+model CourierLog {
+  id                     BigInt               @id @default(autoincrement())
+
+  courierId              Int                   @map("courier_id")
+  courier                Courier               @relation(fields: [courierId], references: [id], onDelete: Restrict)
+
+  status                 CourierStatus        @default(Available)
+
+  loggedAt               DateTime             @default(now()) @map("loggedAt")
+
+  createdAt              DateTime             @default(now()) @map("created_at")
+  
+  @@map("courier_logs")
 }
 
 model Client {
@@ -629,8 +645,24 @@ model Manifest {
   updatedAt              DateTime              @updatedAt @map("updated_at")
 
   parcels                Parcel[]
+  logs                   ManifestLog[]
 
   @@map("manifests")
+}
+
+model ManifestLog {
+  id                     BigInt                @id @default(autoincrement())
+
+  manifestId             Int                   @map("manifest_id")
+  manifest               Manifest              @relation(fields: [manifestId], references: [id], onDelete: Restrict)
+
+  status                 ManifestStatus        @default(Scheduled)
+
+  recordedAt             DateTime              @default(now()) @map("recorded_at")
+
+  createdAt              DateTime             @default(now()) @map("created_at")
+
+  @@map("manifest_logs")
 }
 
 model VehicleLocationLog {

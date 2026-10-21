@@ -4,7 +4,7 @@ import {
   CreateManifestSchema,
   MANIFEST_PATHS
 } from "./schema.js";
-import { ShipmentStatus, UserRole } from "@prisma/client";
+import { CourierStatus, ManifestStatus, ShipmentStatus, UserRole } from "@prisma/client";
 import { userAuth } from "#commons/middlewares/user-auth.js";
 import { generateManifestCode } from "./service.js";
 
@@ -85,11 +85,15 @@ export default async function manifestRoutes(fastify: FastifyInstance) {
   })
 
   fastify.post<{ Body: CreateManifestBody }>(MANIFEST_PATHS.store, { schema: CreateManifestSchema }, async (req, rep) => {
-    const { sectorId, vehicleId, parcelIds, currentWeightGrams, currentVolumeCbm } = req.body;
+    const { sectorId, courierId, vehicleId, scheduledTime, parcelIds, currentWeightGrams, currentVolumeCbm } = req.body;
 
     const result = await fastify.prisma.$transaction(async (tx) => {
       const courierSchedule = await tx.courierSchedule.create({
-        data: { vehicleId },
+        data: {
+          courierId: courierId ?? null,
+          vehicleId,
+          scheduledTime: new Date(scheduledTime),
+        },
       });
 
       const manifestCode = await generateManifestCode(fastify);
@@ -102,6 +106,12 @@ export default async function manifestRoutes(fastify: FastifyInstance) {
           currentVolumeCbm,
         },
       });
+
+      await tx.manifestLog.create({
+        data: {
+          manifestId: manifest.id,
+        }
+      })
 
       const updatedParcels = await tx.parcel.updateManyAndReturn({
         where: { id: { in: parcelIds } },
@@ -126,6 +136,132 @@ export default async function manifestRoutes(fastify: FastifyInstance) {
         currentWeightGrams: result.manifest.currentWeightGrams,
         currentVolumeCbm: result.manifest.currentVolumeCbm,
       },
+    })
+  })
+
+  fastify.patch(MANIFEST_PATHS.dispatch, async (req, rep) => {
+    const { manifestCode } = req.params as { manifestCode: string }
+
+    const manifest = await fastify.prisma.manifest.findUniqueOrThrow({
+      where: { code: manifestCode },
+      include: { parcels: true }
+    });
+
+    const courierSchedule = await fastify.prisma.courierSchedule.findUniqueOrThrow({
+      where: { id: manifest.courierScheduleId }
+    })
+    if (!courierSchedule.courierId) {
+      throw new Error("Cannot dispatch manifest: No courier assigned to this schedule.");
+    }
+    const assignedCourierId = courierSchedule.courierId;
+
+    const sector = await fastify.prisma.sector.findUniqueOrThrow({
+      where: { id: manifest.sectorId }
+    })
+
+    const updatedManifest = await fastify.prisma.$transaction(async (tx) => {
+      const updatedManifest = await tx.manifest.update({
+        where: { id: manifest.id },
+        data: { status: ManifestStatus.Accumulating }
+      });
+
+      await tx.manifestLog.create({
+        data: {
+          manifestId: manifest.id,
+          status: ManifestStatus.Accumulating
+        }
+      })
+
+      await tx.dispatchLog.create({
+        data: {
+          assignedCourierId,
+          originFacilityId: sector.localBranchId
+        }
+      })
+
+      await tx.courierLog.create({
+        data: {
+          courierId: assignedCourierId,
+          status: CourierStatus.Busy
+        }
+      })
+
+      return updatedManifest
+    });
+
+    return rep.status(200).send({
+      message: 'Manifest dispatched.',
+      data: updatedManifest
+    })
+  })
+
+  fastify.patch(MANIFEST_PATHS.complete, async (req, rep) => {
+    const { manifestCode } = req.params as { manifestCode: string }
+
+    const manifest = await fastify.prisma.manifest.findUniqueOrThrow({
+      where: { code: manifestCode },
+    })
+    const totalParcels = await fastify.prisma.parcel.aggregate({
+      where: { manifestId: manifest.id },
+      _count: { id: true }
+    })
+    const totalPickedUpParcels = await fastify.prisma.parcel.aggregate({
+      where: { manifestId: manifest.id, status: ShipmentStatus.PickedUp },
+      _count: { id: true }
+    })
+    const remainingParcels = totalParcels._count.id - totalPickedUpParcels._count.id
+    console.log({ remainingParcels })
+    if (remainingParcels) {
+      throw new Error(`Manifest cannot be completed. There are ${remainingParcels} parcels left...`)
+    }
+
+    const courierSchedule = await fastify.prisma.courierSchedule.findUniqueOrThrow({
+      where: { id: manifest.courierScheduleId }
+    })
+    if (!courierSchedule.courierId) {
+      throw new Error("Cannot dispatch manifest: No courier assigned to this schedule.");
+    }
+    const assignedCourierId = courierSchedule.courierId;
+
+    const sector = await fastify.prisma.sector.findUniqueOrThrow({
+      where: { id: manifest.sectorId }
+    })
+
+
+    const updatedManifest = await fastify.prisma.$transaction(async (tx) => {
+      const updatedManifest = await fastify.prisma.manifest.update({
+        where: { code: manifestCode },
+        data: { status: ManifestStatus.Completed }
+      })
+
+      await tx.manifestLog.create({
+        data: {
+          manifestId: manifest.id,
+          status: ManifestStatus.Completed
+        }
+      })
+
+      await tx.dispatchLog.create({
+        data: {
+          assignedCourierId,
+          originFacilityId: sector.localBranchId,
+          arrivedAt: new Date(),
+        }
+      })
+
+      await tx.courierLog.create({
+        data: {
+          courierId: assignedCourierId,
+          status: CourierStatus.Available
+        }
+      })
+
+      return updatedManifest
+    });
+
+    return rep.status(200).send({
+      message: 'Manifest completed.',
+      data: updatedManifest
     })
   })
 }

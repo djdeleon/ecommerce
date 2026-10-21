@@ -1,5 +1,5 @@
 import { FastifyInstance } from "fastify";
-import { StoreBody, StoreSchema, waybillSchema } from "./schema.js";
+import { PARCEL_PATHS, StoreBody, StoreSchema, waybillSchema } from "./schema.js";
 import { createParcel } from "./service.js";
 import { ShipmentStatus } from "@prisma/client";
 import { createTrackingLog } from "../tracking-logs/service.js";
@@ -7,11 +7,12 @@ import parcelAuth from "#commons/middlewares/client-auth.js";
 import { activateTrackingNumber } from "../tracking-numbers/service.js";
 import JsBarcode from "jsbarcode";
 import { DOMImplementation, XMLSerializer } from "@xmldom/xmldom";
+import { generateEventDescription } from "../tracking-logs/logisticsEventDictionary.js";
 
 export default async function parcelRoutes(fastify: FastifyInstance) {
   fastify.post('/api/shipments/book', async (req, rep) => {
     const body = req.body as any;
-    
+
     req.log.info(`Received shipment booking for order: ${body.order_reference}`);
 
     // Return success back to Laravel
@@ -430,6 +431,35 @@ export default async function parcelRoutes(fastify: FastifyInstance) {
     </body>
     </html>
       `)
+  })
+
+  fastify.patch(PARCEL_PATHS.scan, async (req, rep) => {
+    const { trackingNumber } = req.params as { trackingNumber: string; }
+    const parcel = await fastify.prisma.parcel.findUniqueOrThrow({
+      where: { trackingNumber }
+    })
+
+    const updatedParcel = await fastify.prisma.$transaction(async (tx) => {
+      const updatedParcel = await tx.parcel.update({
+        where: { trackingNumber },
+        data: { status: ShipmentStatus.PickedUp }
+      })
+
+      await tx.trackingLog.create({
+        data: {
+          parcelId: parcel.id,
+          status: ShipmentStatus.PickedUp,
+          description: generateEventDescription({ status: ShipmentStatus.PickedUp })
+        }
+      })
+
+      return updatedParcel
+    })
+
+    return rep.status(200).send({
+      message: 'Parcel scanned successfully.',
+      data: updatedParcel
+    })
   })
 
   // interface ParcelParams {
