@@ -31,7 +31,7 @@ CREATE TYPE "MasterBagStatus" AS ENUM ('open', 'sealed', 'dispatched', 'delivere
 CREATE TYPE "SortationBatchStatus" AS ENUM ('scheduled', 'active', 'completed', 'cancelled');
 
 -- CreateEnum
-CREATE TYPE "ManifestStatus" AS ENUM ('scheduled', 'accumulating', 'dispatched', 'arrived');
+CREATE TYPE "ManifestStatus" AS ENUM ('scheduled', 'accumulating', 'dispatched', 'completed');
 
 -- CreateEnum
 CREATE TYPE "CourierScheduleType" AS ENUM ('accumulation', 'line_haul', 'delivery');
@@ -141,6 +141,7 @@ CREATE TABLE "courier_schedules" (
     "vehicle_id" INTEGER NOT NULL,
     "network_leg_id" INTEGER,
     "scheduledFor" "CourierScheduleType" NOT NULL DEFAULT 'accumulation',
+    "scheduled_time" TIMESTAMP(3) NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -152,10 +153,9 @@ CREATE TABLE "dispatch_logs" (
     "id" SERIAL NOT NULL,
     "assigned_courier_id" INTEGER NOT NULL,
     "origin_facility_id" INTEGER,
-    "dispatched_at" TIMESTAMP(3) NOT NULL,
+    "dispatched_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "arrived_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "dispatch_logs_pkey" PRIMARY KEY ("id")
 );
@@ -229,11 +229,22 @@ CREATE TABLE "couriers" (
     "user_id" INTEGER NOT NULL,
     "phone_number" VARCHAR(20) NOT NULL,
     "vehicle_type" VARCHAR(50) NOT NULL,
-    "status" "courier_status" NOT NULL,
+    "status" "courier_status" NOT NULL DEFAULT 'available',
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "couriers_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "courier_logs" (
+    "id" BIGSERIAL NOT NULL,
+    "courier_id" INTEGER NOT NULL,
+    "status" "courier_status" NOT NULL DEFAULT 'available',
+    "loggedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "courier_logs_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -376,6 +387,17 @@ CREATE TABLE "manifests" (
 );
 
 -- CreateTable
+CREATE TABLE "manifest_logs" (
+    "id" BIGSERIAL NOT NULL,
+    "manifest_id" INTEGER NOT NULL,
+    "status" "ManifestStatus" NOT NULL DEFAULT 'scheduled',
+    "recorded_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "manifest_logs_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "vehicle_location_logs" (
     "id" BIGSERIAL NOT NULL,
     "physical_vehicle_id" INTEGER NOT NULL,
@@ -500,6 +522,9 @@ ALTER TABLE "users" ADD CONSTRAINT "users_assigned_facility_id_fkey" FOREIGN KEY
 ALTER TABLE "couriers" ADD CONSTRAINT "couriers_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "courier_logs" ADD CONSTRAINT "courier_logs_courier_id_fkey" FOREIGN KEY ("courier_id") REFERENCES "couriers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "tracking_number_pools" ADD CONSTRAINT "tracking_number_pools_client_id_fkey" FOREIGN KEY ("client_id") REFERENCES "clients"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -561,6 +586,9 @@ ALTER TABLE "manifests" ADD CONSTRAINT "manifests_sector_id_fkey" FOREIGN KEY ("
 
 -- AddForeignKey
 ALTER TABLE "manifests" ADD CONSTRAINT "manifests_courier_schedule_id_fkey" FOREIGN KEY ("courier_schedule_id") REFERENCES "courier_schedules"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "manifest_logs" ADD CONSTRAINT "manifest_logs_manifest_id_fkey" FOREIGN KEY ("manifest_id") REFERENCES "manifests"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "vehicle_location_logs" ADD CONSTRAINT "vehicle_location_logs_physical_vehicle_id_fkey" FOREIGN KEY ("physical_vehicle_id") REFERENCES "physical_vehicles"("id") ON DELETE CASCADE ON UPDATE CASCADE;

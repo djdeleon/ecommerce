@@ -1,12 +1,11 @@
 import { API_ROUTES } from "#commons/constants/routes.js";
 import { FastifyInstance } from "fastify";
 import { beforeAll, describe, expect, it, test } from "vitest";
-import { FacilityType, ShipmentStatus, UserRole } from "@prisma/client";
-import { seedFacilities } from "../../prisma/seeders/facilities.seed.js";
+import { Courier, CourierStatus, Manifest, ManifestStatus, ShipmentStatus, UserRole } from "@prisma/client";
 import { createParcel } from "../factory/parcel.factory.js";
 import { createuser } from "../factory/user.factory.js";
-import { seedVehicleProfiles } from "../../prisma/seeders/vehicle-profiles.seed.js";
 import { seedMasterInfrustructure } from "../../prisma/seeders/tests/master-infrastructure-tests.seed.js";
+import { createManifest } from "../factory/manifest.factory.js";
 
 describe('Manifest Domain', async () => {
   let app: FastifyInstance
@@ -42,7 +41,7 @@ describe('Manifest Domain', async () => {
 
     const response = await app.inject({
       method: 'GET',
-      url: API_ROUTES.manifest.index,
+      url: API_ROUTES.manifests.index,
       headers: {
         authorization: `Bearer ${token}`
       }
@@ -72,16 +71,20 @@ describe('Manifest Domain', async () => {
   test('a manager can setup the Accumulation Phase first-mile', async () => {
     await seedMasterInfrustructure(app)
 
-    const { id: facilityId, sectors, vehicles } = await app.prisma.facility.findFirstOrThrow({
+    const { id: facilityId, sectors, vehicles, users: couriers } = await app.prisma.facility.findFirstOrThrow({
       where: { code: "BR-MAR-0001" },
       include: {
         sectors: true,
-        vehicles: true
+        vehicles: true,
+        users: {
+          where: { role: UserRole.Courier },
+          include: { courier: true }
+        },
       },
     })
     const selectedSector = sectors[0]
     const selectedVehicle = vehicles[0]
-    console.log({ selectedSector, selectedVehicle })
+    const selectedCourier = couriers[0].courier as Courier
 
     for (let i = 0; i < 3; i++) {
       await createParcel(app, {
@@ -95,7 +98,6 @@ describe('Manifest Domain', async () => {
 
     const parcels = await app.prisma.parcel.findMany()
     const parcelIds = parcels.map((p) => p.id)
-    console.log({parcels, parcelIds})
 
     await createuser(app, UserRole.Manager, {
       assignedFacilityId: facilityId
@@ -103,15 +105,17 @@ describe('Manifest Domain', async () => {
 
     const payload = {
       sectorId: selectedSector.id,
+      courierId: selectedCourier.id,
       vehicleId: selectedVehicle.id,
       currentWeightGrams: 21000,
       currentVolumeCbm: 0.15,
       parcelIds,
+      scheduledTime: "2026-10-21T08:00:00.000Z",
     }
 
     const response = await app.inject({
       method: 'POST',
-      url: API_ROUTES.manifest.store,
+      url: API_ROUTES.manifests.store,
       body: payload
     })
 
@@ -131,6 +135,152 @@ describe('Manifest Domain', async () => {
     expect(data.courierSchedule).toBeDefined();
     expect(data.courierSchedule.vehicleId).toBe(selectedVehicle.id);
     expect(data.courierSchedule.scheduledFor).toBe('Accumulation');
-    expect(data.courierSchedule.courierId).toBeNull();
+    expect(data.courierSchedule.scheduledTime).toBeDefined();
+    expect(data.courierSchedule.courierId).toBe(selectedCourier.id);
+  })
+
+  test('a scheduled manifest is automatically dispatched by scanning the Manifest Code', async () => {
+    await seedMasterInfrustructure(app)
+
+    const result = await createManifest(app)
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: API_ROUTES.manifests.dispatch(result.manifest.code)
+    })
+
+    const body = response.json();
+    const data = body.data as Manifest ?? body;
+
+    expect(response.statusCode).toBe(200);
+    expect(body.message).toBe('Manifest dispatched.');
+    expect(data.status).toBe(ManifestStatus.Accumulating);
+
+    const courierSchedule = await app.prisma.courierSchedule.findUniqueOrThrow({
+      where: { id: data.courierScheduleId }
+    })
+    if (!courierSchedule.courierId) {
+      throw new Error("Cannot dispatch manifest: No courier assigned to this schedule.");
+    }
+    const assignedCourierId = courierSchedule.courierId;
+
+    const dispatchLog = await app.prisma.dispatchLog.findFirst({
+      where: { assignedCourierId }
+    });
+    expect(dispatchLog).toBeDefined();
+
+    const sector = await app.prisma.sector.findUniqueOrThrow({
+      where: { id: result.manifest.sectorId }
+    })
+    expect(dispatchLog?.originFacilityId).toBe(sector.localBranchId);
+
+    const courierLog = await app.prisma.courierLog.findFirstOrThrow({
+      where: { courierId: assignedCourierId }
+    })
+    expect(courierLog).toBeDefined();
+  })
+
+  test('an assigned courier can pick up and scan the parcel tracking number in the accumulation process', async () => {
+    await seedMasterInfrustructure(app)
+
+    const result = await createManifest(app)
+
+    const parcels = await app.prisma.parcel.findMany({
+      where: { id: { in: result.parcelIds } }
+    })
+    const manifestedParcel = parcels[0]
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: API_ROUTES.parcels.scan(manifestedParcel.trackingNumber),
+    })
+
+    const body = response.json()
+    const data = body.data ?? body
+
+    expect(response.statusCode).toBe(200);
+    expect(body.message).toBe('Parcel scanned successfully.');
+    expect(data.status).toBe(ShipmentStatus.PickedUp);
+
+    const trackingLog = await app.prisma.trackingLog.findFirst({
+      where: {
+        parcelId: manifestedParcel.id,
+        status: ShipmentStatus.PickedUp
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    expect(trackingLog).toBeDefined();
+    expect(trackingLog?.parcelId).toBe(manifestedParcel.id);
+    expect(trackingLog?.status).toBe(ShipmentStatus.PickedUp);
+    expect(trackingLog?.description).toBeDefined();
+
+    if (!manifestedParcel.manifestId) {
+      return
+    }
+    const manifestId = manifestedParcel.manifestId
+    const manifest = await app.prisma.manifest.findUniqueOrThrow({
+      where: { id: manifestId },
+      include: {
+        parcels: {
+          where: { status: ShipmentStatus.ReadyForPickup }
+        }
+      }
+    })
+    const parcelsRemaining = manifest.parcels.length
+    expect(parcelsRemaining).toBe(2) // 3 ReadyForPickup Parcels are created in the manifest factory
+  })
+
+  test('accumulation process can be completed', async () => {
+    await seedMasterInfrustructure(app)
+
+    const result = await createManifest(app, { parcelOverrides: { status: ShipmentStatus.PickedUp } })
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: API_ROUTES.manifests.complete(result.manifest.code)
+    })
+
+    console.log(response.json())
+
+    const body = response.json();
+    const data = body.data as Manifest ?? body;
+
+    expect(response.statusCode).toBe(200);
+    expect(body.message).toBe('Manifest completed.');
+    expect(data.status).toBe(ManifestStatus.Completed);
+
+    const courierSchedule = await app.prisma.courierSchedule.findUniqueOrThrow({
+      where: { id: data.courierScheduleId }
+    })
+    if (!courierSchedule.courierId) {
+      throw new Error("Cannot dispatch manifest: No courier assigned to this schedule.");
+    }
+    const assignedCourierId = courierSchedule.courierId;
+
+    const dispatchLog = await app.prisma.dispatchLog.findFirst({
+      where: { assignedCourierId },
+      orderBy: { createdAt: 'desc' }
+    });
+    expect(dispatchLog).toBeDefined();
+    expect(dispatchLog?.arrivedAt).toBeDefined();
+
+    const sector = await app.prisma.sector.findUniqueOrThrow({
+      where: { id: result.manifest.sectorId }
+    })
+    expect(dispatchLog?.originFacilityId).toBe(sector.localBranchId);
+
+    const courierLog = await app.prisma.courierLog.findFirstOrThrow({
+      where: { courierId: assignedCourierId },
+      orderBy: { createdAt: 'desc' }
+    })
+    expect(courierLog).toBeDefined();
+    expect(courierLog?.status).toBe(CourierStatus.Available);
+
+    const manifestLog = await app.prisma.manifestLog.findFirstOrThrow({
+      where: { manifestId: data.id },
+      orderBy: { createdAt: 'desc' }
+    })
+    expect(manifestLog).toBeDefined();
+    expect(manifestLog?.status).toBe(ManifestStatus.Completed);
   })
 })

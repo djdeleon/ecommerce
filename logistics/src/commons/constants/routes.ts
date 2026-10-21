@@ -48,7 +48,12 @@ export const API_ROUTES = {
       const staticFullUrl = PARCEL_PATHS.waybill
 
       return compilePath(staticFullUrl, { trackingNumber })
-    }
+    },
+    scan: (trackingNumber: string) => {
+      const staticFullUrl = PARCEL_PATHS.scan
+
+      return compilePath(staticFullUrl, { trackingNumber })
+    },
   },
   vehicles: {
     vehicleProfile: {
@@ -171,8 +176,18 @@ export const API_ROUTES = {
       },
     },
   },
-  manifest: {
+  manifests: {
     index: MANIFEST_PATHS.index,
     store: MANIFEST_PATHS.store,
+    dispatch: (manifestCode: string | number) => {
+      const staticFullUrl = MANIFEST_PATHS.dispatch
+
+      return compilePath(staticFullUrl, { manifestCode })
+    },
+    complete: (manifestCode: string | number) => {
+      const staticFullUrl = MANIFEST_PATHS.complete
+
+      return compilePath(staticFullUrl, { manifestCode })
+    },
   },
 }
