@@ -1,0 +1,74 @@
+import { FastifyInstance } from "fastify";
+import { ShipmentStatus, DeliveryStatus, CourierScheduleType } from "@prisma/client";
+import { createParcel } from "./parcel.factory.js";
+import { generateDeliveryCode } from "../../src/modules/deliveries/service.js";
+
+export async function createDelivery(fastify: FastifyInstance, overrides: any = {}) {
+  const facility = await fastify.prisma.facility.findFirstOrThrow({
+    include: {
+      sectors: true,
+      vehicles: true,
+      users: {
+        where: { role: "Courier" },
+        include: { courier: true }
+      }
+    }
+  });
+
+  const sector = facility.sectors[0];
+  const vehicle = facility.vehicles[0];
+  const courier = facility.users[0]?.courier;
+
+  const parcelAmount = overrides.parcelAmount ?? 3
+  const parcelIds: number[] = overrides.parcelIds || [];
+  if (parcelIds.length === 0) {
+    for (let i = 0; i < parcelAmount; i++) {
+      const parcel = await createParcel(fastify, {
+        originSectorId: sector.id,
+        destinationSectorId: sector.id,
+        currentFacilityId: facility.id,
+        status: ShipmentStatus.ReadyForPickup,
+        weightGrams: 300000,
+        ...overrides.parcelOverrides,
+      });
+      parcelIds.push(parcel.id);
+    }
+  }
+
+  const code = await generateDeliveryCode(fastify);
+
+  return await fastify.prisma.$transaction(async (tx) => {
+    const courierSchedule = await tx.courierSchedule.create({
+      data: {
+        vehicleId: vehicle.id,
+        courierId: courier?.id ?? null,
+        scheduledFor: CourierScheduleType.Accumulation,
+        scheduledTime: new Date("2026-10-21T08:00:00.000Z"),
+        ...overrides.courierScheduleOverrides,
+      },
+    });
+
+    const delivery = await tx.delivery.create({
+      data: {
+        sectorId: sector.id,
+        courierScheduleId: courierSchedule.id,
+        code,
+        status: DeliveryStatus.Scheduled,
+        currentWeightGrams: 21000,
+        currentVolumeCbm: 0.15,
+        ...overrides.deliveryOverrides,
+      },
+    });
+
+    await tx.parcel.updateMany({
+      where: { id: { in: parcelIds } },
+      data: { deliveryId: delivery.id },
+    });
+
+    return {
+      delivery,
+      courierSchedule,
+      parcelIds,
+    };
+  });
+}

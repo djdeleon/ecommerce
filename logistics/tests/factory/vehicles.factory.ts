@@ -56,14 +56,14 @@ export async function createCourierSchedule(
   fastify: FastifyInstance,
   overrides?: Record<string, any>
 ) {
-  let physicalVehicleId = overrides?.physicalVehicleId;
-  if (!physicalVehicleId) {
+  let vehicleId = overrides?.vehicleId ?? overrides?.physicalVehicleId;
+  if (!vehicleId) {
     const physicalVehicle = await createPhysicalVehicle(fastify);
-    physicalVehicleId = physicalVehicle.id;
+    vehicleId = physicalVehicle.id;
   }
 
   let networkLegId = overrides?.networkLegId;
-  if (!networkLegId) {
+  if (networkLegId === undefined) {
     const networkLeg = await createNetworkLeg(fastify);
     networkLegId = networkLeg.id;
   }
@@ -72,9 +72,10 @@ export async function createCourierSchedule(
 
   return await fastify.prisma.courierSchedule.create({
     data: {
-      physicalVehicleId,
-      networkLegId,
+      vehicleId,
+      networkLegId: networkLegId ?? null,
       courierId,
+      scheduledTime: new Date(),
       ...overrides,
     },
   });

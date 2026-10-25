@@ -1544,9 +1544,9 @@ export async function seedMasterInfrustructure(fastify: FastifyInstance) {
         ]
       },
       "schedule": {
-        "openingTime": "1970-01-01T07:00:00Z",
-        "closingTime": "1970-01-01T17:00:00Z",
-        "cutOffTime": "1970-01-01T16:00:00Z"
+        "openingTime": "1970-01-01T00:00:00Z", // 24/7 Open start
+        "closingTime": "1970-01-01T23:59:59Z", // 24/7 Open end
+        "cutOffTime": "1970-01-01T22:00:00Z"    // Strict gateway cut-off for night peak sort
       },
     },
     {
@@ -4340,14 +4340,14 @@ export async function seedMasterInfrustructure(fastify: FastifyInstance) {
         ]
       },
       "schedule": {
-        "openingTime": "1970-01-01T07:00:00Z",
-        "closingTime": "1970-01-01T17:00:00Z",
-        "cutOffTime": "1970-01-01T16:00:00Z"
+        "openingTime": "1970-01-01T00:00:00Z", // 24/7 Open start
+        "closingTime": "1970-01-01T23:59:59Z", // 24/7 Open end
+        "cutOffTime": "1970-01-01T21:00:00Z"   // Strict evening cut-off for linehauls
       },
     },
     {
       "name": "FSTFY Marikina Hub",
-      "code": "BR-MAR-0001",
+      "code": "BR-MAR-01",
       "address": "Sumulong Highway cor. Shoe Avenue, Barangay Santo Niño / Santa Elena, Marikina City, 1800 Metro Manila, Philippines",
       "type": FacilityType.LocalBranch,
       "longitude": 121.09961,
@@ -4522,7 +4522,7 @@ export async function seedMasterInfrustructure(fastify: FastifyInstance) {
       "networkLegs": [
         {
           "sourceFacilityCode": "GW-MNL-01",
-          "destinationFacilityCode": "BR-MAR-0001",
+          "destinationFacilityCode": "BR-MAR-01",
           "laneCode": "LEG-MNL-MAR-OUT",
           "route": {
             "type": "LineString",
@@ -6957,7 +6957,7 @@ export async function seedMasterInfrustructure(fastify: FastifyInstance) {
           }
         },
         {
-          "sourceFacilityCode": "BR-MAR-0001",
+          "sourceFacilityCode": "BR-MAR-01",
           "destinationFacilityCode": "GW-MNL-01",
           "laneCode": "LEG-MAR-MNL-IN",
           "route": {

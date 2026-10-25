@@ -1,6 +1,7 @@
 import { compilePath } from "#commons/utils/path-compiler.js";
 import { CLIENT_PATHS } from "../../modules/clients/schema.js";
 import { COURIER_PATHS } from "../../modules/couriers/schema.js";
+import { DELIVERY_PATHS } from "../../modules/deliveries/schema.js";
 import { FACILITY_PATHS } from "../../modules/facilities/schema.js";
 import { MANIFEST_PATHS } from "../../modules/manifests/schema.js";
 import { NETWORK_LEG_PATHS } from "../../modules/network-legs/schema.js";
@@ -49,8 +50,28 @@ export const API_ROUTES = {
 
       return compilePath(staticFullUrl, { trackingNumber })
     },
-    scan: (trackingNumber: string) => {
-      const staticFullUrl = PARCEL_PATHS.scan
+    pickedUp: (trackingNumber: string) => {
+      const staticFullUrl = PARCEL_PATHS.pickedUp
+
+      return compilePath(staticFullUrl, { trackingNumber })
+    },
+    bagged: (trackingNumber: string) => {
+      const staticFullUrl = PARCEL_PATHS.bagged
+
+      return compilePath(staticFullUrl, { trackingNumber })
+    },
+    departedFromHub: (trackingNumber: string) => {
+      const staticFullUrl = PARCEL_PATHS.departedFromHub
+
+      return compilePath(staticFullUrl, { trackingNumber })
+    },
+    arrivedAtHub: (trackingNumber: string) => {
+      const staticFullUrl = PARCEL_PATHS.arrivedAtHub
+
+      return compilePath(staticFullUrl, { trackingNumber })
+    },
+    delivered: (trackingNumber: string) => {
+      const staticFullUrl = PARCEL_PATHS.delivered
 
       return compilePath(staticFullUrl, { trackingNumber })
     },
@@ -138,6 +159,11 @@ export const API_ROUTES = {
   sortations: {
     sortingBatch: {
       store: SORTATION_BATCH_PATHS.store,
+      tunnelScan: (trackingNumber: string | number) => {
+        const staticFullUrl = SORTATION_BATCH_PATHS.tunnelScan
+
+        return compilePath(staticFullUrl, { trackingNumber })
+      },
       update: (sortingBatchId: string | number) => {
         const staticFullUrl = SORTATION_BATCH_PATHS.update
 
@@ -151,15 +177,25 @@ export const API_ROUTES = {
     },
     masterBag: {
       store: MASTER_BAG_PATHS.store,
+      label: (masterBagCode: string | number) => {
+        const staticFullUrl = MASTER_BAG_PATHS.label
+
+        return compilePath(staticFullUrl, { masterBagCode })
+      },
       update: (masterBagId: string | number) => {
         const staticFullUrl = MASTER_BAG_PATHS.update
 
         return compilePath(staticFullUrl, { masterBagId })
       },
       delete: (masterBagId: string | number) => {
-        const staticFullUrl = MASTER_BAG_PATHS.update
+        const staticFullUrl = MASTER_BAG_PATHS.delete
 
         return compilePath(staticFullUrl, { masterBagId })
+      },
+      seal: (masterBagCode: string | number) => {
+        const staticFullUrl = MASTER_BAG_PATHS.seal
+
+        return compilePath(staticFullUrl, { masterBagCode })
       },
     },
     facilityChute: {
@@ -188,6 +224,30 @@ export const API_ROUTES = {
       const staticFullUrl = MANIFEST_PATHS.complete
 
       return compilePath(staticFullUrl, { manifestCode })
+    },
+    arrive: (manifestCode: string | number) => {
+      const staticFullUrl = MANIFEST_PATHS.arrive
+
+      return compilePath(staticFullUrl, { manifestCode })
+    },
+  },
+  deliveries: {
+    index: DELIVERY_PATHS.index,
+    store: DELIVERY_PATHS.store,
+    dispatch: (deliveryCode: string | number) => {
+      const staticFullUrl = DELIVERY_PATHS.dispatch
+
+      return compilePath(staticFullUrl, { deliveryCode })
+    },
+    completed: (deliveryCode: string | number) => {
+      const staticFullUrl = DELIVERY_PATHS.completed
+
+      return compilePath(staticFullUrl, { deliveryCode })
+    },
+    arrived: (deliveryCode: string | number) => {
+      const staticFullUrl = DELIVERY_PATHS.arrived
+
+      return compilePath(staticFullUrl, { deliveryCode })
     },
   },
 }

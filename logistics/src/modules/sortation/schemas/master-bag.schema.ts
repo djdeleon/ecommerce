@@ -1,10 +1,11 @@
-import { MasterBagStatus } from "@prisma/client";
 import { Type, Static } from "@sinclair/typebox";
 
 export const MASTER_BAG_PATHS = {
   store: '/master-bags',
+  label: '/master-bags/:masterBagCode/label',
   update: '/master-bags/:masterBagId',
   delete: '/master-bags/:masterBagId',
+  seal: '/master-bags/:masterBagCode/seal',
 } as const;
 
 export const MasterBagStatusEnum = Type.Union([
@@ -22,6 +23,7 @@ export const MasterBagSchema = Type.Object({
   currentFacilityId: Type.Integer({ minimum: 1 }),
   nextFacilityId: Type.Integer({ minimum: 1 }),
   totalWeight: Type.Integer({ minimum: 0 }),
+  totalCbm: Type.Integer({ minimum: 0.00 }),
   totalParcels: Type.Integer({ minimum: 0 }),
   status: Type.Optional(MasterBagStatusEnum),
   sealedAt: Type.Optional(Type.String({ format: 'date-time' })),

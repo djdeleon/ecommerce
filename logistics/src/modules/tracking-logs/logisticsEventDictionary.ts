@@ -1,9 +1,12 @@
 import { ShipmentStatus } from "@prisma/client";
 
-type TrackingEventPayload = 
+type TrackingEventPayload =
   | { status: 'PendingPickup' }
   | { status: 'ReadyForPickup' }
   | { status: 'PickedUp'; courierName?: string; plateNumber?: string }
+  | { status: 'Bagged'; }
+  | { status: 'DepartedFromHub'; hubName?: string; }
+  | { status: 'ArrivedAtOriginHub'; hubName?: string; }
   | { status: 'InTransit'; originHub?: string; destinationHub?: string }
   | { status: 'ArrivedAtHub'; hubName?: string; }
   | { status: 'OutForDelivery'; courierName?: string }
@@ -21,6 +24,15 @@ export function generateEventDescription(payload: TrackingEventPayload) {
 
     case ShipmentStatus.PickedUp:
       return `Parcel successfully collected by courier ${payload.courierName} (${payload.plateNumber})`;
+
+    case ShipmentStatus.Bagged:
+      return `Parcel is bagged and waiting to be departed.`;
+
+    case ShipmentStatus.DepartedFromHub:
+      return `Parcel has departed from ${payload.hubName ?? 'hub'}.`;
+
+    case ShipmentStatus.ArrivedAtOriginHub:
+      return `Parcel arrived at ${payload.hubName}.`;
 
     case ShipmentStatus.InTransit:
       return `Parcel has departed from ${payload.originHub} and is in transit to ${payload.destinationHub}.`;

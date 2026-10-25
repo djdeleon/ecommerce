@@ -2,6 +2,7 @@ import { Type, Static } from "@sinclair/typebox";
 
 export const SORTATION_BATCH_PATHS = {
   store: '/sortation-batches',
+  tunnelScan: '/sortation-batches/:trackingNumber/tunnel-scan',
   update: '/sortation-batches/:sortingBatchId',
   delete: '/sortation-batches/:sortingBatchId',
 } as const;
@@ -18,6 +19,7 @@ export const SortationBatchSchema = Type.Object({
   code: Type.String({ minLength: 2, maxLength: 50 }),
   startTime: Type.Optional(Type.String({ format: 'date-time' })),
   endTime: Type.Optional(Type.String({ format: 'date-time' })),
+  cutOffTime: Type.String({ format: 'date-time' }),
   facilityId: Type.Integer({ minimum: 1 }),
   status: Type.Optional(SortationBatchStatusEnum),
   completedAt: Type.Optional(Type.String({ format: 'date-time' })),

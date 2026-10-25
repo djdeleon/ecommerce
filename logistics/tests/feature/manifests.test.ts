@@ -1,6 +1,6 @@
 import { API_ROUTES } from "#commons/constants/routes.js";
 import { FastifyInstance } from "fastify";
-import { beforeAll, describe, expect, it, test } from "vitest";
+import { beforeAll, describe, expect, test } from "vitest";
 import { Courier, CourierStatus, Manifest, ManifestStatus, ShipmentStatus, UserRole } from "@prisma/client";
 import { createParcel } from "../factory/parcel.factory.js";
 import { createuser } from "../factory/user.factory.js";
@@ -14,11 +14,11 @@ describe('Manifest Domain', async () => {
     app = (globalThis as any).app as FastifyInstance
   })
 
-  it('has a manifest dashboard UI', async () => {
+  test('a manifest has its own dashboard UI', async () => {
     await seedMasterInfrustructure(app)
 
     const { id: facilityId, sectors } = await app.prisma.facility.findFirstOrThrow({
-      where: { code: "BR-MAR-0001" },
+      where: { code: "DC-PAR-01" },
       include: {
         sectors: true
       }
@@ -72,7 +72,7 @@ describe('Manifest Domain', async () => {
     await seedMasterInfrustructure(app)
 
     const { id: facilityId, sectors, vehicles, users: couriers } = await app.prisma.facility.findFirstOrThrow({
-      where: { code: "BR-MAR-0001" },
+      where: { code: "BR-MAR-01" },
       include: {
         sectors: true,
         vehicles: true,
@@ -139,6 +139,7 @@ describe('Manifest Domain', async () => {
     expect(data.courierSchedule.courierId).toBe(selectedCourier.id);
   })
 
+  // TODO: GeoFencing
   test('a scheduled manifest is automatically dispatched by scanning the Manifest Code', async () => {
     await seedMasterInfrustructure(app)
 
@@ -192,14 +193,14 @@ describe('Manifest Domain', async () => {
 
     const response = await app.inject({
       method: 'PATCH',
-      url: API_ROUTES.parcels.scan(manifestedParcel.trackingNumber),
+      url: API_ROUTES.parcels.pickedUp(manifestedParcel.trackingNumber),
     })
 
     const body = response.json()
     const data = body.data ?? body
 
     expect(response.statusCode).toBe(200);
-    expect(body.message).toBe('Parcel scanned successfully.');
+    expect(body.message).toBe('Parcel is picked up successfully.');
     expect(data.status).toBe(ShipmentStatus.PickedUp);
 
     const trackingLog = await app.prisma.trackingLog.findFirst({
@@ -240,14 +241,48 @@ describe('Manifest Domain', async () => {
       url: API_ROUTES.manifests.complete(result.manifest.code)
     })
 
-    console.log(response.json())
-
     const body = response.json();
     const data = body.data as Manifest ?? body;
 
     expect(response.statusCode).toBe(200);
     expect(body.message).toBe('Manifest completed.');
     expect(data.status).toBe(ManifestStatus.Completed);
+
+    const courierSchedule = await app.prisma.courierSchedule.findUniqueOrThrow({
+      where: { id: data.courierScheduleId }
+    })
+    if (!courierSchedule.courierId) {
+      throw new Error("Cannot dispatch manifest: No courier assigned to this schedule.");
+    }
+
+    const manifestLog = await app.prisma.manifestLog.findFirstOrThrow({
+      where: { manifestId: data.id },
+      orderBy: { createdAt: 'desc' }
+    })
+    expect(manifestLog).toBeDefined();
+    expect(manifestLog?.status).toBe(ManifestStatus.Completed);
+  })
+
+  // TODO: GeoFencing
+  test('manifested parcels can be set to arrived', async () => {
+    await seedMasterInfrustructure(app)
+
+    const result = await createManifest(app, {
+      parcelOverrides: { status: ShipmentStatus.PickedUp },
+      manifestOverrides: { status: ManifestStatus.Completed }
+    })
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: API_ROUTES.manifests.arrive(result.manifest.code)
+    })
+
+    const body = response.json();
+    const data = body.data as Manifest ?? body;
+
+    expect(response.statusCode).toBe(200);
+    expect(body.message).toBe('Manifested Parcels arrived.');
+    expect(data.status).toBe(ManifestStatus.Arrived);
 
     const courierSchedule = await app.prisma.courierSchedule.findUniqueOrThrow({
       where: { id: data.courierScheduleId }
@@ -281,6 +316,19 @@ describe('Manifest Domain', async () => {
       orderBy: { createdAt: 'desc' }
     })
     expect(manifestLog).toBeDefined();
-    expect(manifestLog?.status).toBe(ManifestStatus.Completed);
+    expect(manifestLog?.status).toBe(ManifestStatus.Arrived);
+
+    const updatedParcels = await app.prisma.parcel.updateManyAndReturn({
+      where: { manifestId: data.id },
+      data: { status: ShipmentStatus.ArrivedAtOriginHub }
+    })
+    const parcelIds = updatedParcels.map((p) => p.id)
+
+    const trackingLogs = await app.prisma.trackingLog.findMany({
+      where: { parcelId: { in: parcelIds } }
+    })
+    trackingLogs.forEach((log) => {
+      expect(log.status).toBe(ShipmentStatus.ArrivedAtOriginHub)
+    })
   })
 })
