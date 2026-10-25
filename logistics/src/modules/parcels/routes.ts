@@ -1,7 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { PARCEL_PATHS, StoreBody, StoreSchema, waybillSchema } from "./schema.js";
 import { createParcel } from "./service.js";
-import { ShipmentStatus } from "@prisma/client";
+import { Parcel, ShipmentStatus } from "@prisma/client";
 import { createTrackingLog } from "../tracking-logs/service.js";
 import parcelAuth from "#commons/middlewares/client-auth.js";
 import { activateTrackingNumber } from "../tracking-numbers/service.js";
@@ -433,7 +433,7 @@ export default async function parcelRoutes(fastify: FastifyInstance) {
       `)
   })
 
-  fastify.patch(PARCEL_PATHS.scan, async (req, rep) => {
+  fastify.patch(PARCEL_PATHS.pickedUp, async (req, rep) => {
     const { trackingNumber } = req.params as { trackingNumber: string; }
     const parcel = await fastify.prisma.parcel.findUniqueOrThrow({
       where: { trackingNumber }
@@ -457,7 +457,166 @@ export default async function parcelRoutes(fastify: FastifyInstance) {
     })
 
     return rep.status(200).send({
-      message: 'Parcel scanned successfully.',
+      message: 'Parcel is picked up successfully.',
+      data: updatedParcel
+    })
+  })
+
+  fastify.patch(PARCEL_PATHS.delivered, async (req, rep) => {
+    const { trackingNumber } = req.params as { trackingNumber: string; }
+    const parcel = await fastify.prisma.parcel.findUniqueOrThrow({
+      where: { trackingNumber }
+    })
+
+    const updatedParcel = await fastify.prisma.$transaction(async (tx) => {
+      const updatedParcel = await tx.parcel.update({
+        where: { trackingNumber },
+        data: { status: ShipmentStatus.Delivered }
+      })
+
+      await tx.trackingLog.create({
+        data: {
+          parcelId: parcel.id,
+          status: ShipmentStatus.Delivered,
+          description: generateEventDescription({ status: ShipmentStatus.Delivered })
+        }
+      })
+
+      return updatedParcel
+    })
+
+    return rep.status(200).send({
+      message: 'Parcel is delivered successfully.',
+      data: updatedParcel
+    })
+  })
+
+  fastify.patch(PARCEL_PATHS.bagged, async (req, rep) => {
+    const { trackingNumber } = req.params as { trackingNumber: string; }
+    const parcel = await fastify.prisma.parcel.findUniqueOrThrow({
+      where: { trackingNumber }
+    })
+
+    const updatedParcel = await fastify.prisma.$transaction(async (tx) => {
+      const updatedParcel = await tx.parcel.update({
+        where: { trackingNumber },
+        data: { status: ShipmentStatus.Bagged }
+      })
+
+      await tx.trackingLog.create({
+        data: {
+          parcelId: parcel.id,
+          status: ShipmentStatus.Bagged,
+          description: generateEventDescription({ status: ShipmentStatus.Bagged })
+        }
+      })
+
+      return updatedParcel
+    })
+
+    return rep.status(200).send({
+      message: 'Parcel is bagged successfully.',
+      data: updatedParcel
+    })
+  })
+
+  fastify.patch(PARCEL_PATHS.departedFromHub, async (req, rep) => {
+    const { trackingNumber } = req.params as { trackingNumber: string; }
+    const parcel = await fastify.prisma.parcel.findUniqueOrThrow({
+      where: { trackingNumber }
+    })
+
+    const updatedParcel = await fastify.prisma.$transaction(async (tx) => {
+      const updatedParcel = await tx.parcel.update({
+        where: { trackingNumber },
+        data: { status: ShipmentStatus.DepartedFromHub }
+      })
+      if (!updatedParcel.currentFacilityId) {
+        throw new Error("Parcel doesn't have a current facility...")
+      }
+      const currentFacilityId = updatedParcel.currentFacilityId
+      const facility = await fastify.prisma.facility.findFirstOrThrow({
+        where: { id: currentFacilityId }
+      })
+
+      await tx.trackingLog.create({
+        data: {
+          parcelId: parcel.id,
+          status: ShipmentStatus.DepartedFromHub,
+          description: generateEventDescription({ status: ShipmentStatus.DepartedFromHub, hubName: facility.name })
+        }
+      })
+
+      return updatedParcel
+    })
+
+    return rep.status(200).send({
+      message: 'Parcel is departed from hub successfully.',
+      data: updatedParcel
+    })
+  })
+
+  fastify.patch(PARCEL_PATHS.arrivedAtHub, async (req, rep) => {
+    const { trackingNumber } = req.params as { trackingNumber: string; }
+    const parcel = await fastify.prisma.parcel.findUniqueOrThrow({
+      where: { trackingNumber }
+    })
+
+    const updatedParcel = await fastify.prisma.$transaction(async (tx) => {
+      const updatedParcelStatus = await tx.parcel.update({
+        where: { trackingNumber },
+        data: { status: ShipmentStatus.ArrivedAtHub }
+      })
+      if (!updatedParcelStatus.currentFacilityId) {
+        throw new Error("Parcel doesn't have a current facility...")
+      }
+      const currentFacilityId = updatedParcelStatus.currentFacilityId
+      const facility = await fastify.prisma.facility.findFirstOrThrow({
+        where: { id: currentFacilityId }
+      })
+      const routingPipelineSegments = updatedParcelStatus.routingPipelineCache.split(' > ')
+      let nextFacilityCode = null
+      for (const [idx, code] of routingPipelineSegments.entries()) {
+        if (code === facility.code && idx < routingPipelineSegments.length - 1) {
+          nextFacilityCode = routingPipelineSegments[idx + 1]
+          break
+        }
+      }
+      let updatedParcel: Parcel
+      if (!nextFacilityCode) {
+        updatedParcel = await tx.parcel.update({
+          where: { trackingNumber },
+          data: {
+            status: ShipmentStatus.ArrivedAtHub,
+            currentFacilityId: parcel.destinationFacilityId
+          }
+        })
+      } else {
+        const nextFacility = await tx.facility.findFirstOrThrow({
+          where: { code: nextFacilityCode }
+        })
+        updatedParcel = await tx.parcel.update({
+          where: { trackingNumber },
+          data: {
+            status: ShipmentStatus.ArrivedAtHub,
+            currentFacilityId: nextFacility.id
+          }
+        })
+      }
+
+      await tx.trackingLog.create({
+        data: {
+          parcelId: parcel.id,
+          status: ShipmentStatus.ArrivedAtHub,
+          description: generateEventDescription({ status: ShipmentStatus.ArrivedAtHub, hubName: facility.name })
+        }
+      })
+
+      return updatedParcel
+    })
+
+    return rep.status(200).send({
+      message: 'Parcel has arrived at hub successfully.',
       data: updatedParcel
     })
   })

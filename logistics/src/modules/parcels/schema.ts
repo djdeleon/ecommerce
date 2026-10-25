@@ -3,7 +3,11 @@ import { Static, Type } from "@sinclair/typebox"
 export const PARCEL_PATHS = {
   store: '/parcels',
   waybill: '/parcels/:trackingNumber/waybill',
-  scan: '/parcels/:trackingNumber/scan',
+  pickedUp: '/parcels/:trackingNumber/picked-up',
+  bagged: '/parcels/:trackingNumber/bagged',
+  departedFromHub: '/parcels/:trackingNumber/departed-from-hub',
+  arrivedAtHub: '/parcels/:trackingNumber/arrived-at-hub',
+  delivered: '/parcels/:trackingNumber/delivered',
 }
 
 const AddressSchema = Type.Object({

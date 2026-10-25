@@ -4372,7 +4372,7 @@ const facilites: Facility[] = [
   },
   {
     "name": "FSTFY Marikina Hub",
-    "code": "BR-MAR-0001",
+    "code": "BR-MAR-01",
     "address": "Sumulong Highway cor. Shoe Avenue, Barangay Santo Niño / Santa Elena, Marikina City, 1800 Metro Manila, Philippines",
     "type": FacilityType.LocalBranch,
     "longitude": 121.09961,
@@ -4547,7 +4547,7 @@ const facilites: Facility[] = [
     "networkLegs": [
       {
         "sourceFacilityCode": "GW-MNL-01",
-        "destinationFacilityCode": "BR-MAR-0001",
+        "destinationFacilityCode": "BR-MAR-01",
         "laneCode": "LEG-MNL-MAR-OUT",
         "route": {
           "type": "LineString",
@@ -6982,7 +6982,7 @@ const facilites: Facility[] = [
         }
       },
       {
-        "sourceFacilityCode": "BR-MAR-0001",
+        "sourceFacilityCode": "BR-MAR-01",
         "destinationFacilityCode": "GW-MNL-01",
         "laneCode": "LEG-MAR-MNL-IN",
         "route": {

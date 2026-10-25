@@ -6,11 +6,19 @@ export const COURIER_SCHEDULE_PATHS = {
   delete: '/courier-schedules/:courierScheduleId',
 } as const;
 
+export const CourierScheduleStatusEnum = Type.Union([
+  Type.Literal('Accumulation'),
+  Type.Literal('LineHaul'),
+  Type.Literal('Delivery'),
+])
+
 export const CourierScheduleSchema = Type.Object({
   id: Type.Integer({ minimum: 1 }),
   courierId: Type.Optional(Type.Integer({ minimum: 1 })),
-  physicalVehicleId: Type.Integer({ minimum: 1 }),
+  vehicleId: Type.Integer({ minimum: 1 }),
   networkLegId: Type.Integer({ minimum: 1 }),
+  scheduledFor: Type.Optional(CourierScheduleStatusEnum),
+  scheduledTime: Type.String({ format: 'date-time' }),
   createdAt: Type.String({ format: 'date-time' }),
   updatedAt: Type.String({ format: 'date-time' }),
 })

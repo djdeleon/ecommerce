@@ -6,13 +6,15 @@ export async function createCourierSchedule(
   fastify: FastifyInstance, 
   data: CreateCourierScheduleBody
 ) {
-  const { courierId, physicalVehicleId, networkLegId } = data
+  const { courierId, vehicleId, networkLegId, scheduledFor, scheduledTime } = data
 
   return await fastify.prisma.courierSchedule.create({
     data: {
       courierId: courierId ?? null,
-      physicalVehicleId,
+      vehicleId,
       networkLegId,
+      scheduledFor,
+      scheduledTime,
     },
   })
 }

@@ -5,6 +5,7 @@ export const MANIFEST_PATHS = {
   store: '/manifests',
   dispatch: '/manifests/:manifestCode/dispatch',
   complete: '/manifests/:manifestCode/complete',
+  arrive: '/manifests/:manifestCode/arrive',
 } as const;
 
 export const CreateManifestSchema = {

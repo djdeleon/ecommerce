@@ -4,9 +4,10 @@ import {
   CreateManifestSchema,
   MANIFEST_PATHS
 } from "./schema.js";
-import { CourierStatus, ManifestStatus, ShipmentStatus, UserRole } from "@prisma/client";
+import { CourierStatus, ManifestStatus, ShipmentStatus } from "@prisma/client";
 import { userAuth } from "#commons/middlewares/user-auth.js";
 import { generateManifestCode } from "./service.js";
+import { generateEventDescription } from "../tracking-logs/logisticsEventDictionary.js";
 
 export default async function manifestRoutes(fastify: FastifyInstance) {
   // TODO: Middleware to check and get the Manager Data to get its assigned facility
@@ -210,9 +211,47 @@ export default async function manifestRoutes(fastify: FastifyInstance) {
       _count: { id: true }
     })
     const remainingParcels = totalParcels._count.id - totalPickedUpParcels._count.id
-    console.log({ remainingParcels })
     if (remainingParcels) {
       throw new Error(`Manifest cannot be completed. There are ${remainingParcels} parcels left...`)
+    }
+
+    const courierSchedule = await fastify.prisma.courierSchedule.findUniqueOrThrow({
+      where: { id: manifest.courierScheduleId }
+    })
+    if (!courierSchedule.courierId) {
+      throw new Error("Cannot dispatch manifest: No courier assigned to this schedule.");
+    }
+
+    const updatedManifest = await fastify.prisma.$transaction(async (tx) => {
+      const updatedManifest = await fastify.prisma.manifest.update({
+        where: { code: manifestCode },
+        data: { status: ManifestStatus.Completed }
+      })
+
+      await tx.manifestLog.create({
+        data: {
+          manifestId: manifest.id,
+          status: ManifestStatus.Completed
+        }
+      })
+
+      return updatedManifest
+    });
+
+    return rep.status(200).send({
+      message: 'Manifest completed.',
+      data: updatedManifest
+    })
+  })
+
+  fastify.patch(MANIFEST_PATHS.arrive, async (req, rep) => {
+    const { manifestCode } = req.params as { manifestCode: string }
+
+    const manifest = await fastify.prisma.manifest.findUniqueOrThrow({
+      where: { code: manifestCode },
+    })
+    if (manifest.status !== ManifestStatus.Completed) {
+      throw new Error(`Manifest cannot be set to arrive. Complete the parcel accumulation first.`)
     }
 
     const courierSchedule = await fastify.prisma.courierSchedule.findUniqueOrThrow({
@@ -227,17 +266,16 @@ export default async function manifestRoutes(fastify: FastifyInstance) {
       where: { id: manifest.sectorId }
     })
 
-
     const updatedManifest = await fastify.prisma.$transaction(async (tx) => {
       const updatedManifest = await fastify.prisma.manifest.update({
         where: { code: manifestCode },
-        data: { status: ManifestStatus.Completed }
+        data: { status: ManifestStatus.Arrived }
       })
 
       await tx.manifestLog.create({
         data: {
           manifestId: manifest.id,
-          status: ManifestStatus.Completed
+          status: ManifestStatus.Arrived
         }
       })
 
@@ -256,11 +294,29 @@ export default async function manifestRoutes(fastify: FastifyInstance) {
         }
       })
 
+      const updatedParcels = await tx.parcel.updateManyAndReturn({
+        where: { manifestId: updatedManifest.id },
+        data: { status: ShipmentStatus.ArrivedAtOriginHub }
+      })
+      const parcelIds = updatedParcels.map((p) => p.id)
+
+      const facility = await tx.facility.findUniqueOrThrow({
+        where: { id: sector.localBranchId }
+      })
+
+      await tx.trackingLog.createMany({
+        data: parcelIds.map((parcelId) => ({
+          parcelId,
+          status: ShipmentStatus.ArrivedAtOriginHub,
+          description: generateEventDescription({ status: ShipmentStatus.ArrivedAtOriginHub, hubName: facility.name }),
+        })),
+      });
+
       return updatedManifest
     });
 
     return rep.status(200).send({
-      message: 'Manifest completed.',
+      message: 'Manifested Parcels arrived.',
       data: updatedManifest
     })
   })
