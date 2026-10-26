@@ -1,0 +1,22 @@
+{
+  "name": "logistics-ui",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Logistics UI Frontend",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "nuxt": "^4.6.2",
+    "vue": "^3.5.0",
+    "vue-router": "^4.4.0"
+  },
+  "devDependencies": {
+    "nuxi": "^4.0.1"
+  }
+}

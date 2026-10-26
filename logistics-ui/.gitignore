@@ -1,0 +1,12 @@
+# Nuxt internal runtime caches and build outputs
+.nuxt/
+.output/
+.data/
+
+# Dependencies 
+node_modules/
+
+# Local environment configuration overrides
+.env
+.env.*
+!.env.example
