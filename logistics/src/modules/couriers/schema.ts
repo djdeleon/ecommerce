@@ -1,13 +1,7 @@
 import { CourierStatus } from "@prisma/client";
 import { Type, Static } from "@sinclair/typebox";
 
-export const COURIER_PATHS = {
-  index: '/couriers',
-  store: '/couriers',
-} as const;
-
 export const StoreSchema = {
-  url: COURIER_PATHS.store,
   body: Type.Object({
     email: Type.String({
       format: "email",
@@ -37,6 +31,11 @@ export const StoreSchema = {
       description: "Type of vehicle used for deliveries",
       examples: ["Motorcycle", "Van", "Bicycle", "Car"]
     }),
+    assignedFacilityId: Type.Integer({
+      minimum: 1,
+      description: "ID of the facility the courier is assigned to",
+      examples: [1]
+    }),
     status: Type.Enum(CourierStatus),
   }),
   response: {
@@ -48,9 +47,7 @@ export const StoreSchema = {
           userId: Type.Number(),
           phoneNumber: Type.String(),
           vehicleType: Type.String(),
-          plateNumber: Type.String(),
           status: Type.Enum(CourierStatus),
-          assignedFacilityId: Type.Number(),
           createdAt: Type.String(),
           updatedAt: Type.String(),
           user: Type.Object({
@@ -70,10 +67,6 @@ export const StoreSchema = {
       error: Type.String()
     }),
   }
-}
-
-export const IndexSchema = {
-  url: COURIER_PATHS.index,
 }
 
 const RegisterCourierDataSchema = StoreSchema.body

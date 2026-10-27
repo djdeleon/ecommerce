@@ -1,7 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { beforeAll, describe, expect, test } from "vitest";
 import { UserRole } from "@prisma/client";
-import { API_ROUTES } from "../../src/commons/constants/routes.js";
+import { users } from "../../src/modules/users/paths.js";
 
 describe('User HTTP Routes', () => {
   let app: FastifyInstance
@@ -15,7 +15,7 @@ describe('User HTTP Routes', () => {
 
     const response = await app.inject({
       method: 'POST',
-      url: API_ROUTES.users.register,
+      url: users.register,
       body: {
         firstName: 'Admin',
         lastName: 'User',
@@ -41,7 +41,7 @@ describe('User HTTP Routes', () => {
 
     await app.inject({
       method: 'POST',
-      url: API_ROUTES.users.register,
+      url: users.register,
       body: {
         firstName: 'Admin',
         lastName: 'User',
@@ -55,7 +55,7 @@ describe('User HTTP Routes', () => {
 
     const response = await app.inject({
       method: 'POST',
-      url: API_ROUTES.users.register,
+      url: users.register,
       body: {
         firstName: 'Another',
         lastName: 'Admin',
@@ -74,7 +74,7 @@ describe('User HTTP Routes', () => {
 
     const response = await app.inject({
       method: 'POST',
-      url: API_ROUTES.users.register,
+      url: users.register,
       body: {
         firstName: 'Admin',
         lastName: 'User',
@@ -89,7 +89,7 @@ describe('User HTTP Routes', () => {
 
     const loginResponse = await app.inject({
       method: 'POST',
-      url: API_ROUTES.users.login,
+      url: users.login,
       body: {
         email: user.email,
         password: 'secretPassword123'

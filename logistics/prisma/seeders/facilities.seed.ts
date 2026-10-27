@@ -4,7 +4,7 @@ import { createFacility } from "../../tests/factory/facility.factory.js"
 import { createSector } from "../../tests/factory/sector.factory.js";
 import { createPhysicalVehicle } from "../../tests/factory/vehicles.factory.js";
 import { createCourier } from "../../tests/factory/courier.factory.js";
-import { createuser } from "../../tests/factory/user.factory.js";
+import { createUser } from "../../tests/factory/user.factory.js";
 import { createNetworkLeg } from "../../tests/factory/network-leg.factory.js";
 
 export interface Schedule {
@@ -9318,7 +9318,7 @@ async function seedActors(fastify: FastifyInstance, facilityId: number, couriers
           const padding = String(i).padStart(2, '0')
           const citySegment = facilityCode.split('-').at(1)?.toLowerCase()
 
-          await createuser(fastify, operator.role, {
+          await createUser(fastify, operator.role, {
             email: `mgr-${operator.role.toLowerCase()}-${citySegment}-${padding}@example.com`,
             password: 'secretPassword123',
             firstName: `${operator.role} ${citySegment}-${padding} First Name`,

@@ -2,24 +2,22 @@ import { FastifyInstance } from "fastify";
 import {
   CreateDeliveryBody,
   CreateDeliverySchema,
-  DELIVERY_PATHS,
 } from "./schema.js";
 import { CourierScheduleType, CourierStatus, DeliveryStatus, ShipmentStatus } from "@prisma/client";
 import { userAuth } from "#commons/middlewares/user-auth.js";
 import { generateDeliveryCode } from "./service.js";
 import { generateEventDescription } from "../tracking-logs/logisticsEventDictionary.js";
+import { deliveries } from "./paths.js";
 
 export default async function deliveryRoutes(fastify: FastifyInstance) {
   // TODO: Middleware to check and get the Manager Data to get its assigned facility
-  fastify.get(DELIVERY_PATHS.index, { preHandler: [userAuth] }, async (req, rep) => {
+  fastify.get(deliveries.index, { preHandler: [userAuth] }, async (req, rep) => {
     const manager = (req as any).user
 
     const facility = await fastify.prisma.facility.findUniqueOrThrow({
       where: { id: manager.assignedFacilityId },
       include: { sectors: true }
     })
-
-    console.log(facility)
 
     const sectorIds = facility.sectors.map(s => s.id);
     const sectorAggregates = await fastify.prisma.parcel.groupBy({
@@ -87,7 +85,7 @@ export default async function deliveryRoutes(fastify: FastifyInstance) {
     })
   })
 
-  fastify.post<{ Body: CreateDeliveryBody }>(DELIVERY_PATHS.store, { schema: CreateDeliverySchema }, async (req, rep) => {
+  fastify.post<{ Body: CreateDeliveryBody }>(deliveries.store, { schema: CreateDeliverySchema }, async (req, rep) => {
     const { sectorId, courierId, vehicleId, scheduledTime, parcelIds, currentWeightGrams, currentVolumeCbm } = req.body;
 
     const result = await fastify.prisma.$transaction(async (tx) => {
@@ -143,7 +141,7 @@ export default async function deliveryRoutes(fastify: FastifyInstance) {
     })
   })
 
-  fastify.patch(DELIVERY_PATHS.dispatch, async (req, rep) => {
+  fastify.patch(deliveries.dispatch.url, async (req, rep) => {
     const { deliveryCode } = req.params as { deliveryCode: string }
 
     const delivery = await fastify.prisma.delivery.findUniqueOrThrow({
@@ -222,7 +220,7 @@ export default async function deliveryRoutes(fastify: FastifyInstance) {
     })
   })
 
-  fastify.patch(DELIVERY_PATHS.completed, async (req, rep) => {
+  fastify.patch(deliveries.completed.url, async (req, rep) => {
     const { deliveryCode } = req.params as { deliveryCode: string }
 
     const delivery = await fastify.prisma.delivery.findUniqueOrThrow({
@@ -263,7 +261,7 @@ export default async function deliveryRoutes(fastify: FastifyInstance) {
     })
   })
 
-  fastify.patch(DELIVERY_PATHS.arrived, async (req, rep) => {
+  fastify.patch(deliveries.arrived.url, async (req, rep) => {
     const { deliveryCode } = req.params as { deliveryCode: string }
 
     const delivery = await fastify.prisma.delivery.findUniqueOrThrow({

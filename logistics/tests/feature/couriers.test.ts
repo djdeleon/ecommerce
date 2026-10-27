@@ -2,8 +2,8 @@ import { beforeAll, describe, expect, test } from "vitest";
 import { CourierStatus, UserRole } from "@prisma/client";
 import { createCourier, createFacility } from "#factory";
 import { FastifyInstance } from "fastify";
-import { API_ROUTES } from "#commons/constants/routes.js";
-import { createuser } from "../factory/user.factory.js";
+import { createUser } from "../factory/user.factory.js";
+import { couriers } from "../../src/modules/couriers/paths.js";
 
 describe('Couriers Domain', () => {
   let app: FastifyInstance
@@ -13,13 +13,13 @@ describe('Couriers Domain', () => {
   })
 
   test('an admin can view courier dashboard', async () => {
-    const admin = await createuser(UserRole.Admin)
+    const admin = await createUser(app, UserRole.Admin)
 
-    await createCourier();
+    await createCourier(app);
 
     const response = await app.inject({
       method: 'GET',
-      url: API_ROUTES.couriers.index,
+      url: couriers.index,
       headers: {
         authorization: `Bearer ${admin.token}`
       }
@@ -34,20 +34,19 @@ describe('Couriers Domain', () => {
   test('a courier can register', async () => {
     const facility = await createFacility(app);
     const payload = {
-      email: `courier@example.com`,
-      password: 'secretPassword123',
+      email: "courier@example.com",
+      password: "secretPassword123",
       firstName: "Courier First",
       lastName: "Courier Last",
       phoneNumber: '09756748574',
       vehicleType: "truck",
-      plateNumber: `ABC-CRR`,
       status: CourierStatus.Available,
       assignedFacilityId: facility.id,
     }
 
     const response = await app.inject({
       method: 'POST',
-      url: API_ROUTES.couriers.store,
+      url: couriers.store,
       body: payload,
     })
 
@@ -62,9 +61,7 @@ describe('Couriers Domain', () => {
       userId: expect.any(Number),
       phoneNumber: payload.phoneNumber,
       vehicleType: payload.vehicleType,
-      plateNumber: payload.plateNumber,
       status: payload.status,
-      assignedFacilityId: facility.id,
       user: {
         id: expect.any(Number),
         firstName: payload.firstName,

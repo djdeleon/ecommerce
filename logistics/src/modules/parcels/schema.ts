@@ -1,15 +1,5 @@
 import { Static, Type } from "@sinclair/typebox"
 
-export const PARCEL_PATHS = {
-  store: '/parcels',
-  waybill: '/parcels/:trackingNumber/waybill',
-  pickedUp: '/parcels/:trackingNumber/picked-up',
-  bagged: '/parcels/:trackingNumber/bagged',
-  departedFromHub: '/parcels/:trackingNumber/departed-from-hub',
-  arrivedAtHub: '/parcels/:trackingNumber/arrived-at-hub',
-  delivered: '/parcels/:trackingNumber/delivered',
-}
-
 const AddressSchema = Type.Object({
   region: Type.String({ minLength: 2 }),
   province: Type.Union([Type.String({ minLength: 2 }), Type.Null()]),
@@ -29,7 +19,6 @@ const AddressSchema = Type.Object({
 });
 
 export const StoreSchema = {
-  url: PARCEL_PATHS.store,
   body: Type.Object({
     merchant_details: Type.Object({
       name: Type.String({
@@ -123,10 +112,6 @@ export const StoreSchema = {
       }),
     })
   })
-}
-
-export const waybillSchema = {
-  url: PARCEL_PATHS.waybill
 }
 
 export type StoreBody = Static<typeof StoreSchema.body>

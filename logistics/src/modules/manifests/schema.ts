@@ -1,13 +1,5 @@
 import { Static, Type } from "@sinclair/typebox"
 
-export const MANIFEST_PATHS = {
-  index: '/manifests',
-  store: '/manifests',
-  dispatch: '/manifests/:manifestCode/dispatch',
-  complete: '/manifests/:manifestCode/complete',
-  arrive: '/manifests/:manifestCode/arrive',
-} as const;
-
 export const CreateManifestSchema = {
   body: Type.Object({
     sectorId: Type.Number(),

@@ -1,10 +1,10 @@
-import { API_ROUTES } from "#commons/constants/routes.js";
 import { FastifyInstance } from "fastify";
 import { beforeAll, describe, expect, test } from "vitest";
 import { createFacility } from "#factory";
 import { TransitMode } from "@prisma/client";
 import { transitModeMap } from "../../src/modules/network-legs/transitModeMap.js";
 import { createNetworkLeg } from "../factory/network-leg.factory.js";
+import { networkLegs } from "../../src/modules/network-legs/paths.js";
 
 describe('Network Leg Domain', () => {
   let app: FastifyInstance
@@ -29,7 +29,7 @@ describe('Network Leg Domain', () => {
           [121.10, 14.85]
         ]
       },
-      distanceKm: 45,
+      distanceMtr: 45,
       vehicleProfile: 'Aluminum Van',
       baseTransitDuration: 7200, // 2 hours in seconds
       mode: TransitMode.HighwayLinehaul,
@@ -38,7 +38,7 @@ describe('Network Leg Domain', () => {
 
     const response = await app.inject({
       method: 'POST',
-      url: API_ROUTES.networkLegs.store,
+      url: networkLegs.store,
       body: payload
     })
 
@@ -51,7 +51,7 @@ describe('Network Leg Domain', () => {
       sourceFacilityId: payload.sourceFacilityId,
       destinationFacilityId: payload.destinationFacilityId,
       laneCode: payload.laneCode,
-      distanceKm: payload.distanceKm,
+      distanceMtr: payload.distanceMtr,
       vehicleProfile: payload.vehicleProfile,
       baseTransitDuration: payload.baseTransitDuration,
       mode: transitModeMap[payload.mode],
@@ -65,13 +65,13 @@ describe('Network Leg Domain', () => {
 
     const updatePayload = {
       laneCode: 'UPDATED-LANE',
-      distanceKm: 50,
+      distanceMtr: 50,
       mode: TransitMode.HighwayLinehaul,
     }
 
     const response = await app.inject({
       method: 'PUT',
-      url: API_ROUTES.networkLegs.update(createdLeg.id),
+      url: networkLegs.update(createdLeg.id),
       body: updatePayload
     })
 
@@ -82,7 +82,7 @@ describe('Network Leg Domain', () => {
     expect(body.data).toMatchObject({
       id: createdLeg.id,
       laneCode: updatePayload.laneCode,
-      distanceKm: updatePayload.distanceKm,
+      distanceMtr: updatePayload.distanceMtr,
       mode: transitModeMap[updatePayload.mode]
     })
   })
@@ -92,7 +92,7 @@ describe('Network Leg Domain', () => {
 
     const response = await app.inject({
       method: 'DELETE',
-      url: API_ROUTES.networkLegs.delete(createdLeg.id),
+      url: networkLegs.delete(createdLeg.id),
     })
 
     const body = response.json()

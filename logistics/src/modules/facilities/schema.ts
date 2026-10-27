@@ -1,11 +1,4 @@
-import { FacilityType } from "@prisma/client";
 import { Type, Static } from "@sinclair/typebox";
-
-export const FACILITY_PATHS = {
-  index: '/facilities',
-  store: '/facilities',
-  assignCourier: '/facilities/:facilityId/assign-courier',
-} as const;
 
 export const FacilityTypeEnum = Type.Union([
   Type.Literal('MegaGateway'),
@@ -14,7 +7,6 @@ export const FacilityTypeEnum = Type.Union([
 ]);
 
 export const StoreSchema = {
-  url: FACILITY_PATHS.store,
   body: Type.Object({
     name: Type.String({
       minLength: 3,
@@ -63,13 +55,11 @@ export const StoreSchema = {
 }
 
 export const IndexSchema = {
-  url: FACILITY_PATHS.index,
 }
 
 export const AssignSchema = {
-  url: FACILITY_PATHS.assignCourier,
   body: Type.Object({
-    courierId: Type.Integer({
+    userId: Type.Integer({
       minimum: 1,
       description: "ID of the courier being assigned"
     })

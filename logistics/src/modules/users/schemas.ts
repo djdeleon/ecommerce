@@ -1,13 +1,7 @@
 import { UserRole } from "@prisma/client"
 import { Type, Static } from "@sinclair/typebox"
 
-export const USER_PATHS = {
-  register: '/register',
-  login: '/login'
-} as const;
-
 export const LoginSchema = {
-  url: USER_PATHS.login,
   body: Type.Object({
     email: Type.String({
       format: "email",
@@ -37,12 +31,18 @@ export const LoginSchema = {
 }
 
 export const RegisterSchema = {
-  url: USER_PATHS.register,
   body: Type.Object({
     firstName: Type.String({ minLength: 1 }),
     lastName: Type.String({ minLength: 1 }),
     email: Type.String({ format: "email" }),
     password: Type.String({ minLength: 6 }),
+    assignedFacilityId: Type.Optional(
+      Type.Integer({
+        minimum: 1,
+        description: "ID of the facility the courier is assigned to",
+        examples: [1]
+      })
+    ),
     role: Type.Enum(UserRole),
   }),
   response: {

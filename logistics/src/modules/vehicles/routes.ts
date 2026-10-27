@@ -1,17 +1,16 @@
 import { FastifyInstance } from "fastify";
-import { CreateVehicleProfile, CreateVehicleSchema, DeleteVehicleParams, DeleteVehicleSchema, UpdateVehicleBody, UpdateVehicleParams, UpdateVehicleSchema, VEHICLE_PROFILE_PATHS } from "./schemas/vehicle-profile.schema.js";
-import { VehicleType } from "@prisma/client";
-import parseId from "#commons/utils/id-parser.js";
-import { CreatePhysicalVehicleBody, CreatePhysicalVehicleSchema, DeletePhysicalVehicleParams, DeletePhysicalVehicleSchema, PHYSICAL_VEHICLE_PATHS, UpdatePhysicalVehicleBody, UpdatePhysicalVehicleParams, UpdatePhysicalVehicleSchema } from "./schemas/physical-vehicle.schema.js";
-import { COURIER_SCHEDULE_PATHS, CreateCourierScheduleBody, CreateCourierScheduleSchema, DeleteCourierScheduleParams, DeleteCourierScheduleSchema, UpdateCourierScheduleBody, UpdateCourierScheduleParams, UpdateCourierScheduleSchema } from "./schemas/courier-schedule.schema.js";
+import { CreateVehicleProfile, CreateVehicleSchema, DeleteVehicleParams, DeleteVehicleSchema, UpdateVehicleBody, UpdateVehicleParams, UpdateVehicleSchema } from "./schemas/vehicle-profile.schema.js";
+import { CreatePhysicalVehicleBody, CreatePhysicalVehicleSchema, DeletePhysicalVehicleParams, DeletePhysicalVehicleSchema, UpdatePhysicalVehicleBody, UpdatePhysicalVehicleParams, UpdatePhysicalVehicleSchema } from "./schemas/physical-vehicle.schema.js";
+import { CreateCourierScheduleBody, CreateCourierScheduleSchema, DeleteCourierScheduleParams, DeleteCourierScheduleSchema, UpdateCourierScheduleBody, UpdateCourierScheduleParams, UpdateCourierScheduleSchema } from "./schemas/courier-schedule.schema.js";
 import { createVehicleProfile, deleteVehicleProfile, updateVehicleProfile } from "./services/vehicle-profile.service.js";
 import { createPhysicalVehicle, deletePhysicalVehicle, updatePhysicalVehicle } from "./services/physical-vehicle.service.js";
 import { createCourierSchedule, deleteCourierSchedule, updateCourierSchedule } from "./services/courier-schedule.service.js";
-import { CreateDispatchLogBody, DISPATCH_LOG_PATHS, CreateDispatchLogSchema, UpdateDispatchLogBody, UpdateDispatchLogParams, UpdateDispatchLogSchema, DeleteDispatchLogParams, DeleteDispatchLogSchema } from "./schemas/dispatch-log.schema.js";
+import { CreateDispatchLogBody, CreateDispatchLogSchema, UpdateDispatchLogBody, UpdateDispatchLogParams, UpdateDispatchLogSchema, DeleteDispatchLogParams, DeleteDispatchLogSchema } from "./schemas/dispatch-log.schema.js";
 import { createDispatchLog, updateDispatchLog, deleteDispatchLog } from "./services/dispatch-log.service.js";
+import { vehicles } from "./paths.js";
 
 export async function vehicleProfileRoutes(fastify: FastifyInstance) {
-  fastify.post<{ Body: CreateVehicleProfile }>(VEHICLE_PROFILE_PATHS.store, { schema: CreateVehicleSchema }, async (req, rep) => {
+  fastify.post<{ Body: CreateVehicleProfile }>(vehicles.vehicleProfiles.store, { schema: CreateVehicleSchema }, async (req, rep) => {
     const vehicleProfile = await createVehicleProfile(fastify, req.body)
 
     return rep.code(201).send({
@@ -21,7 +20,7 @@ export async function vehicleProfileRoutes(fastify: FastifyInstance) {
   })
 
   fastify.put<{ Body: UpdateVehicleBody; Params: UpdateVehicleParams }>(
-    VEHICLE_PROFILE_PATHS.update,
+    vehicles.vehicleProfiles.update.url,
     { schema: UpdateVehicleSchema },
     async (req, rep) => {
       const { vehicleProfileId } = req.params
@@ -36,7 +35,7 @@ export async function vehicleProfileRoutes(fastify: FastifyInstance) {
   )
 
   fastify.delete<{ Params: DeleteVehicleParams }>(
-    VEHICLE_PROFILE_PATHS.delete,
+    vehicles.vehicleProfiles.delete.url,
     { schema: DeleteVehicleSchema },
     async (req, rep) => {
       const { vehicleProfileId } = req.params
@@ -52,7 +51,7 @@ export async function vehicleProfileRoutes(fastify: FastifyInstance) {
 
 export async function physicalVehicleRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: CreatePhysicalVehicleBody }>(
-    PHYSICAL_VEHICLE_PATHS.store,
+    vehicles.physicalVehicles.store,
     { schema: CreatePhysicalVehicleSchema },
     async (req, rep) => {
       const physicalVehicle = await createPhysicalVehicle(fastify, req.body)
@@ -65,7 +64,7 @@ export async function physicalVehicleRoutes(fastify: FastifyInstance) {
   )
 
   fastify.put<{ Body: UpdatePhysicalVehicleBody; Params: UpdatePhysicalVehicleParams }>(
-    PHYSICAL_VEHICLE_PATHS.update,
+    vehicles.physicalVehicles.update.url,
     { schema: UpdatePhysicalVehicleSchema },
     async (req, rep) => {
       const { physicalVehicleId } = req.params
@@ -80,7 +79,7 @@ export async function physicalVehicleRoutes(fastify: FastifyInstance) {
   )
 
   fastify.delete<{ Params: DeletePhysicalVehicleParams }>(
-    PHYSICAL_VEHICLE_PATHS.delete,
+    vehicles.physicalVehicles.delete.url,
     { schema: DeletePhysicalVehicleSchema },
     async (req, rep) => {
       const { physicalVehicleId } = req.params
@@ -96,7 +95,7 @@ export async function physicalVehicleRoutes(fastify: FastifyInstance) {
 
 export async function courierScheduleRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: CreateCourierScheduleBody }>(
-    COURIER_SCHEDULE_PATHS.store,
+    vehicles.courierSchedules.store,
     { schema: CreateCourierScheduleSchema },
     async (req, rep) => {
       const courierSchedule = await createCourierSchedule(fastify, req.body)
@@ -109,7 +108,7 @@ export async function courierScheduleRoutes(fastify: FastifyInstance) {
   )
 
   fastify.put<{ Body: UpdateCourierScheduleBody; Params: UpdateCourierScheduleParams }>(
-    COURIER_SCHEDULE_PATHS.update,
+    vehicles.courierSchedules.update.url,
     { schema: UpdateCourierScheduleSchema },
     async (req, rep) => {
       const { courierScheduleId } = req.params
@@ -124,7 +123,7 @@ export async function courierScheduleRoutes(fastify: FastifyInstance) {
   )
 
   fastify.delete<{ Params: DeleteCourierScheduleParams }>(
-    COURIER_SCHEDULE_PATHS.delete,
+    vehicles.courierSchedules.delete.url,
     { schema: DeleteCourierScheduleSchema },
     async (req, rep) => {
       const { courierScheduleId } = req.params
@@ -140,7 +139,7 @@ export async function courierScheduleRoutes(fastify: FastifyInstance) {
 
 export async function dispatchLogRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: CreateDispatchLogBody }>(
-    DISPATCH_LOG_PATHS.store,
+    vehicles.dispatchLogs.store,
     { schema: CreateDispatchLogSchema },
     async (req, rep) => {
       const dispatchLog = await createDispatchLog(fastify, req.body)
@@ -153,7 +152,7 @@ export async function dispatchLogRoutes(fastify: FastifyInstance) {
   )
 
   fastify.put<{ Body: UpdateDispatchLogBody; Params: UpdateDispatchLogParams }>(
-    DISPATCH_LOG_PATHS.update,
+    vehicles.dispatchLogs.update.url,
     { schema: UpdateDispatchLogSchema },
     async (req, rep) => {
       const { dispatchLogId } = req.params
@@ -168,7 +167,7 @@ export async function dispatchLogRoutes(fastify: FastifyInstance) {
   )
 
   fastify.delete<{ Params: DeleteDispatchLogParams }>(
-    DISPATCH_LOG_PATHS.delete,
+    vehicles.dispatchLogs.delete.url,
     { schema: DeleteDispatchLogSchema },
     async (req, rep) => {
       const { dispatchLogId } = req.params

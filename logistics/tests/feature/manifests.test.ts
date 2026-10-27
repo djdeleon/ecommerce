@@ -1,11 +1,12 @@
-import { API_ROUTES } from "#commons/constants/routes.js";
 import { FastifyInstance } from "fastify";
 import { beforeAll, describe, expect, test } from "vitest";
 import { Courier, CourierStatus, Manifest, ManifestStatus, ShipmentStatus, UserRole } from "@prisma/client";
 import { createParcel } from "../factory/parcel.factory.js";
-import { createuser } from "../factory/user.factory.js";
+import { createUser } from "../factory/user.factory.js";
 import { seedMasterInfrustructure } from "../../prisma/seeders/tests/master-infrastructure-tests.seed.js";
 import { createManifest } from "../factory/manifest.factory.js";
+import { manifests } from "../../src/modules/manifests/paths.js";
+import { parcels } from "../../src/modules/parcels/paths.js";
 
 describe('Manifest Domain', async () => {
   let app: FastifyInstance
@@ -35,13 +36,13 @@ describe('Manifest Domain', async () => {
       })
     }
 
-    const { token } = await createuser(app, UserRole.Manager, {
+    const { token } = await createUser(app, UserRole.Manager, {
       assignedFacilityId: facilityId
     })
 
     const response = await app.inject({
       method: 'GET',
-      url: API_ROUTES.manifests.index,
+      url: manifests.index,
       headers: {
         authorization: `Bearer ${token}`
       }
@@ -99,7 +100,7 @@ describe('Manifest Domain', async () => {
     const parcels = await app.prisma.parcel.findMany()
     const parcelIds = parcels.map((p) => p.id)
 
-    await createuser(app, UserRole.Manager, {
+    await createUser(app, UserRole.Manager, {
       assignedFacilityId: facilityId
     })
 
@@ -115,7 +116,7 @@ describe('Manifest Domain', async () => {
 
     const response = await app.inject({
       method: 'POST',
-      url: API_ROUTES.manifests.store,
+      url: manifests.store,
       body: payload
     })
 
@@ -147,7 +148,7 @@ describe('Manifest Domain', async () => {
 
     const response = await app.inject({
       method: 'PATCH',
-      url: API_ROUTES.manifests.dispatch(result.manifest.code)
+      url: manifests.dispatch(result.manifest.code)
     })
 
     const body = response.json();
@@ -186,14 +187,14 @@ describe('Manifest Domain', async () => {
 
     const result = await createManifest(app)
 
-    const parcels = await app.prisma.parcel.findMany({
+    const parcelList = await app.prisma.parcel.findMany({
       where: { id: { in: result.parcelIds } }
     })
-    const manifestedParcel = parcels[0]
+    const manifestedParcel = parcelList[0]
 
     const response = await app.inject({
       method: 'PATCH',
-      url: API_ROUTES.parcels.pickedUp(manifestedParcel.trackingNumber),
+      url: parcels.pickedUp(manifestedParcel.trackingNumber),
     })
 
     const body = response.json()
@@ -238,7 +239,7 @@ describe('Manifest Domain', async () => {
 
     const response = await app.inject({
       method: 'PATCH',
-      url: API_ROUTES.manifests.complete(result.manifest.code)
+      url: manifests.complete(result.manifest.code)
     })
 
     const body = response.json();
@@ -274,7 +275,7 @@ describe('Manifest Domain', async () => {
 
     const response = await app.inject({
       method: 'PATCH',
-      url: API_ROUTES.manifests.arrive(result.manifest.code)
+      url: manifests.arrive(result.manifest.code)
     })
 
     const body = response.json();

@@ -1,10 +1,10 @@
-import { API_ROUTES } from "#commons/constants/routes.js";
 import { VehicleType } from "@prisma/client";
 import { FastifyInstance } from "fastify";
 import { beforeAll, describe, expect, test } from "vitest";
 import { createCourierSchedule, createPhysicalVehicle, createVehicleProfile } from "../factory/vehicles.factory.js";
 import { createCourier, createFacility } from "#factory";
 import { createNetworkLeg } from "../factory/network-leg.factory.js";
+import { vehicles } from "../../src/modules/vehicles/paths.js";
 
 describe('Vehicle Domain', () => {
   let app: FastifyInstance
@@ -14,7 +14,7 @@ describe('Vehicle Domain', () => {
   })
 
   describe('Vehicle Profile Management', () => {
-    test('a vehicle profile can be create', async () => {
+    test('a vehicle profile can be created', async () => {
       const payload = {
         brand: 'Mitsubishi',
         modelName: 'L300',
@@ -30,7 +30,7 @@ describe('Vehicle Domain', () => {
 
       const response = await app.inject({
         method: 'POST',
-        url: API_ROUTES.vehicles.vehicleProfile.store,
+        url: vehicles.vehicleProfiles.store,
         body: payload
       })
 
@@ -64,7 +64,7 @@ describe('Vehicle Domain', () => {
 
       const response = await app.inject({
         method: 'PUT',
-        url: API_ROUTES.vehicles.vehicleProfile.update(createdProfile.id),
+        url: vehicles.vehicleProfiles.update(createdProfile.id),
         body: updatePayload
       })
 
@@ -84,7 +84,7 @@ describe('Vehicle Domain', () => {
 
       const response = await app.inject({
         method: 'DELETE',
-        url: API_ROUTES.vehicles.vehicleProfile.delete(createdProfile.id),
+        url: vehicles.vehicleProfiles.delete(createdProfile.id),
       })
 
       const body = response.json()
@@ -115,7 +115,7 @@ describe('Vehicle Domain', () => {
 
       const response = await app.inject({
         method: 'POST',
-        url: API_ROUTES.vehicles.physicalVehicle.store,
+        url: vehicles.physicalVehicles.store,
         body: payload,
       })
 
@@ -137,15 +137,11 @@ describe('Vehicle Domain', () => {
       const createdVehicle = await createPhysicalVehicle(app)
       const updatePayload = {
         plateNumber: 'NEW-8888',
-        gps: {
-          latitude: 14.6000,
-          longitude: 120.9900,
-        }
       }
 
       const response = await app.inject({
         method: 'PUT',
-        url: API_ROUTES.vehicles.physicalVehicle.update(createdVehicle.id),
+        url: vehicles.physicalVehicles.update(createdVehicle.id),
         body: updatePayload,
       })
 
@@ -164,7 +160,7 @@ describe('Vehicle Domain', () => {
 
       const response = await app.inject({
         method: 'DELETE',
-        url: API_ROUTES.vehicles.physicalVehicle.delete(createdVehicle.id),
+        url: vehicles.physicalVehicles.delete(createdVehicle.id),
       })
 
       const body = response.json()
@@ -185,13 +181,14 @@ describe('Vehicle Domain', () => {
       const networkLeg = await createNetworkLeg(app)
 
       const payload = {
-        physicalVehicleId: physicalVehicle.id,
+        vehicleId: physicalVehicle.id,
         networkLegId: networkLeg.id,
+        scheduledTime: "2026-10-21T08:00:00.000Z",
       }
 
       const response = await app.inject({
         method: 'POST',
-        url: API_ROUTES.vehicles.courierSchedule.store,
+        url: vehicles.courierSchedules.store,
         body: payload,
       })
 
@@ -201,7 +198,7 @@ describe('Vehicle Domain', () => {
       expect(body.message).toBe('Courier schedule created successfully.')
       expect(body.data).toMatchObject({
         id: expect.any(Number),
-        physicalVehicleId: payload.physicalVehicleId,
+        vehicleId: payload.vehicleId,
         networkLegId: payload.networkLegId,
         createdAt: expect.any(String),
         updatedAt: expect.any(String),
@@ -213,12 +210,12 @@ describe('Vehicle Domain', () => {
       const createdSchedule = await createCourierSchedule(app)
 
       const updatePayload = {
-        physicalVehicleId: physicalVehicle.id,
+        vehicleId: physicalVehicle.id,
       }
 
       const response = await app.inject({
         method: 'PUT',
-        url: API_ROUTES.vehicles.courierSchedule.update(createdSchedule.id),
+        url: vehicles.courierSchedules.update(createdSchedule.id),
         body: updatePayload,
       })
 
@@ -228,7 +225,7 @@ describe('Vehicle Domain', () => {
       expect(body.message).toBe('Courier schedule updated successfully.')
       expect(body.data).toMatchObject({
         id: createdSchedule.id,
-        physicalVehicleId: updatePayload.physicalVehicleId,
+        vehicleId: updatePayload.vehicleId,
       })
     })
 
@@ -237,7 +234,7 @@ describe('Vehicle Domain', () => {
 
       const response = await app.inject({
         method: 'DELETE',
-        url: API_ROUTES.vehicles.courierSchedule.delete(createdSchedule.id),
+        url: vehicles.courierSchedules.delete(createdSchedule.id),
       })
 
       const body = response.json()
@@ -254,7 +251,7 @@ describe('Vehicle Domain', () => {
 
   describe('Dispatch Log Management', () => {
     test('a dispatch log can be created', async () => {
-      const courier = await createCourier()
+      const { courier } = await createCourier(app)
       const facility = await createFacility(app)
 
       const payload = {
@@ -265,7 +262,7 @@ describe('Vehicle Domain', () => {
 
       const response = await app.inject({
         method: 'POST',
-        url: API_ROUTES.vehicles.dispatchLog.store, // Ensure you have this path defined in API_ROUTES
+        url: vehicles.dispatchLogs.store,
         body: payload,
       })
 
@@ -278,12 +275,11 @@ describe('Vehicle Domain', () => {
         assignedCourierId: payload.assignedCourierId,
         originFacilityId: payload.originFacilityId,
         createdAt: expect.any(String),
-        updatedAt: expect.any(String),
       })
     })
 
     test('a dispatch log can be updated', async () => {
-      const courier = await createCourier()
+      const { courier } = await createCourier(app)
 
       const createdLog = await app.prisma.dispatchLog.create({
         data: {
@@ -298,7 +294,7 @@ describe('Vehicle Domain', () => {
 
       const response = await app.inject({
         method: 'PUT',
-        url: API_ROUTES.vehicles.dispatchLog.update(createdLog.id),
+        url: vehicles.dispatchLogs.update(createdLog.id),
         body: updatePayload,
       })
 
@@ -313,7 +309,7 @@ describe('Vehicle Domain', () => {
     })
 
     test('a dispatch log can be deleted', async () => {
-      const courier = await createCourier()
+      const { courier } = await createCourier(app)
 
       const createdLog = await app.prisma.dispatchLog.create({
         data: {
@@ -324,7 +320,7 @@ describe('Vehicle Domain', () => {
 
       const response = await app.inject({
         method: 'DELETE',
-        url: API_ROUTES.vehicles.dispatchLog.delete(createdLog.id),
+        url: vehicles.dispatchLogs.delete(createdLog.id),
       })
 
       const body = response.json()

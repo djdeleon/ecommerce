@@ -1,13 +1,5 @@
 import { Type, Static } from "@sinclair/typebox";
 
-export const MASTER_BAG_PATHS = {
-  store: '/master-bags',
-  label: '/master-bags/:masterBagCode/label',
-  update: '/master-bags/:masterBagId',
-  delete: '/master-bags/:masterBagId',
-  seal: '/master-bags/:masterBagCode/seal',
-} as const;
-
 export const MasterBagStatusEnum = Type.Union([
   Type.Literal('Open'),
   Type.Literal('Sealed'),
@@ -17,13 +9,12 @@ export const MasterBagStatusEnum = Type.Union([
 
 export const MasterBagSchema = Type.Object({
   id: Type.Integer({ minimum: 1 }),
-  code: Type.String({ minLength: 2, maxLength: 50 }),
   courierScheduleId: Type.Integer({ minimum: 1 }),
   sortingBatchId: Type.Integer({ minimum: 1 }),
   currentFacilityId: Type.Integer({ minimum: 1 }),
   nextFacilityId: Type.Integer({ minimum: 1 }),
   totalWeight: Type.Integer({ minimum: 0 }),
-  totalCbm: Type.Integer({ minimum: 0.00 }),
+  totalCbm: Type.Number({ minimum: 0 }),
   totalParcels: Type.Integer({ minimum: 0 }),
   status: Type.Optional(MasterBagStatusEnum),
   sealedAt: Type.Optional(Type.String({ format: 'date-time' })),
@@ -43,12 +34,10 @@ export const UpdateMasterBagBodySchema = Type.Partial(
 )
 
 export const CreateMasterBagSchema = {
-  url: MASTER_BAG_PATHS.store,
   body: CreateMasterBagBodySchema,
 }
 
 export const UpdateMasterBagSchema = {
-  url: MASTER_BAG_PATHS.update,
   body: UpdateMasterBagBodySchema,
   params: Type.Object({
     masterBagId: Type.String(),
@@ -56,7 +45,6 @@ export const UpdateMasterBagSchema = {
 }
 
 export const DeleteMasterBagSchema = {
-  url: MASTER_BAG_PATHS.delete,
   params: Type.Object({
     masterBagId: Type.String(),
   }),

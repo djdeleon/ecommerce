@@ -39,15 +39,17 @@ export async function createMasterBag(
   data: CreateMasterBagBody
 ) {
   const {
-    code,
     courierScheduleId,
     sortingBatchId,
     currentFacilityId,
     nextFacilityId,
     totalWeight,
+    totalCbm,
     totalParcels,
     status
   } = data
+
+  const code = await generateMasterBagCode(fastify, nextFacilityId)
 
   return await fastify.prisma.masterBag.create({
     data: {

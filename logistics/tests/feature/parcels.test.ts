@@ -1,13 +1,11 @@
-import { API_ROUTES } from "#commons/constants/routes.js";
-import { FacilityType, ShipmentStatus, TransitMode } from "@prisma/client";
+import { ShipmentStatus } from "@prisma/client";
 import { FastifyInstance } from "fastify";
 import { beforeAll, describe, expect, test } from "vitest";
 import { createClient } from "../factory/client.factory.js";
 import { generateTrackingNumbers } from "../../src/modules/tracking-numbers/service.js";
 import { calculateDigest, decryptSecret } from "#commons/utils/crypto.js";
-import { seedFacilities } from "../../prisma/seeders/facilities.seed.js";
-import { seedGeo } from "../../prisma/seeders/tests/geographic-areas.seed.js";
 import { seedMasterInfrustructure } from "../../prisma/seeders/tests/master-infrastructure-tests.seed.js";
+import { parcels } from "../../src/modules/parcels/paths.js";
 
 describe('Parcel Domain', () => {
   let app: FastifyInstance
@@ -18,7 +16,7 @@ describe('Parcel Domain', () => {
 
   const expectedKey = process.env.LOGISTICS_KEY
 
-  test.only('a Laravel vendor can book a parcel', async () => {
+  test('a Laravel vendor can book a parcel', async () => {
     await seedMasterInfrustructure(app)
 
     const client = await createClient({
@@ -147,7 +145,7 @@ describe('Parcel Domain', () => {
 
     const response = await app.inject({
       method: 'POST',
-      url: API_ROUTES.parcels.store,
+      url: parcels.store,
       headers: {
         'x-api-key': client.apiKey,
         'x-signature': signature,

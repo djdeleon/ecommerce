@@ -1,16 +1,11 @@
 import { FastifyInstance } from "fastify"
 import { LoginBody, LoginSchema, RegisterBody, RegisterSchema } from "./schemas.js"
 import { loginUser, registerUser } from "./service.js"
+import { users } from "./paths.js"
 
 export default async function userRoutes(fastify: FastifyInstance) {
-  fastify.post<{ Body: RegisterBody }>(RegisterSchema.url, { schema: RegisterSchema }, async (req, rep) => {
-    const data = await registerUser(fastify, {
-      firstName: req.body.firstName,
-      lastName: req.body.lastName,
-      email: req.body.email,
-      password: req.body.password,
-      role: req.body.role,
-    })
+  fastify.post<{ Body: RegisterBody }>(users.register, { schema: RegisterSchema }, async (req, rep) => {
+    const data = await registerUser(fastify, req.body)
 
     return rep.status(201).send({
       message: 'user registered.',
@@ -18,11 +13,8 @@ export default async function userRoutes(fastify: FastifyInstance) {
     })
   })
 
-  fastify.post<{ Body: LoginBody }>(LoginSchema.url, { schema: LoginSchema }, async (req, rep) => {
-    const data = await loginUser(fastify, {
-      email: req.body.email,
-      password: req.body.password,
-    })
+  fastify.post<{ Body: LoginBody }>(users.login, { schema: LoginSchema }, async (req, rep) => {
+    const data = await loginUser(fastify, req.body)
 
     return rep.send({
       message: 'User logged in.',

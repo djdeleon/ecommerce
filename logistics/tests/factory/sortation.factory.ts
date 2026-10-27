@@ -96,32 +96,3 @@ export async function createMasterBag(
     },
   });
 }
-
-export async function createFacilityChute(
-  fastify: FastifyInstance,
-  overrides?: Record<string, any>
-) {
-  let facilityId = overrides?.facilityId;
-  if (!facilityId) {
-    const facility = await createFacility(fastify);
-    facilityId = facility.id;
-  }
-
-  let destinationFacilityId = overrides?.destinationFacilityId;
-  if (!destinationFacilityId) {
-    const facility = await createFacility(fastify);
-    destinationFacilityId = facility.id;
-  }
-
-  const randomSuffix = Math.floor(Math.random() * 10000);
-
-  return await fastify.prisma.facilityChute.create({
-    data: {
-      code: `CHUTE-${randomSuffix}`,
-      facilityId,
-      destinationFacilityId,
-      isActive: true,
-      ...overrides,
-    },
-  });
-}

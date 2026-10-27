@@ -7,21 +7,19 @@ import {
   UpdateSortationBatchBody,
   UpdateSortationBatchParams,
   UpdateSortationBatchSchema,
-  SORTATION_BATCH_PATHS
 } from "./schemas/sorting-batch.schema.js";
 
 import { createSortingBatch, deleteSortingBatch, simulateScannerTunnelPass, updateSortingBatch } from "./services/sorting-batch.service.js";
-import { CreateMasterBagBody, MASTER_BAG_PATHS, CreateMasterBagSchema, UpdateMasterBagBody, UpdateMasterBagParams, UpdateMasterBagSchema, DeleteMasterBagParams, DeleteMasterBagSchema } from "./schemas/master-bag.schema.js";
+import { CreateMasterBagBody, CreateMasterBagSchema, UpdateMasterBagBody, UpdateMasterBagParams, UpdateMasterBagSchema, DeleteMasterBagParams, DeleteMasterBagSchema } from "./schemas/master-bag.schema.js";
 import { createMasterBag, updateMasterBag, deleteMasterBag } from "./services/master-bag.service.js";
-import { CreateFacilityChuteBody, FACILITY_CHUTE_PATHS, CreateFacilityChuteSchema, UpdateFacilityChuteBody, UpdateFacilityChuteParams, UpdateFacilityChuteSchema, DeleteFacilityChuteParams, DeleteFacilityChuteSchema } from "./schemas/facility-chute.schema.js";
-import { createFacilityChute, updateFacilityChute, deleteFacilityChute } from "./services/facility-chute.service.js";
 import { MasterBagStatus } from "@prisma/client";
 import JsBarcode from "jsbarcode";
 import { DOMImplementation, XMLSerializer } from "@xmldom/xmldom";
+import { sortations } from "./paths.js";
 
 export async function sortingBatchRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: CreateSortationBatchBody }>(
-    SORTATION_BATCH_PATHS.store,
+    sortations.sortingBatches.store,
     { schema: CreateSortationBatchSchema },
     async (req, rep) => {
       const batch = await createSortingBatch(fastify, req.body)
@@ -33,7 +31,7 @@ export async function sortingBatchRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.post(SORTATION_BATCH_PATHS.tunnelScan, async (req, rep) => {
+  fastify.post(sortations.sortingBatches.tunnelScan.url, async (req, rep) => {
     const { trackingNumber } = req.params as { trackingNumber: string };
 
     const result = await simulateScannerTunnelPass(fastify, trackingNumber);
@@ -45,7 +43,7 @@ export async function sortingBatchRoutes(fastify: FastifyInstance) {
   });
 
   fastify.put<{ Body: UpdateSortationBatchBody; Params: UpdateSortationBatchParams }>(
-    SORTATION_BATCH_PATHS.update,
+    sortations.sortingBatches.update.url,
     { schema: UpdateSortationBatchSchema },
     async (req, rep) => {
       const { sortingBatchId } = req.params
@@ -60,7 +58,7 @@ export async function sortingBatchRoutes(fastify: FastifyInstance) {
   )
 
   fastify.delete<{ Params: DeleteSortationBatchParams }>(
-    SORTATION_BATCH_PATHS.delete,
+    sortations.sortingBatches.delete.url,
     { schema: DeleteSortationBatchSchema },
     async (req, rep) => {
       const { sortingBatchId } = req.params
@@ -76,7 +74,7 @@ export async function sortingBatchRoutes(fastify: FastifyInstance) {
 
 export async function masterBagRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: CreateMasterBagBody }>(
-    MASTER_BAG_PATHS.store,
+    sortations.masterBags.store,
     { schema: CreateMasterBagSchema },
     async (req, rep) => {
       const masterBag = await createMasterBag(fastify, req.body)
@@ -88,7 +86,7 @@ export async function masterBagRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.get(MASTER_BAG_PATHS.label, async (req, rep) => {
+  fastify.get(sortations.masterBags.label.url, async (req, rep) => {
     const { masterBagCode } = req.params as { masterBagCode: string };
 
     const masterBag = await fastify.prisma.masterBag.findUniqueOrThrow({
@@ -162,7 +160,7 @@ export async function masterBagRoutes(fastify: FastifyInstance) {
   });
 
   fastify.put<{ Body: UpdateMasterBagBody; Params: UpdateMasterBagParams }>(
-    MASTER_BAG_PATHS.update,
+    sortations.masterBags.update.url,
     { schema: UpdateMasterBagSchema },
     async (req, rep) => {
       const { masterBagId } = req.params
@@ -177,7 +175,7 @@ export async function masterBagRoutes(fastify: FastifyInstance) {
   )
 
   fastify.delete<{ Params: DeleteMasterBagParams }>(
-    MASTER_BAG_PATHS.delete,
+    sortations.masterBags.delete.url,
     { schema: DeleteMasterBagSchema },
     async (req, rep) => {
       const { masterBagId } = req.params
@@ -190,7 +188,7 @@ export async function masterBagRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.patch(MASTER_BAG_PATHS.seal, async (req, rep) => {
+  fastify.patch(sortations.masterBags.seal.url, async (req, rep) => {
     const { masterBagCode } = req.params as { masterBagCode: string }
 
     const masterBag = await fastify.prisma.masterBag.findUniqueOrThrow({
@@ -221,48 +219,4 @@ export async function masterBagRoutes(fastify: FastifyInstance) {
       data: updatedMasterBag,
     })
   })
-}
-
-export async function facilityChuteRoutes(fastify: FastifyInstance) {
-  fastify.post<{ Body: CreateFacilityChuteBody }>(
-    FACILITY_CHUTE_PATHS.store,
-    { schema: CreateFacilityChuteSchema },
-    async (req, rep) => {
-      const chute = await createFacilityChute(fastify, req.body)
-
-      return rep.code(201).send({
-        message: 'Facility chute created successfully.',
-        data: chute,
-      })
-    }
-  )
-
-  fastify.put<{ Body: UpdateFacilityChuteBody; Params: UpdateFacilityChuteParams }>(
-    FACILITY_CHUTE_PATHS.update,
-    { schema: UpdateFacilityChuteSchema },
-    async (req, rep) => {
-      const { facilityChuteId } = req.params
-
-      const updatedChute = await updateFacilityChute(fastify, facilityChuteId, req.body)
-
-      return rep.code(200).send({
-        message: 'Facility chute updated successfully.',
-        data: updatedChute,
-      })
-    }
-  )
-
-  fastify.delete<{ Params: DeleteFacilityChuteParams }>(
-    FACILITY_CHUTE_PATHS.delete,
-    { schema: DeleteFacilityChuteSchema },
-    async (req, rep) => {
-      const { facilityChuteId } = req.params
-
-      await deleteFacilityChute(fastify, facilityChuteId)
-
-      return rep.code(200).send({
-        message: 'Facility chute deleted successfully.',
-      })
-    }
-  )
 }
