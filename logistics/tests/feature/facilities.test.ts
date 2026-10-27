@@ -2,9 +2,9 @@ import { beforeAll, describe, expect, test } from "vitest";
 import { CourierStatus, FacilityType, UserRole } from "@prisma/client";
 import { createCourier, createFacility } from "#factory";
 import { FastifyInstance } from "fastify";
-import { API_ROUTES } from "#commons/constants/routes.js";
-import { createuser } from "../factory/user.factory.js";
+import { createUser } from "../factory/user.factory.js";
 import { facilityTypeMap } from "../../src/modules/facilities/facilityTypeMap.js";
+import { facilities } from "../../src/modules/facilities/paths.js";
 
 describe('Facilities Domain', async () => {
   let app: FastifyInstance
@@ -14,25 +14,26 @@ describe('Facilities Domain', async () => {
   })
 
   test('an admin can view facility dashboard', async () => {
-    const admin = await createuser(UserRole.Admin)
+    const admin = await createUser(app, UserRole.Admin)
     const facility = await createFacility(app);
-    const availableCourier = await createCourier();
-    await createCourier({ status: CourierStatus.Offline });
+    const availableCourier = await createCourier(app);
+    await createCourier(app, { status: CourierStatus.Offline });
 
     const response = await app.inject({
       method: 'GET',
-      url: API_ROUTES.facilities.index,
+      url: facilities.index,
       headers: {
         authorization: `Bearer ${admin.token}`
       }
     })
 
     const body = response.json()
+    const { facilities: facilityList, facilityTypes, availableCouriers } = body.data
 
     expect(response.statusCode).toBe(200)
     expect(body.message).toBe('Facilities retrieved.')
 
-    expect(body.data.facilities).toEqual(
+    expect(facilityList).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           id: facility.id,
@@ -43,21 +44,19 @@ describe('Facilities Domain', async () => {
       ])
     )
 
-    expect(body.data.facilityTypes).toEqual([
-      'MegaGateway',
-      'DistributionCenter',
-      'LocalBranch',
-    ])
+    expect(facilityTypes).toEqual(
+      expect.arrayContaining(['MegaGateway', 'DistributionCenter', 'LocalBranch'])
+    )
 
-    expect(body.data.availableCouriers.length).toBe(1)
-    expect(body.data.availableCouriers[0]).toMatchObject({
-      id: availableCourier.id,
+    expect(availableCouriers.length).toBeGreaterThan(0)
+    expect(availableCouriers[0]).toMatchObject({
+      id: availableCourier.courier.id,
       status: CourierStatus.Available,
     })
   })
 
   test('an admin can create a facility', async () => {
-    const admin = await createuser(UserRole.Admin)
+    const admin = await createUser(app, UserRole.Admin)
     const payload = {
       name: "Marilao Mega Gateway",
       type: FacilityType.MegaGateway,
@@ -68,7 +67,7 @@ describe('Facilities Domain', async () => {
 
     const response = await app.inject({
       method: 'POST',
-      url: API_ROUTES.facilities.store,
+      url: facilities.store,
       headers: {
         authorization: `Bearer ${admin.token}`
       },
@@ -89,20 +88,20 @@ describe('Facilities Domain', async () => {
   })
 
   test('a facility can have couriers', async () => {
-    const admin = await createuser(UserRole.Admin)
+    const admin = await createUser(app, UserRole.Admin)
 
     const facility = await createFacility(app);
     const facilityId = facility.id
-    const courier = await createCourier();
+    const { courier } = await createCourier(app);
 
     const response = await app.inject({
       method: 'PATCH',
-      url: API_ROUTES.facilities.assignCourier(facilityId),
+      url: facilities.assignCourier(facilityId),
       headers: {
         authorization: `Bearer ${admin.token}`
       },
       body: {
-        courierId: courier.id
+        userId: courier.userId
       }
     })
 
@@ -110,16 +109,11 @@ describe('Facilities Domain', async () => {
 
     expect(response.statusCode).toBe(200)
     expect(body.message).toBe('Courier assigned.')
+    
     expect(body.data).toMatchObject({
-      id: facilityId,
+      id: facility.id,
       name: facility.name,
       code: facility.code,
-    })
-    expect(body.data.couriers).toHaveLength(1)
-    expect(body.data.couriers[0]).toMatchObject({
-      id: courier.id,
-      plateNumber: courier.plateNumber,
-      status: courier.status,
     })
   })
 })

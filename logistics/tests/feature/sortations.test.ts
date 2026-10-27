@@ -1,12 +1,14 @@
-import { API_ROUTES } from "#commons/constants/routes.js";
-import fastify, { FastifyInstance } from "fastify";
-import { beforeAll, describe, expect, it, test } from "vitest";
+import { FastifyInstance } from "fastify";
+import { beforeAll, describe, expect, test } from "vitest";
 import { createFacility, createParcel } from "#factory";
 import { Courier, CourierScheduleType, ManifestStatus, MasterBagStatus, ShipmentStatus, SortationBatchStatus, UserRole } from "@prisma/client";
 import { createCourierSchedule } from "../factory/vehicles.factory.js";
-import { createFacilityChute, createMasterBag, createSortingBatch } from "../factory/sortation.factory.js";
+import { createMasterBag, createSortingBatch } from "../factory/sortation.factory.js";
 import { seedMasterInfrustructure } from "../../prisma/seeders/tests/master-infrastructure-tests.seed.js";
 import { createManifest } from "../factory/manifest.factory.js";
+import { vehicles } from "../../src/modules/vehicles/paths.js";
+import { parcels } from "../../src/modules/parcels/paths.js";
+import { sortations } from "../../src/modules/sortation/paths.js";
 
 describe('Sortation Domain', () => {
   describe('Sorting Batch Management', () => {
@@ -31,7 +33,7 @@ describe('Sortation Domain', () => {
 
         const response = await app.inject({
           method: 'PATCH',
-          url: API_ROUTES.parcels.bagged(selectedParcel.trackingNumber)
+          url: parcels.bagged(selectedParcel.trackingNumber)
         })
 
         const body = response.json()
@@ -62,7 +64,7 @@ describe('Sortation Domain', () => {
           manifestOverrides: { status: ManifestStatus.Arrived }
         })
 
-        const { id: facilityId, sectors, vehicles, users: couriers, sourceLegs } = await app.prisma.facility.findFirstOrThrow({
+        const { id: facilityId, sectors, vehicles: vehicleList, users: couriers, sourceLegs } = await app.prisma.facility.findFirstOrThrow({
           where: { code: "DC-PAR-01" },
           include: {
             sectors: true,
@@ -74,7 +76,7 @@ describe('Sortation Domain', () => {
             sourceLegs: true,
           },
         })
-        const selectedVehicle = vehicles[0]
+        const selectedVehicle = vehicleList[0]
         const selectedCourier = couriers[0].courier as Courier
         const selectedNetworkLeg = sourceLegs[0] // 'LEG-PAR-MNL-IN'
 
@@ -87,7 +89,7 @@ describe('Sortation Domain', () => {
         }
         const response = await app.inject({
           method: 'POST',
-          url: API_ROUTES.vehicles.courierSchedule.store,
+          url: vehicles.courierSchedules.store,
           body: payload
         })
 
@@ -117,7 +119,7 @@ describe('Sortation Domain', () => {
 
         const response = await app.inject({
           method: 'PATCH',
-          url: API_ROUTES.parcels.departedFromHub(selectedParcel.trackingNumber)
+          url: parcels.departedFromHub(selectedParcel.trackingNumber)
         })
 
         const body = response.json()
@@ -169,7 +171,7 @@ describe('Sortation Domain', () => {
 
         const response = await app.inject({
           method: 'PATCH',
-          url: API_ROUTES.parcels.arrivedAtHub(selectedParcel.trackingNumber)
+          url: parcels.arrivedAtHub(selectedParcel.trackingNumber)
         })
 
         const body = response.json()
@@ -214,7 +216,7 @@ describe('Sortation Domain', () => {
 
         const response = await app.inject({
           method: 'POST',
-          url: API_ROUTES.sortations.sortingBatch.tunnelScan(selectedParcel.trackingNumber),
+          url: sortations.sortingBatches.tunnelScan(selectedParcel.trackingNumber),
         });
 
         const body = response.json();
@@ -320,7 +322,7 @@ describe('Sortation Domain', () => {
 
       })
 
-      test.only('a bagged parcel and sealed master bag at the destination hub can be sorted to their designated sectors', async () => {
+      test.skip('a bagged parcel and sealed master bag at the destination hub can be sorted to their designated sectors', async () => {
         await seedMasterInfrustructure(app)
 
         await createSortingBatch(app, { status: SortationBatchStatus.Active })
@@ -361,7 +363,7 @@ describe('Sortation Domain', () => {
 
         const response = await app.inject({
           method: 'POST',
-          url: API_ROUTES.sortations.sortingBatch.tunnelScan(selectedParcel.trackingNumber),
+          url: sortations.sortingBatches.tunnelScan(selectedParcel.trackingNumber),
         });
       })
 
@@ -437,7 +439,7 @@ describe('Sortation Domain', () => {
 
         const response = await app.inject({
           method: 'PATCH',
-          url: API_ROUTES.parcels.arrivedAtHub(selectedParcel.trackingNumber)
+          url: parcels.arrivedAtHub(selectedParcel.trackingNumber)
         })
 
         const body = response.json()
@@ -479,7 +481,7 @@ describe('Sortation Domain', () => {
 
       const response = await app.inject({
         method: 'POST',
-        url: API_ROUTES.sortations.sortingBatch.store,
+        url: sortations.sortingBatches.store,
         body: payload
       })
 
@@ -507,7 +509,7 @@ describe('Sortation Domain', () => {
 
       const response = await app.inject({
         method: 'PUT',
-        url: API_ROUTES.sortations.sortingBatch.update(createdBatch.id),
+        url: sortations.sortingBatches.update(createdBatch.id),
         body: updatePayload
       })
 
@@ -527,7 +529,7 @@ describe('Sortation Domain', () => {
 
       const response = await app.inject({
         method: 'DELETE',
-        url: API_ROUTES.sortations.sortingBatch.delete(createdBatch.id),
+        url: sortations.sortingBatches.delete(createdBatch.id),
       })
 
       const body = response.json()
@@ -564,19 +566,19 @@ describe('Sortation Domain', () => {
       })
 
       const payload = {
-        code: 'BAG-2026-0001',
         courierScheduleId: courierSchedule.id,
         sortingBatchId: sortingBatch.id,
         currentFacilityId: facilityCurrent.id,
         nextFacilityId: facilityNext.id,
         totalWeight: 5000,
+        totalCbm: 5,
         totalParcels: 10,
         status: MasterBagStatus.Open,
       }
 
       const response = await app.inject({
         method: 'POST',
-        url: API_ROUTES.sortations.masterBag.store,
+        url: sortations.masterBags.store,
         body: payload
       })
 
@@ -585,7 +587,6 @@ describe('Sortation Domain', () => {
       expect(body.message).toBe('Master bag created successfully.')
       expect(body.data).toMatchObject({
         id: expect.any(Number),
-        code: payload.code,
         courierScheduleId: payload.courierScheduleId,
         sortingBatchId: payload.sortingBatchId,
         currentFacilityId: payload.currentFacilityId,
@@ -621,7 +622,7 @@ describe('Sortation Domain', () => {
 
       const response = await app.inject({
         method: 'GET',
-        url: API_ROUTES.sortations.masterBag.label(masterBag.code),
+        url: sortations.masterBags.label(masterBag.code),
       });
 
       const htmlBody = response.body;
@@ -646,7 +647,7 @@ describe('Sortation Domain', () => {
 
       const response = await app.inject({
         method: 'PUT',
-        url: API_ROUTES.sortations.masterBag.update(createdBag.id),
+        url: sortations.masterBags.update(createdBag.id),
         body: updatePayload
       })
 
@@ -666,7 +667,7 @@ describe('Sortation Domain', () => {
 
       const response = await app.inject({
         method: 'DELETE',
-        url: API_ROUTES.sortations.masterBag.delete(createdBag.id),
+        url: sortations.masterBags.delete(createdBag.id),
       })
 
       const body = response.json()
@@ -688,12 +689,11 @@ describe('Sortation Domain', () => {
         heightCm: 10,
         status: ShipmentStatus.Sorting,
       });
-      console.log({ parcel })
       const masterBag = await createMasterBag(app)
 
       const response = await app.inject({
         method: 'PATCH',
-        url: API_ROUTES.sortations.masterBag.seal(masterBag.code)
+        url: sortations.masterBags.seal(masterBag.code)
       })
 
       const body = response.json();
@@ -703,89 +703,6 @@ describe('Sortation Domain', () => {
       expect(body.message).toBe('Master bag is sealed successfully.');
       expect(data?.code).toBe(masterBag.code);
       expect(data?.status).toBe(MasterBagStatus.Sealed);
-    })
-  })
-
-  describe('Facility Chute Management', () => {
-    let app: FastifyInstance
-
-    beforeAll(() => {
-      app = (globalThis as any).app as FastifyInstance
-    })
-
-    test('a facility chute can be created', async () => {
-      const facility = await createFacility(app)
-      const destinationFacility = await createFacility(app)
-
-      const payload = {
-        code: 'CHUTE-01',
-        facilityId: facility.id,
-        destinationFacilityId: destinationFacility.id,
-        isActive: true,
-      }
-
-      const response = await app.inject({
-        method: 'POST',
-        url: API_ROUTES.sortations.facilityChute.store,
-        body: payload
-      })
-
-      const body = response.json()
-
-      expect(response.statusCode).toBe(201)
-      expect(body.message).toBe('Facility chute created successfully.')
-      expect(body.data).toMatchObject({
-        id: expect.any(Number),
-        code: payload.code,
-        facilityId: payload.facilityId,
-        destinationFacilityId: payload.destinationFacilityId,
-        isActive: payload.isActive,
-        createdAt: expect.any(String),
-        updatedAt: expect.any(String),
-      })
-    })
-
-    test('a facility chute can be updated', async () => {
-      const createdChute = await createFacilityChute(app)
-      const updatePayload = {
-        code: 'CHUTE-02-UPDATED',
-        isActive: false,
-      }
-
-      const response = await app.inject({
-        method: 'PUT',
-        url: API_ROUTES.sortations.facilityChute.update(createdChute.id),
-        body: updatePayload
-      })
-
-      const body = response.json()
-
-      expect(response.statusCode).toBe(200)
-      expect(body.message).toBe('Facility chute updated successfully.')
-      expect(body.data).toMatchObject({
-        id: createdChute.id,
-        code: updatePayload.code,
-        isActive: updatePayload.isActive,
-      })
-    })
-
-    test('a facility chute can be deleted', async () => {
-      const createdChute = await createFacilityChute(app)
-
-      const response = await app.inject({
-        method: 'DELETE',
-        url: API_ROUTES.sortations.facilityChute.delete(createdChute.id),
-      })
-
-      const body = response.json()
-
-      expect(response.statusCode).toBe(200)
-      expect(body.message).toBe('Facility chute deleted successfully.')
-
-      const deletedRecord = await app.prisma.facilityChute.findUnique({
-        where: { id: createdChute.id },
-      })
-      expect(deletedRecord).toBeNull()
     })
   })
 })

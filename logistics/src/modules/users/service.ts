@@ -1,21 +1,7 @@
 import { FastifyInstance } from "fastify"
-import { UserRole } from "@prisma/client";
+import { LoginBody, RegisterBody } from "./schemas.js";
 
-interface RegisterUserData {
-  firstName: string;
-  lastName: string;
-  email: string;
-  password: string;
-  assignedFacilityId: string|number;
-  role: UserRole;
-}
-
-interface LoginUserData {
-  email: string;
-  password: string;
-}
-
-export async function createUser(fastify: FastifyInstance, data: any) {
+export async function createUser(fastify: FastifyInstance, data: RegisterBody) {
   const existingUser = await fastify.prisma.user.findUnique({
     where: { email: data.email }
   })
@@ -38,11 +24,10 @@ export async function createUser(fastify: FastifyInstance, data: any) {
   })
 
   const token = fastify.jwt.sign({ id: user.id })
-
   return { user, token }
 }
 
-export async function registerUser(fastify: FastifyInstance, data: RegisterUserData) {
+export async function registerUser(fastify: FastifyInstance, data: RegisterBody) {
   const { user: raw, token } = await createUser(fastify, data)
 
   const { password: _, ...user } = raw
@@ -50,7 +35,7 @@ export async function registerUser(fastify: FastifyInstance, data: RegisterUserD
   return { user, token }
 }
 
-export async function loginUser(fastify: FastifyInstance, data: LoginUserData) {
+export async function loginUser(fastify: FastifyInstance, data: LoginBody) {
   const user = await fastify.prisma.user.findUnique({
     where: { email: data.email }
   })

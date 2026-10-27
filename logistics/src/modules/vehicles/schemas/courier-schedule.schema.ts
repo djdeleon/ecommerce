@@ -1,11 +1,5 @@
 import { Type, Static } from "@sinclair/typebox";
 
-export const COURIER_SCHEDULE_PATHS = {
-  store: '/courier-schedules',
-  update: '/courier-schedules/:courierScheduleId',
-  delete: '/courier-schedules/:courierScheduleId',
-} as const;
-
 export const CourierScheduleStatusEnum = Type.Union([
   Type.Literal('Accumulation'),
   Type.Literal('LineHaul'),
@@ -32,12 +26,10 @@ export const CreateCourierScheduleBodySchema = Type.Omit(CourierScheduleSchema, 
 export const UpdateCourierScheduleBodySchema = Type.Partial(CreateCourierScheduleBodySchema)
 
 export const CreateCourierScheduleSchema = {
-  url: COURIER_SCHEDULE_PATHS.store,
   body: CreateCourierScheduleBodySchema,
 }
 
 export const UpdateCourierScheduleSchema = {
-  url: COURIER_SCHEDULE_PATHS.update,
   body: UpdateCourierScheduleBodySchema,
   params: Type.Object({
     courierScheduleId: Type.String(),
@@ -45,7 +37,6 @@ export const UpdateCourierScheduleSchema = {
 }
 
 export const DeleteCourierScheduleSchema = {
-  url: COURIER_SCHEDULE_PATHS.delete,
   params: Type.Object({
     courierScheduleId: Type.String(),
   }),

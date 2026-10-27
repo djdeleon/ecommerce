@@ -1,11 +1,5 @@
 import { Type, Static } from "@sinclair/typebox";
 
-export const NETWORK_LEG_PATHS = {
-  store: '/network-legs',
-  update: '/network-legs/:networkLegId',
-  delete: '/network-legs/:networkLegId',
-} as const;
-
 // GeoJSON LineString schema helper for route geometry
 export const GeoJsonLineStringSchema = Type.Object({
   type: Type.Literal("LineString"),
@@ -43,12 +37,10 @@ export const CreateNetworkLegBodySchema = Type.Omit(NetworkLegSchema, [
 export const UpdateNetworkLegBodySchema = Type.Partial(CreateNetworkLegBodySchema)
 
 export const CreateNetworkLegSchema = {
-  url: NETWORK_LEG_PATHS.store,
   body: CreateNetworkLegBodySchema,
 }
 
 export const UpdateNetworkLegSchema = {
-  url: NETWORK_LEG_PATHS.update,
   body: UpdateNetworkLegBodySchema,
   params: Type.Object({
     networkLegId: Type.String(),
@@ -56,7 +48,6 @@ export const UpdateNetworkLegSchema = {
 }
 
 export const DeleteNetworkLegSchema = {
-  url: NETWORK_LEG_PATHS.delete,
   params: Type.Object({
     networkLegId: Type.String(),
   }),

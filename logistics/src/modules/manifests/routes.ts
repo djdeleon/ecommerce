@@ -2,16 +2,16 @@ import { FastifyInstance } from "fastify";
 import {
   CreateManifestBody,
   CreateManifestSchema,
-  MANIFEST_PATHS
 } from "./schema.js";
 import { CourierStatus, ManifestStatus, ShipmentStatus } from "@prisma/client";
 import { userAuth } from "#commons/middlewares/user-auth.js";
 import { generateManifestCode } from "./service.js";
 import { generateEventDescription } from "../tracking-logs/logisticsEventDictionary.js";
+import { manifests } from "./paths.js";
 
 export default async function manifestRoutes(fastify: FastifyInstance) {
   // TODO: Middleware to check and get the Manager Data to get its assigned facility
-  fastify.get(MANIFEST_PATHS.index, { preHandler: [userAuth] }, async (req, rep) => {
+  fastify.get(manifests.index, { preHandler: [userAuth] }, async (req, rep) => {
     const manager = (req as any).user
 
     const facility = await fastify.prisma.facility.findUniqueOrThrow({
@@ -85,7 +85,7 @@ export default async function manifestRoutes(fastify: FastifyInstance) {
     })
   })
 
-  fastify.post<{ Body: CreateManifestBody }>(MANIFEST_PATHS.store, { schema: CreateManifestSchema }, async (req, rep) => {
+  fastify.post<{ Body: CreateManifestBody }>(manifests.store, { schema: CreateManifestSchema }, async (req, rep) => {
     const { sectorId, courierId, vehicleId, scheduledTime, parcelIds, currentWeightGrams, currentVolumeCbm } = req.body;
 
     const result = await fastify.prisma.$transaction(async (tx) => {
@@ -140,7 +140,7 @@ export default async function manifestRoutes(fastify: FastifyInstance) {
     })
   })
 
-  fastify.patch(MANIFEST_PATHS.dispatch, async (req, rep) => {
+  fastify.patch(manifests.dispatch.url, async (req, rep) => {
     const { manifestCode } = req.params as { manifestCode: string }
 
     const manifest = await fastify.prisma.manifest.findUniqueOrThrow({
@@ -196,7 +196,7 @@ export default async function manifestRoutes(fastify: FastifyInstance) {
     })
   })
 
-  fastify.patch(MANIFEST_PATHS.complete, async (req, rep) => {
+  fastify.patch(manifests.complete.url, async (req, rep) => {
     const { manifestCode } = req.params as { manifestCode: string }
 
     const manifest = await fastify.prisma.manifest.findUniqueOrThrow({
@@ -244,7 +244,7 @@ export default async function manifestRoutes(fastify: FastifyInstance) {
     })
   })
 
-  fastify.patch(MANIFEST_PATHS.arrive, async (req, rep) => {
+  fastify.patch(manifests.arrive.url, async (req, rep) => {
     const { manifestCode } = req.params as { manifestCode: string }
 
     const manifest = await fastify.prisma.manifest.findUniqueOrThrow({

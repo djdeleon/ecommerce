@@ -1,6 +1,5 @@
-import { CourierStatus, UserRole } from "@prisma/client";
+import { CourierStatus } from "@prisma/client";
 import { FastifyInstance } from "fastify";
-import { createuser } from "./user.factory.js";
 import { registerCourier } from "../../src/modules/couriers/service.js";
 
 export async function createCourier(fastify: FastifyInstance, overrides: any = {}) {

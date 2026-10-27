@@ -25,13 +25,13 @@ export async function updateCourierSchedule(
   data: UpdateCourierScheduleBody
 ) {
   const id = parseId(idParam)
-  const { courierId, physicalVehicleId, networkLegId } = data
+  const { courierId, vehicleId, networkLegId } = data
 
   return await fastify.prisma.courierSchedule.update({
     where: { id },
     data: {
       ...(courierId !== undefined && { courierId: courierId ?? null }),
-      ...(physicalVehicleId && { physicalVehicleId }),
+      ...(vehicleId && { vehicleId }),
       ...(networkLegId && { networkLegId }),
     },
   })

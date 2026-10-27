@@ -3,9 +3,10 @@ import { beforeAll, describe, expect, test } from "vitest";
 import { seedMasterInfrustructure } from "../../prisma/seeders/tests/master-infrastructure-tests.seed.js";
 import { createParcel } from "../factory/parcel.factory.js";
 import { Courier, CourierStatus, Delivery, DeliveryStatus, ShipmentStatus, UserRole } from "@prisma/client";
-import { createuser } from "../factory/user.factory.js";
-import { API_ROUTES } from "#commons/constants/routes.js";
+import { createUser } from "../factory/user.factory.js";
 import { createDelivery } from "../factory/delivery.factory.js";
+import { deliveries } from "../../src/modules/deliveries/paths.js";
+import { parcels } from "../../src/modules/parcels/paths.js";
 
 describe('Distribution Phase (Delivery - Last Mile)', () => {
   let app: FastifyInstance
@@ -24,7 +25,6 @@ describe('Distribution Phase (Delivery - Last Mile)', () => {
       }
     })
     const selectedSector = sectors[0]
-    console.log(selectedSector)
 
     for (let i = 0; i < 3; i++) {
       await createParcel(app, {
@@ -36,13 +36,13 @@ describe('Distribution Phase (Delivery - Last Mile)', () => {
       })
     }
 
-    const { token } = await createuser(app, UserRole.Manager, {
+    const { token } = await createUser(app, UserRole.Manager, {
       assignedFacilityId: facilityId
     })
 
     const response = await app.inject({
       method: 'GET',
-      url: API_ROUTES.deliveries.index,
+      url: deliveries.index,
       headers: {
         authorization: `Bearer ${token}`
       }
@@ -95,7 +95,7 @@ describe('Distribution Phase (Delivery - Last Mile)', () => {
     const parcels = await app.prisma.parcel.findMany()
     const parcelIds = parcels.map((p) => p.id)
 
-    await createuser(app, UserRole.Manager, {
+    await createUser(app, UserRole.Manager, {
       assignedFacilityId: facilityId
     })
 
@@ -111,7 +111,7 @@ describe('Distribution Phase (Delivery - Last Mile)', () => {
 
     const response = await app.inject({
       method: 'POST',
-      url: API_ROUTES.deliveries.store,
+      url: deliveries.store,
       body: payload
     })
 
@@ -144,7 +144,7 @@ describe('Distribution Phase (Delivery - Last Mile)', () => {
 
     const response = await app.inject({
       method: 'PATCH',
-      url: API_ROUTES.deliveries.dispatch(result.delivery.code)
+      url: deliveries.dispatch(result.delivery.code)
     })
 
     const body = response.json();
@@ -177,7 +177,7 @@ describe('Distribution Phase (Delivery - Last Mile)', () => {
     })
     expect(courierLog).toBeDefined();
 
-    const parcelIds = data.parcels.map((p) => p.id)
+    const parcelIds = data.parcels.map((p: any) => p.id)
     const trackingLogs = await app.prisma.trackingLog.findMany({
       where: { parcelId: { in: parcelIds }, status: 'OutForDelivery' },
       orderBy: { id: 'asc' }
@@ -202,14 +202,14 @@ describe('Distribution Phase (Delivery - Last Mile)', () => {
 
     const result = await createDelivery(app)
 
-    const parcels = await app.prisma.parcel.findMany({
+    const parcelList = await app.prisma.parcel.findMany({
       where: { id: { in: result.parcelIds } }
     })
-    const deliveredParcel = parcels[0]
+    const deliveredParcel = parcelList[0]
 
     const response = await app.inject({
       method: 'PATCH',
-      url: API_ROUTES.parcels.delivered(deliveredParcel.trackingNumber),
+      url: parcels.delivered(deliveredParcel.trackingNumber),
     })
 
     const body = response.json()
@@ -254,7 +254,7 @@ describe('Distribution Phase (Delivery - Last Mile)', () => {
 
     const response = await app.inject({
       method: 'PATCH',
-      url: API_ROUTES.deliveries.completed(result.delivery.code)
+      url: deliveries.completed(result.delivery.code)
     })
 
     const body = response.json();
@@ -283,7 +283,7 @@ describe('Distribution Phase (Delivery - Last Mile)', () => {
 
     const response = await app.inject({
       method: 'PATCH',
-      url: API_ROUTES.deliveries.arrived(result.delivery.code)
+      url: deliveries.arrived(result.delivery.code)
     })
 
     const body = response.json();

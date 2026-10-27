@@ -1,6 +1,6 @@
-import { API_ROUTES } from "#commons/constants/routes.js";
 import { FastifyInstance } from "fastify";
 import { beforeAll, describe, expect, test } from "vitest";
+import { clients } from "../../src/modules/clients/paths.js";
 
 describe('Clients Domain', () => {
   let app: FastifyInstance
@@ -12,25 +12,25 @@ describe('Clients Domain', () => {
   test('an admin can view the client dashboard', async () => {
     const response = await app.inject({
       method: 'GET',
-      url: API_ROUTES.clients.index
+      url: clients.index
     })
 
-    const clients = response.json().data
+    const clientList = response.json().data
 
     expect(response.statusCode).toBe(200)
-    expect(clients.length).toBe(0)
+    expect(clientList.length).toBe(0)
   })
 
   test('a client can register', async () => {
     const response = await app.inject({
       method: 'POST',
-      url: API_ROUTES.clients.store,
+      url: clients.store,
       body: {
         name: 'Laravel E-Commerce PH',
       }
     })
 
-    const client = response.json().data
+    const client = response.json().data.client
 
     expect(response.statusCode).toBe(201)
     expect(client.name).toBe('Laravel E-Commerce PH')

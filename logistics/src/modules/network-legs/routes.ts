@@ -7,15 +7,13 @@ import {
   UpdateNetworkLegBody, 
   UpdateNetworkLegParams, 
   UpdateNetworkLegSchema, 
-  NETWORK_LEG_PATHS 
 } from "./schema.js";
-import parseId from "#commons/utils/id-parser.js";
-import { TransitMode } from "@prisma/client";
 import { createNetworkLeg, deleteNetworkLeg, updateNetworkLeg } from "./service.js";
+import { networkLegs } from "./paths.js";
 
 export default async function networkLegRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: CreateNetworkLegBody }>(
-    NETWORK_LEG_PATHS.store, 
+    networkLegs.store, 
     { schema: CreateNetworkLegSchema }, 
     async (req, rep) => {
       const networkLeg = await createNetworkLeg(fastify, req.body)
@@ -28,7 +26,7 @@ export default async function networkLegRoutes(fastify: FastifyInstance) {
   )
 
   fastify.put<{ Body: UpdateNetworkLegBody; Params: UpdateNetworkLegParams }>(
-    NETWORK_LEG_PATHS.update, 
+    networkLegs.update.url, 
     { schema: UpdateNetworkLegSchema },
     async (req, rep) => {
       const { networkLegId } = req.params
@@ -43,7 +41,7 @@ export default async function networkLegRoutes(fastify: FastifyInstance) {
   )
 
   fastify.delete<{ Params: DeleteNetworkLegParams }>(
-    NETWORK_LEG_PATHS.delete,
+    networkLegs.delete.url,
     { schema: DeleteNetworkLegSchema },
     async (req, rep) => {
       const { networkLegId } = req.params

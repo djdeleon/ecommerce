@@ -1,11 +1,5 @@
 import { Type, Static } from "@sinclair/typebox";
 
-export const SECTOR_PATHS = {
-  store: '/sectors',
-  update: '/sectors/:sectorId',
-  delete: '/sectors/:sectorId',
-} as const;
-
 // GeoJSON Point/Polygon schema helper for zone
 export const GeoJsonPolygonSchema = Type.Object({
   type: Type.Literal("Polygon"),
@@ -31,12 +25,10 @@ export const CreateSectorBodySchema = Type.Omit(SectorSchema, [
 export const UpdateSectorBodySchema = Type.Partial(CreateSectorBodySchema)
 
 export const CreateSectorSchema = {
-  url: SECTOR_PATHS.store,
   body: CreateSectorBodySchema,
 }
 
 export const UpdateSectorSchema = {
-  url: SECTOR_PATHS.update,
   body: UpdateSectorBodySchema,
   params: Type.Object({
     sectorId: Type.String(),
@@ -44,7 +36,6 @@ export const UpdateSectorSchema = {
 }
 
 export const DeleteSectorSchema = {
-  url: SECTOR_PATHS.delete,
   params: Type.Object({
     sectorId: Type.String(),
   }),

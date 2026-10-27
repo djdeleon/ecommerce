@@ -1,10 +1,10 @@
-import { API_ROUTES } from "#commons/constants/routes.js";
 import { FastifyInstance } from "fastify";
 import { beforeAll, beforeEach, describe, expect, test } from "vitest";
 import { createFacility } from "#factory";
 import { createSector } from "../factory/sector.factory.js";
 import { seedGeographicAreas } from "#commons/utils/spatial-seeder.js";
 import { } from "node:test";
+import { sectors } from "../../src/modules/sectors/paths.js";
 
 describe('Sector Domain', () => {
   let app: FastifyInstance
@@ -39,7 +39,7 @@ describe('Sector Domain', () => {
 
     const response = await app.inject({
       method: 'POST',
-      url: API_ROUTES.sectors.store,
+      url: sectors.store,
       body: payload
     })
 
@@ -56,7 +56,7 @@ describe('Sector Domain', () => {
     })
   })
 
-  test.only('a sector can be created with its barangays', async () => {
+  test('a sector can be created with its barangays', async () => {
     const facility = await createFacility(app)
 
     const payload = {
@@ -96,7 +96,7 @@ describe('Sector Domain', () => {
 
     const response = await app.inject({
       method: 'POST',
-      url: API_ROUTES.sectors.store,
+      url: sectors.store,
       body: payload
     })
 
@@ -118,7 +118,7 @@ describe('Sector Domain', () => {
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
     })
-    expect(sector.barangays.length).toBe(5)
+    expect(sector.barangays.length).toBe(16)
   })
 
   test('a sector can be updated', async () => {
@@ -129,7 +129,7 @@ describe('Sector Domain', () => {
 
     const response = await app.inject({
       method: 'PUT',
-      url: API_ROUTES.sectors.update(createdSector.id),
+      url: sectors.update(createdSector.id),
       body: updatePayload
     })
 
@@ -149,7 +149,7 @@ describe('Sector Domain', () => {
 
     const response = await app.inject({
       method: 'DELETE',
-      url: API_ROUTES.sectors.delete(createdSector.id),
+      url: sectors.delete(createdSector.id),
     })
 
     const body = response.json()

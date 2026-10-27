@@ -1,11 +1,11 @@
-import { CourierStatus, FacilityType } from "@prisma/client";
+import { CourierStatus, FacilityType, UserRole } from "@prisma/client";
 import { FastifyInstance } from "fastify";
 import { facilityTypeMap } from "./facilityTypeMap.js";
 import { CreateFacilityData } from "./schema.js";
 
 interface AssignCourierData {
   facilityId: number;
-  courierId: number;
+  userId: number;
 }
 
 export function generateSortingCode(): string {
@@ -45,14 +45,14 @@ export async function updateFacility(
   data: AssignCourierData
 ) {
   return fastify.prisma.$transaction(async (tx) => {
-    await tx.courier.update({
-      where: { id: data.courierId },
+    await tx.user.update({
+      where: { id: data.userId, role: UserRole.Courier },
       data: { assignedFacilityId: data.facilityId }
     })
 
     return await tx.facility.findUniqueOrThrow({
       where: { id: data.facilityId }, 
-      include: { couriers: true }
+      include: { users: true }
     })
   })
 }

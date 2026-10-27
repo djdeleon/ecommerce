@@ -1,11 +1,5 @@
 import { Static, Type } from "@sinclair/typebox"
 
-export const VEHICLE_PROFILE_PATHS = {
-  store: '/vehicle-profiles',
-  update: '/vehicle-profiles/:vehicleProfileId',
-  delete: '/vehicle-profiles/:vehicleProfileId',
-} as const;
-
 export const VehicleTypeEnum = Type.Union([
   Type.Literal('Van'),
   Type.Literal('Truck'),

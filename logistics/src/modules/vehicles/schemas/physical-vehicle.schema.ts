@@ -1,11 +1,5 @@
 import { Static, Type } from "@sinclair/typebox"
 
-export const PHYSICAL_VEHICLE_PATHS = {
-  store: '/physical-vehicles',
-  update: '/physical-vehicles/:physicalVehicleId',
-  delete: '/physical-vehicles/:physicalVehicleId',
-} as const;
-
 export const PhysicalVehicleSchema = Type.Object({
   id: Type.Integer({ minimum: 1 }),
   vehicleProfileId: Type.Integer({ minimum: 1 }),

@@ -1,11 +1,5 @@
 import { Type, Static } from "@sinclair/typebox";
 
-export const DISPATCH_LOG_PATHS = {
-  store: '/dispatch-logs',
-  update: '/dispatch-logs/:dispatchLogId',
-  delete: '/dispatch-logs/:dispatchLogId',
-} as const;
-
 export const DispatchLogSchema = Type.Object({
   id: Type.Integer({ minimum: 1 }),
   assignedCourierId: Type.Integer({ minimum: 1 }),
@@ -27,12 +21,10 @@ export const UpdateDispatchLogBodySchema = Type.Partial(
 )
 
 export const CreateDispatchLogSchema = {
-  url: DISPATCH_LOG_PATHS.store,
   body: CreateDispatchLogBodySchema,
 }
 
 export const UpdateDispatchLogSchema = {
-  url: DISPATCH_LOG_PATHS.update,
   body: UpdateDispatchLogBodySchema,
   params: Type.Object({
     dispatchLogId: Type.String(),
@@ -40,7 +32,6 @@ export const UpdateDispatchLogSchema = {
 }
 
 export const DeleteDispatchLogSchema = {
-  url: DISPATCH_LOG_PATHS.delete,
   params: Type.Object({
     dispatchLogId: Type.String(),
   }),

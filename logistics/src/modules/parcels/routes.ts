@@ -1,5 +1,5 @@
 import { FastifyInstance } from "fastify";
-import { PARCEL_PATHS, StoreBody, StoreSchema, waybillSchema } from "./schema.js";
+import { StoreBody, StoreSchema } from "./schema.js";
 import { createParcel } from "./service.js";
 import { Parcel, ShipmentStatus } from "@prisma/client";
 import { createTrackingLog } from "../tracking-logs/service.js";
@@ -8,6 +8,7 @@ import { activateTrackingNumber } from "../tracking-numbers/service.js";
 import JsBarcode from "jsbarcode";
 import { DOMImplementation, XMLSerializer } from "@xmldom/xmldom";
 import { generateEventDescription } from "../tracking-logs/logisticsEventDictionary.js";
+import { parcels } from "./paths.js";
 
 export default async function parcelRoutes(fastify: FastifyInstance) {
   fastify.post('/api/shipments/book', async (req, rep) => {
@@ -26,7 +27,7 @@ export default async function parcelRoutes(fastify: FastifyInstance) {
 
 
 
-  fastify.post<{ Body: StoreBody }>(StoreSchema.url, {
+  fastify.post<{ Body: StoreBody }>(parcels.store, {
     schema: StoreSchema,
     // preHandler: [parcelAuth]
   }, async (req, rep) => {
@@ -66,7 +67,7 @@ export default async function parcelRoutes(fastify: FastifyInstance) {
     })
   })
 
-  fastify.get(waybillSchema.url, async (req, rep) => {
+  fastify.get(parcels.waybill.url, async (req, rep) => {
     const trackingNumber = (req.params as any).trackingNumber
     const { prisma } = req.server
 
@@ -433,7 +434,7 @@ export default async function parcelRoutes(fastify: FastifyInstance) {
       `)
   })
 
-  fastify.patch(PARCEL_PATHS.pickedUp, async (req, rep) => {
+  fastify.patch(parcels.pickedUp.url, async (req, rep) => {
     const { trackingNumber } = req.params as { trackingNumber: string; }
     const parcel = await fastify.prisma.parcel.findUniqueOrThrow({
       where: { trackingNumber }
@@ -462,7 +463,7 @@ export default async function parcelRoutes(fastify: FastifyInstance) {
     })
   })
 
-  fastify.patch(PARCEL_PATHS.delivered, async (req, rep) => {
+  fastify.patch(parcels.delivered.url, async (req, rep) => {
     const { trackingNumber } = req.params as { trackingNumber: string; }
     const parcel = await fastify.prisma.parcel.findUniqueOrThrow({
       where: { trackingNumber }
@@ -491,7 +492,7 @@ export default async function parcelRoutes(fastify: FastifyInstance) {
     })
   })
 
-  fastify.patch(PARCEL_PATHS.bagged, async (req, rep) => {
+  fastify.patch(parcels.bagged.url, async (req, rep) => {
     const { trackingNumber } = req.params as { trackingNumber: string; }
     const parcel = await fastify.prisma.parcel.findUniqueOrThrow({
       where: { trackingNumber }
@@ -520,7 +521,7 @@ export default async function parcelRoutes(fastify: FastifyInstance) {
     })
   })
 
-  fastify.patch(PARCEL_PATHS.departedFromHub, async (req, rep) => {
+  fastify.patch(parcels.departedFromHub.url, async (req, rep) => {
     const { trackingNumber } = req.params as { trackingNumber: string; }
     const parcel = await fastify.prisma.parcel.findUniqueOrThrow({
       where: { trackingNumber }
@@ -556,7 +557,7 @@ export default async function parcelRoutes(fastify: FastifyInstance) {
     })
   })
 
-  fastify.patch(PARCEL_PATHS.arrivedAtHub, async (req, rep) => {
+  fastify.patch(parcels.arrivedAtHub.url, async (req, rep) => {
     const { trackingNumber } = req.params as { trackingNumber: string; }
     const parcel = await fastify.prisma.parcel.findUniqueOrThrow({
       where: { trackingNumber }

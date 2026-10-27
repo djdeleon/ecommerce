@@ -1,12 +1,5 @@
 import { Type, Static } from "@sinclair/typebox";
 
-export const SORTATION_BATCH_PATHS = {
-  store: '/sortation-batches',
-  tunnelScan: '/sortation-batches/:trackingNumber/tunnel-scan',
-  update: '/sortation-batches/:sortingBatchId',
-  delete: '/sortation-batches/:sortingBatchId',
-} as const;
-
 export const SortationBatchStatusEnum = Type.Union([
   Type.Literal('Scheduled'),
   Type.Literal('Active'),
@@ -39,12 +32,10 @@ export const UpdateSortationBatchBodySchema = Type.Partial(
 )
 
 export const CreateSortationBatchSchema = {
-  url: SORTATION_BATCH_PATHS.store,
   body: CreateSortationBatchBodySchema,
 }
 
 export const UpdateSortationBatchSchema = {
-  url: SORTATION_BATCH_PATHS.update,
   body: UpdateSortationBatchBodySchema,
   params: Type.Object({
     sortingBatchId: Type.String(),
@@ -52,7 +43,6 @@ export const UpdateSortationBatchSchema = {
 }
 
 export const DeleteSortationBatchSchema = {
-  url: SORTATION_BATCH_PATHS.delete,
   params: Type.Object({
     sortingBatchId: Type.String(),
   }),

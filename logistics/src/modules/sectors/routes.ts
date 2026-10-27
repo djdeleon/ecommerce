@@ -7,13 +7,13 @@ import {
   UpdateSectorBody,
   UpdateSectorParams,
   UpdateSectorSchema,
-  SECTOR_PATHS
 } from "./schema.js";
 import { createSector, deleteSector, updateSector } from "./service.js";
+import { sectors } from "./paths.js";
 
 export default async function sectorRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: CreateSectorBody }>(
-    SECTOR_PATHS.store,
+    sectors.store,
     { schema: CreateSectorSchema },
     async (req, rep) => {
       const sector = await createSector(fastify, req.body)
@@ -26,7 +26,7 @@ export default async function sectorRoutes(fastify: FastifyInstance) {
   )
 
   fastify.put<{ Body: UpdateSectorBody; Params: UpdateSectorParams }>(
-    SECTOR_PATHS.update,
+    sectors.update.url,
     { schema: UpdateSectorSchema },
     async (req, rep) => {
       const { sectorId } = req.params
@@ -41,7 +41,7 @@ export default async function sectorRoutes(fastify: FastifyInstance) {
   )
 
   fastify.delete<{ Params: DeleteSectorParams }>(
-    SECTOR_PATHS.delete,
+    sectors.delete.url,
     { schema: DeleteSectorSchema },
     async (req, rep) => {
       const { sectorId } = req.params
