@@ -6,7 +6,7 @@ definePageMeta({
   layout: 'auth'
 })
 
-const { loginUser } = useAuthService()
+const { loginUser, setUser } = useAuthService()
 
 const errorMessage = ref('')
 const loading = ref(false)
@@ -56,13 +56,11 @@ const handleAdminLogin = async (payload) => {
       password: payload.data.password,
     })
 
-    // Store token (e.g., in localStorage or cookies)
-    const token = response.data?.token
-    if (token) {
-      localStorage.setItem('admin_token', token)
-      toast.add({ title: 'Success', description: 'Logged in successfully!' })
-      router.push('/admin/dashboard')
-    }
+    setUser(response.data)
+
+    toast.add({ title: 'Success', description: 'Logged in successfully!' })
+
+    router.push('/admin/dashboard')
   } catch (error) {
     toast.add({
       title: 'Registration Failed',
