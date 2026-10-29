@@ -5,7 +5,7 @@ const router = useRouter()
 const users = ref([])
 
 onMounted(() => {
-  if (!localStorage.getItem('admin_token')) router.push('/admin/login')
+  if (!localStorage.getItem('token')) router.push('/admin/login')
   // Fetch users list from backend here
 })
 </script>

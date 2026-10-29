@@ -4,7 +4,7 @@ import { ref, onMounted } from 'vue'
 const router = useRouter()
 
 onMounted(() => {
-  if (!localStorage.getItem('admin_token')) router.push('/admin/login')
+  if (!localStorage.getItem('token')) router.push('/admin/login')
 })
 
 definePageMeta({

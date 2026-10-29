@@ -3,7 +3,7 @@ export const useFacilityService = () => {
   const apiBase = config.public.logisticsApi || 'http://localhost:8001'
 
   const getFacilities = async () => {
-    const token = import.meta.client ? localStorage.getItem('admin_token') : null
+    const token = import.meta.client ? localStorage.getItem('token') : null
 
     return await $fetch(`${apiBase}/facilities`, {
       method: 'GET',
