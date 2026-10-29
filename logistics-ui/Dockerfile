@@ -4,15 +4,18 @@ WORKDIR /app
 
 RUN apk add --no-cache libc6-compat
 
-COPY package*.json ./
-
-RUN npm install -g npm@latest
-
+# Ensure the directory belongs to node before doing anything
 RUN chown -R node:node /app
+
 USER node
 
+# Copy package files as the node user
+COPY --chown=node:node package*.json ./
+
+# Run clean install
 RUN npm install
 
+# Copy the rest of your local files
 COPY --chown=node:node . .
 
 EXPOSE 3000
