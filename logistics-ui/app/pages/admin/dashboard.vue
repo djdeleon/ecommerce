@@ -3,17 +3,14 @@ import { ref, onMounted } from 'vue'
 
 const router = useRouter()
 
+const { logout } = useAuthService()
+
 onMounted(() => {
-  const token = localStorage.getItem('admin_token')
+  const token = localStorage.getItem('token')
   if (!token) {
     router.push('/admin/login')
   }
 })
-
-const handleLogout = () => {
-  localStorage.removeItem('admin_token')
-  router.push('/admin/login')
-}
 
 definePageMeta({
   title: 'Dashboard'
@@ -28,7 +25,7 @@ definePageMeta({
         <h1 class="text-2xl font-bold text-white">Admin Control Center</h1>
         <p class="text-sm text-gray-400 mt-1">Manage system operations, facilities, and personnel.</p>
       </div>
-      <button @click="handleLogout"
+      <button @click="logout"
         class="rounded bg-red-600 px-4 py-2 text-sm text-white font-semibold hover:bg-red-700 transition">
         Logout
       </button>

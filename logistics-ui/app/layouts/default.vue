@@ -1,6 +1,18 @@
 <script setup lang="ts">
 import type { DropdownMenuItem, NavigationMenuItem } from '@nuxt/ui'
 
+const { user, loadUser, logout } = useAuthService()
+
+loadUser()
+
+const userButtonProps = computed(() => ({
+  name: user.value ? `${user.value.firstName} ${user.value.lastName}` : 'Guest',
+  avatar: {
+    src: 'https://github.com/benjamincanac.png',
+    alt: user.value?.firstName || 'User'
+  }
+}))
+
 const open = ref(true)
 
 const colorMode = useColorMode()
@@ -53,6 +65,22 @@ const teamsItems = computed<DropdownMenuItem[][]>(() => {
 })
 
 function getItems(state: 'collapsed' | 'expanded') {
+  if (user.value.role === 'Manager') {
+    const assignedFacilityId = user.value.assignedFacilityId
+
+    return [
+      {
+        label: 'Dashboard',
+        icon: 'i-lucide-home',
+        to: '/manager/dashboard',
+      },
+      {
+        label: 'Parcels',
+        icon: 'i-lucide-package',
+        to: `/manager/parcels`
+      }
+    ] satisfies NavigationMenuItem[]
+  }
   return [
     {
       label: 'Dashboard',
@@ -63,6 +91,11 @@ function getItems(state: 'collapsed' | 'expanded') {
       label: 'Clients',
       icon: 'i-lucide-shield-user',
       to: '/admin/clients',
+    },
+    {
+      label: 'Managers',
+      icon: 'i-lucide-user-shield',
+      to: '/admin/managers',
     },
     {
       label: 'Facilities',
@@ -103,14 +136,6 @@ function getItems(state: 'collapsed' | 'expanded') {
     }
   ] satisfies NavigationMenuItem[]
 }
-
-const user = ref({
-  name: 'Benjamin Canac',
-  avatar: {
-    src: 'https://github.com/benjamincanac.png',
-    alt: 'Benjamin Canac'
-  }
-})
 
 const userItems = computed<DropdownMenuItem[][]>(() => [
   [
@@ -173,7 +198,8 @@ const userItems = computed<DropdownMenuItem[][]>(() => [
     },
     {
       label: 'Log out',
-      icon: 'i-lucide-log-out'
+      icon: 'i-lucide-log-out',
+      onSelect: logout
     }
   ]
 ])
@@ -183,12 +209,12 @@ defineShortcuts(extractShortcuts(teamsItems.value))
 
 <template>
   <div class="flex min-h-screen w-full bg-gray-900 text-gray-100">
-    <USidebar v-model:open="open" collapsible="icon" rail :ui="{
+    <USidebar v-model:open="open" mode="modal" collapsible="icon" rail :title="pageTitle" :ui="{
       container: 'h-full',
       inner: 'bg-elevated/25 divide-transparent',
       body: 'py-0'
     }">
-      <template #header>
+      <!-- <template #header>
         <UDropdownMenu :items="teamsItems" :content="{ align: 'start', collisionPadding: 12 }"
           :ui="{ content: 'w-(--reka-dropdown-menu-trigger-width) min-w-48' }">
           <UButton v-bind="selectedTeam" trailing-icon="i-lucide-chevrons-up-down" color="neutral" variant="ghost"
@@ -196,7 +222,7 @@ defineShortcuts(extractShortcuts(teamsItems.value))
               trailingIcon: 'text-dimmed ms-auto'
             }" />
         </UDropdownMenu>
-      </template>
+      </template> -->
 
       <template #default="{ state }">
         <UNavigationMenu :key="state" :items="getItems(state)" orientation="vertical"
@@ -206,8 +232,8 @@ defineShortcuts(extractShortcuts(teamsItems.value))
       <template #footer>
         <UDropdownMenu :items="userItems" :content="{ align: 'center', collisionPadding: 12 }"
           :ui="{ content: 'w-(--reka-dropdown-menu-trigger-width) min-w-48' }">
-          <UButton v-bind="user" :label="user?.name" trailing-icon="i-lucide-chevrons-up-down" color="neutral"
-            variant="ghost" square class="w-full data-[state=open]:bg-elevated overflow-hidden" :ui="{
+          <UButton v-bind="userButtonProps" :label="userButtonProps.name" trailing-icon="i-lucide-chevrons-up-down"
+            color="neutral" variant="ghost" square class="w-full data-[state=open]:bg-elevated overflow-hidden" :ui="{
               trailingIcon: 'text-dimmed ms-auto'
             }" />
         </UDropdownMenu>
@@ -217,6 +243,7 @@ defineShortcuts(extractShortcuts(teamsItems.value))
     <div class="flex-1 flex flex-col min-w-0">
       <UHeader :ui="{
         container: 'max-w-none',
+        toggle: 'hidden'
       }">
         <template #left>
           <div class="flex items-center">
