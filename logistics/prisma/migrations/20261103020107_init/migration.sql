@@ -39,6 +39,9 @@ CREATE TYPE "DeliveryStatus" AS ENUM ('scheduled', 'loading', 'dispatched', 'com
 -- CreateEnum
 CREATE TYPE "CourierScheduleType" AS ENUM ('accumulation', 'line_haul', 'delivery');
 
+-- CreateEnum
+CREATE TYPE "pipeline_status" AS ENUM ('incoming', 'arrived', 'departed');
+
 -- CreateTable
 CREATE TABLE "regions" (
     "id" VARCHAR(15) NOT NULL,
@@ -354,6 +357,21 @@ CREATE TABLE "parcel_audit_logs" (
 );
 
 -- CreateTable
+CREATE TABLE "parcel_facility_pipelines" (
+    "id" SERIAL NOT NULL,
+    "parcel_id" INTEGER NOT NULL,
+    "facility_id" INTEGER NOT NULL,
+    "sequence_order" INTEGER NOT NULL,
+    "status" "pipeline_status" NOT NULL DEFAULT 'incoming',
+    "arrived_at" TIMESTAMP(3),
+    "departed_at" TIMESTAMP(3),
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "parcel_facility_pipelines_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "stores" (
     "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
@@ -488,6 +506,9 @@ CREATE UNIQUE INDEX "parcels_external_order_id_key" ON "parcels"("external_order
 CREATE UNIQUE INDEX "parcel_audit_logs_parcel_id_key" ON "parcel_audit_logs"("parcel_id");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "parcel_facility_pipelines_parcel_id_facility_id_key" ON "parcel_facility_pipelines"("parcel_id", "facility_id");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "stores_name_key" ON "stores"("name");
 
 -- CreateIndex
@@ -618,6 +639,12 @@ ALTER TABLE "parcels" ADD CONSTRAINT "parcels_delivery_id_fkey" FOREIGN KEY ("de
 
 -- AddForeignKey
 ALTER TABLE "parcel_audit_logs" ADD CONSTRAINT "parcel_audit_logs_parcel_id_fkey" FOREIGN KEY ("parcel_id") REFERENCES "parcels"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "parcel_facility_pipelines" ADD CONSTRAINT "parcel_facility_pipelines_parcel_id_fkey" FOREIGN KEY ("parcel_id") REFERENCES "parcels"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "parcel_facility_pipelines" ADD CONSTRAINT "parcel_facility_pipelines_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "tracking_logs" ADD CONSTRAINT "tracking_logs_parcel_id_fkey" FOREIGN KEY ("parcel_id") REFERENCES "parcels"("id") ON DELETE CASCADE ON UPDATE CASCADE;

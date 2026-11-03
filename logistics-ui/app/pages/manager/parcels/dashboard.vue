@@ -1,5 +1,5 @@
 <template>
-  <h1>Parcels</h1>
+  <h1>Parcel's Dashboard</h1>
 </template>
 
 <script setup>

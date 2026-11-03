@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify"
 import { LoginBody, RegisterBody } from "./schemas.js";
+import { UserRole } from "@prisma/client";
 
 export async function createUser(fastify: FastifyInstance, data: RegisterBody) {
   const existingUser = await fastify.prisma.user.findUnique({
@@ -12,13 +13,15 @@ export async function createUser(fastify: FastifyInstance, data: RegisterBody) {
 
   const hashedPassword = await fastify.bcrypt.hash(data.password)
 
+  const role = data.role ?? UserRole.Admin
+
   const user = await fastify.prisma.user.create({
     data: {
       firstName: data.firstName,
       lastName: data.lastName,
       email: data.email,
       password: hashedPassword,
-      role: data.role,
+      role,
       assignedFacilityId: data.assignedFacilityId
     }
   })
@@ -36,21 +39,23 @@ export async function registerUser(fastify: FastifyInstance, data: RegisterBody)
 }
 
 export async function loginUser(fastify: FastifyInstance, data: LoginBody) {
-  const user = await fastify.prisma.user.findUnique({
+  const userRecord = await fastify.prisma.user.findUnique({
     where: { email: data.email }
   })
 
-  if (!user) {
+  if (!userRecord) {
     throw new Error('InvalidCredentials')
   }
 
-  const isValid = await fastify.bcrypt.compare(data.password, user.password)
+  const isValid = await fastify.bcrypt.compare(data.password, userRecord.password)
 
   if (!isValid) {
     throw new Error('InvalidCredentials')
   }
 
-  const token = fastify.jwt.sign({ id: user.id })
+  const token = fastify.jwt.sign({ id: userRecord.id })
+
+  const { password: _, ...user } = userRecord
 
   return { user, token }
 }

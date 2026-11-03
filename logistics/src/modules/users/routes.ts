@@ -16,6 +16,8 @@ export default async function userRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: LoginBody }>(users.login, { schema: LoginSchema }, async (req, rep) => {
     const data = await loginUser(fastify, req.body)
 
+    console.log({data})
+    
     return rep.send({
       message: 'User logged in.',
       data,

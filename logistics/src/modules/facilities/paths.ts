@@ -8,6 +8,7 @@ const createPath = (path: string) => {
 
 export const facilities = {
   index: '/facilities',
+  show: createPath('/facilities/:facilityId'),
   store: '/facilities',
   assignCourier: createPath('/facilities/:facilityId/assign-courier'),
 } as const;

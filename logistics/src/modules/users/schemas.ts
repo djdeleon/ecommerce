@@ -16,12 +16,15 @@ export const LoginSchema = {
     200: Type.Object({
       message: Type.String(),
       data: Type.Object({
+        token: Type.String(),
         user: Type.Object({
-          id: Type.String(),
+          id: Type.Union([Type.String(), Type.Integer()]),
+          firstName: Type.String(),
+          lastName: Type.String(),
           email: Type.String(),
-          role: Type.Enum(UserRole),
-        }),
-        token: Type.String()
+          role: Type.String(),
+          assignedFacilityId: Type.Optional(Type.Union([Type.String(), Type.Integer(), Type.Null()])),
+        })
       })
     }),
     401: Type.Object({
@@ -43,7 +46,7 @@ export const RegisterSchema = {
         examples: [1]
       })
     ),
-    role: Type.Enum(UserRole),
+    role: Type.Optional(Type.Enum(UserRole)),
   }),
   response: {
     200: Type.Object({

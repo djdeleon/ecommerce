@@ -6,6 +6,7 @@ import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import fp from "fastify-plugin";
 import cors from '@fastify/cors'
+import { UserRole } from "@prisma/client";
 
 export default fp(async function main(fastify: FastifyInstance) {
   const __filename = fileURLToPath(import.meta.url)
@@ -22,17 +23,30 @@ export default fp(async function main(fastify: FastifyInstance) {
   })
 
   await fastify.register(cors, {
-    origin: true
+    origin: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true,
   })
 
   fastify.get('/', async (request, reply) => {
-  return {
-    status: "success",
-    message: "Hello from the Logistics Fastify Backend microservice!",
-    timestamp: new Date().toISOString(),
-    system: "Mock 3PL Engine active"
-  }
-})
+    return {
+      status: "success",
+      message: "Hello from the Logistics Fastify Backend microservice!",
+      timestamp: new Date().toISOString(),
+      system: "Mock 3PL Engine active"
+    }
+  })
+
+  fastify.get('/managers', async (request, reply) => {
+    const data = await fastify.prisma.user.findMany({
+      where: { role: UserRole.Manager }
+    })
+
+    return reply.status(200).send({
+      message: "Managers retrieved.",
+      data
+    })
+  })
 
   await fastify.register(autoLoad, {
     dir: join(__dirname, 'commons/plugins'),

@@ -77,7 +77,22 @@ function getItems(state: 'collapsed' | 'expanded') {
       {
         label: 'Parcels',
         icon: 'i-lucide-package',
-        to: `/manager/parcels`
+        defaultOpen: true,
+        children:
+          state === 'expanded'
+            ? [
+                {
+                  label: 'Overview',
+                  icon: 'i-lucide-layout-dashboard',
+                  to: '/manager/parcels/dashboard'
+                },
+                {
+                  label: 'Journey & Map',
+                  icon: 'i-lucide-map-pinned',
+                  to: '/manager/parcels/journey'
+                }
+              ]
+            : []
       }
     ] satisfies NavigationMenuItem[]
   }
