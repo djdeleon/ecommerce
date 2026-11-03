@@ -123,6 +123,14 @@ enum CourierScheduleType {
   Delivery     @map("delivery")
 }
 
+enum PipelineStatus {
+  Incoming  @map("incoming")
+  Arrived   @map("arrived")
+  Departed  @map("departed")
+
+  @@map("pipeline_status")
+}
+
 model Region {
   id                     String               @id @db.VarChar(15)
   name                   String               @db.VarChar(100)
@@ -224,6 +232,7 @@ model Facility {
   destinationParcels     Parcel[]             @relation("DestinationFacility")
   trackingLogs           TrackingLog[]
   dispatchLogs           DispatchLog[]
+  routingPipelines      ParcelFacilityPipeline[]
 
   @@map("facilities")
 }
@@ -584,6 +593,8 @@ model Parcel {
   deliveryId            Int?                  @map("delivery_id")
   delivery              Delivery?             @relation(fields: [deliveryId], references: [id], onDelete: SetNull)
 
+  routingPipelines      ParcelFacilityPipeline[]
+
   createdAt             DateTime              @default(now()) @map("created_at")
   updatedAt             DateTime              @updatedAt @map("updated_at")
 
@@ -608,6 +619,28 @@ model ParcelAuditLog {
   updatedAt             DateTime              @updatedAt @map("updated_at")
 
   @@map("parcel_audit_logs")
+}
+
+model ParcelFacilityPipeline {
+  id                    Int                   @id @default(autoincrement())
+
+  parcelId              Int                   @map("parcel_id")
+  parcel                Parcel                @relation(fields: [parcelId], references: [id], onDelete: Cascade)
+
+  facilityId            Int                   @map("facility_id")
+  facility              Facility              @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+
+  sequenceOrder         Int                   @map("sequence_order") // 1: Origin/PAR, 2: MNL, 3: MAR
+  status                PipelineStatus        @default(Incoming)
+
+  arrivedAt             DateTime?             @map("arrived_at")
+  departedAt            DateTime?             @map("departed_at")
+
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime              @updatedAt @map("updated_at")
+
+  @@unique([parcelId, facilityId])
+  @@map("parcel_facility_pipelines")
 }
 
 model Store {

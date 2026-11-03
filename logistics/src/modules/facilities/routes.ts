@@ -1,6 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { AssignBody, AssignParams, AssignSchema, StoreBody, StoreSchema } from "./schema.js";
-import { createFacility, dashboardData, updateFacility } from "./service.js";
+import { createFacility, dashboardData, getFacility, updateFacility } from "./service.js";
 import parseId from "#commons/utils/id-parser.js";
 import { userAuth } from "#commons/middlewares/user-auth.js";
 import { facilities } from "./paths.js";
@@ -8,6 +8,18 @@ import { facilities } from "./paths.js";
 export default async function facilityRoutes(fastify: FastifyInstance) {
   fastify.get(facilities.index, { preHandler: [userAuth] }, async (req, rep) => {
     const data = await dashboardData(fastify)
+
+    return rep.status(200).send({
+      message: 'Facilities retrieved.',
+      data
+    })
+  })
+  
+  fastify.get(facilities.show.url, { preHandler: [userAuth] }, async (req, rep) => {
+    const { facilityId } = req.params as { facilityId: string };
+    const parsedId = parseId(facilityId)
+
+    const data = await getFacility(fastify, parsedId)
 
     return rep.status(200).send({
       message: 'Facilities retrieved.',

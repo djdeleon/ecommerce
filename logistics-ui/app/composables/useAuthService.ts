@@ -25,6 +25,7 @@ export const useAuthService = () => {
   }
 
   const user = useState<any>('auth_user', () => null)
+  const userToken = useState<any>('auth_token', () => null)
 
   const setUser = (data: any) => {
     const token = data?.token
@@ -40,19 +41,23 @@ export const useAuthService = () => {
     }
 
     user.value = loggedInUser
+    userToken.value = token
   }
 
   const loadUser = () => {
-    if (import.meta.client && !user.value) {
-      const stored = localStorage.getItem('user')
-      if (stored) {
-        user.value = JSON.parse(stored)
+    if (import.meta.client && !user.value && !userToken.value) {
+      const storedUser = localStorage.getItem('user')
+      const storedToken = localStorage.getItem('token')
+      if (storedUser && storedToken) {
+        user.value = JSON.parse(storedUser)
+        userToken.value = storedToken
       }
     }
   }
 
   const logout = () => {
     user.value = null
+    userToken.value = null
     if (import.meta.client) {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
@@ -60,5 +65,5 @@ export const useAuthService = () => {
     navigateTo('/admin/login')
   }
 
-  return { registerUser, loginUser, user, setUser, loadUser, logout }
+  return { registerUser, loginUser, user, userToken, setUser, loadUser, logout }
 }

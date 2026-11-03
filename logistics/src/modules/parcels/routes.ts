@@ -622,6 +622,74 @@ export default async function parcelRoutes(fastify: FastifyInstance) {
     })
   })
 
+  fastify.get(parcels.journey.url, async (req, rep) => {
+    const { trackingNumber } = req.params as { trackingNumber: string };
+
+    const parcel = await fastify.prisma.parcel.findUnique({
+      where: { trackingNumber },
+      include: {
+        store: true,
+        routingPipelines: {
+          include: { facility: true },
+          orderBy: { sequenceOrder: 'asc' },
+        },
+      },
+    });
+
+    if (!parcel) return rep.status(404).send({ message: 'Parcel not found' });
+
+    // Extract Geometry for Start (Store) and End (Customer)
+    const [storeLoc]: any[] = await fastify.prisma.$queryRaw`
+      SELECT ST_AsGeoJSON(location)::json as geo FROM stores WHERE id = ${parcel.storeId}
+    `;
+    const [customerLoc]: any[] = await fastify.prisma.$queryRaw`
+      SELECT ST_AsGeoJSON(customer_location)::json as geo FROM parcels WHERE id = ${parcel.id}
+    `;
+
+    // Extract Geometry for all Hubs in between
+    const hubCheckpoints = await Promise.all(
+      parcel.routingPipelines.map(async (p) => {
+        const [facLoc]: any[] = await fastify.prisma.$queryRaw`
+          SELECT ST_AsGeoJSON(location)::json as geo FROM facilities WHERE id = ${p.facilityId}
+        `;
+        return {
+          id: p.facility.id,
+          name: p.facility.name,
+          type: 'HUB',
+          status: p.status,
+          coordinates: facLoc?.geo?.coordinates || null,
+          sequence: p.sequenceOrder,
+          arrivedAt: p.arrivedAt,
+          departedAt: p.departedAt
+        };
+      })
+    );
+
+    return {
+      trackingNumber: parcel.trackingNumber,
+      status: parcel.status,
+      checkpoints: [
+        {
+          id: parcel.storeId,
+          name: parcel.store.name,
+          type: 'STORE',
+          status: 'Origin',
+          coordinates: storeLoc?.geo?.coordinates || null,
+          sequence: 0
+        },
+        ...hubCheckpoints,
+        {
+          id: null,
+          name: parcel.customerName,
+          type: 'CUSTOMER',
+          status: 'Destination',
+          coordinates: customerLoc?.geo?.coordinates || null,
+          sequence: hubCheckpoints.length + 1
+        }
+      ]
+    };
+  })
+
   // interface ParcelParams {
   //   parcelId: string;
   // }

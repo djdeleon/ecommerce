@@ -13,6 +13,8 @@ describe('User HTTP Routes', () => {
   test('admin can register', async () => {
     const randomSuffix = Math.floor(Math.random() * 10000);
 
+    console.log(app.printRoutes())
+
     const response = await app.inject({
       method: 'POST',
       url: users.register,
@@ -21,7 +23,6 @@ describe('User HTTP Routes', () => {
         lastName: 'User',
         email: `user-${randomSuffix}@example.com`,
         password: 'secretPassword123',
-        role: UserRole.Admin
       }
     })
 

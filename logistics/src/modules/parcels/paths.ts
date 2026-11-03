@@ -14,4 +14,5 @@ export const parcels = {
   departedFromHub: createPath('/parcels/:trackingNumber/departed-from-hub'),
   arrivedAtHub: createPath('/parcels/:trackingNumber/arrived-at-hub'),
   delivered: createPath('/parcels/:trackingNumber/delivered'),
+  journey: createPath('/parcels/:trackingNumber/journey'),
 } as const;

@@ -20,7 +20,7 @@ export async function createParcel(fastify: FastifyInstance, overrides = {}) {
     localBranchId: destination.id
   })
 
-  const courier = await createCourier(fastify, { currentFacilityId: origin.id });
+  const { courier } = await createCourier(fastify, { currentFacilityId: origin.id });
 
   const store = await fastify.prisma.store.create({
     data: {

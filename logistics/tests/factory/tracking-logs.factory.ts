@@ -1,22 +1,22 @@
 import { ShipmentStatus } from "@prisma/client"
 import { generateEventDescription } from "../../src/modules/tracking-logs/logisticsEventDictionary.js"
-import { prisma } from "../../src/commons/plugins/prisma.js"
+import { FastifyInstance } from "fastify"
 
-export async function createTrackingLog(parcelId: number, status: ShipmentStatus = ShipmentStatus.PendingPickup) {
-  const description = generateEventDescription({ status })
+export async function createTrackingLog(fastify: FastifyInstance, parcelId: number, status: ShipmentStatus = ShipmentStatus.PendingPickup) {
+  // const description = generateEventDescription({ status:  })
 
-  const parcel = await prisma.parcel.update({
+  const parcel = await fastify.prisma.parcel.update({
     where: { id: parcelId },
     data: {
       status
     }
   })
 
-  return await prisma.trackingLog.create({
+  return await fastify.prisma.trackingLog.create({
     data: {
       parcelId: parcel.id,
       status,
-      description: description,
+      description: 'sample',
     }
   })
 }
