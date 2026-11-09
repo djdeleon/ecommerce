@@ -60,7 +60,15 @@ const handleAdminLogin = async (payload) => {
 
     toast.add({ title: 'Success', description: 'Logged in successfully!' })
 
-    router.push('/admin/dashboard')
+    const user = response.data.user
+
+    if (user.role === 'Courier') {
+      router.push('/courier')
+    } else if (user.role === 'Manager') {
+      router.push('/manager/dashboard')
+    } else {
+      router.push('/admin/dashboard')
+    }
   } catch (error) {
     toast.add({
       title: 'Registration Failed',

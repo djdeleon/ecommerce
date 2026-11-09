@@ -93,6 +93,21 @@ function getItems(state: 'collapsed' | 'expanded') {
                 }
               ]
             : []
+      },
+      {
+        label: 'Couriers',
+        icon: 'i-lucide-users',
+        defaultOpen: true,
+        children:
+          state === 'expanded'
+            ? [
+                {
+                  label: 'Schedules',
+                  icon: 'i-lucide-calendar-days',
+                  to: '/manager/couriers/schedules'
+                }
+              ]
+            : []
       }
     ] satisfies NavigationMenuItem[]
   }
