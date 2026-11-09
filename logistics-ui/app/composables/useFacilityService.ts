@@ -6,12 +6,10 @@ export const useFacilityService = () => {
   loadUser()
 
   const getFacilities = async () => {
-    const token = import.meta.client ? localStorage.getItem('token') : null
-
     return await $fetch(`${apiBase}/facilities`, {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${userToken.value}`
       }
     })
   }
@@ -20,7 +18,7 @@ export const useFacilityService = () => {
     return await $fetch(`${apiBase}/facilities/${facilityId}`, {
       method: 'GET',
       headers: {
-        ...(userToken.value ? { Authorization: `Bearer ${userToken.value}` } : {})
+        Authorization: `Bearer ${userToken.value}`
       }
     })
   }
