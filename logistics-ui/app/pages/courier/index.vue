@@ -5,14 +5,17 @@ const { user, userToken, loadUser } = useAuthService()
 const { getCourierSchedules, departSchedule, storeTelemetry } = useCourierScheduleService()
 const { markAsPickedUp } = useParcelService()
 const { dispatchManifest, completeManifest, arriveManifest } = useManifestService()
+const { dispatchMasterBag, deliverMasterBag } = useMasterBagService()
 const toast = useToast()
 
 const router = useRouter()
 const departingId = ref<number | null>(null)
 const activeRoutes = ref<Record<number, any>>({})
+const activeStatuses = ref<Record<number, string>>({})
 const maps = ref<Record<number, any>>({})
 const markers = ref<Record<number, any>>({})
 const simulatingId = ref<number | null>(null)
+const simulatingLineHaulId = ref<number | null>(null)
 
 const isModalOpen = ref(false)
 const activeScheduleId = ref<number | null>(null)
@@ -79,29 +82,44 @@ async function handleStartDeparture(scheduleId: number) {
     const res: any = await departSchedule(scheduleId)
 
     const currentSchedule = schedules.value.find((s: any) => s.id === scheduleId)
+
     const manifestCode = currentSchedule?.manifestCodes || currentSchedule?.manifestCode
     if (manifestCode) {
       await dispatchManifest(manifestCode)
     }
 
+    if (currentSchedule?.scheduledFor === 'LineHaul' && currentSchedule?.masterBags) {
+      for (const bag of currentSchedule.masterBags) {
+        await dispatchMasterBag(bag.code).catch(() => {})
+      }
+    }
+
     toast.add({
       title: 'Departure Confirmed',
-      description: 'OSRM route calculated and status updated to Accumulating!',
+      description: res.message || 'Route calculated and transit loaded successfully!',
       color: 'success',
       icon: 'i-lucide-check-circle'
     })
+
     if (res.data?.route) {
       activeRoutes.value[scheduleId] = res.data.route
     }
+    // Set status locally so UI reactivity instantly renders the map container
+    activeStatuses.value[scheduleId] = 'Accumulating'
 
     await refresh()
-    // Initialize map after state update
     await nextTick()
-    initMap(scheduleId, res.data?.route)
-  } catch (e) {
+    setTimeout(() => {
+      const targetSchedule = schedules.value.find((s: any) => s.id === scheduleId)
+      const routeGeo = res.data?.route || activeRoutes.value[scheduleId]
+      if (targetSchedule && routeGeo) {
+        initMap(targetSchedule, routeGeo)
+      }
+    }, 100)
+  } catch (e: any) {
     toast.add({
       title: 'Departure Failed',
-      description: 'Could not initiate departure. Please try again.',
+      description: e?.data?.message || 'Could not initiate departure. Please try again.',
       color: 'error',
       icon: 'i-lucide-x-circle'
     })
@@ -168,7 +186,7 @@ function initMap(schedule: any, routeGeoJson: any) {
           if (schedule?.parcels) {
             schedule.parcels.forEach((parcel: any, index: number) => {
               if (parcel.store?.location?.coordinates) {
-                const storeLngLat = parcel.store.location.coordinates // [lng, lat]
+                const storeLngLat = parcel.store.location.coordinates
                 const storeEl = document.createElement('div')
                 storeEl.className = 'w-7 h-7 bg-amber-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center text-white text-xs font-bold'
                 storeEl.innerHTML = `<span>S${index + 1}</span>`
@@ -302,6 +320,9 @@ async function simulateManifestation(schedule: any) {
           await arriveManifest(manifestCode)
         }
 
+        activeStatuses.value[scheduleId] = 'Arrived'
+        schedule.manifestStatus = 'Arrived'
+
         toast.add({
           title: 'First-Mile Mission Completed! 🎉',
           description: 'Vehicle returned to hub. Manifest Completed & parcels marked ArrivedAtOriginHub!',
@@ -374,6 +395,86 @@ async function confirmParcelPickup() {
     toast.add({ title: 'Update Failed', description: 'Could not update parcel status.', color: 'error' })
   }
 }
+
+async function simulateLineHaul(schedule: any) {
+  const scheduleId = schedule.id
+  const map = maps.value[scheduleId]
+  const marker = markers.value[scheduleId]
+  const routeGeoJson = activeRoutes.value[scheduleId] || schedule.route
+
+  if (!map || !marker || !routeGeoJson?.coordinates) {
+    toast.add({ title: 'Simulation Error', description: 'Route not loaded on map.', color: 'error' })
+    return
+  }
+
+  simulatingLineHaulId.value = scheduleId
+  toast.add({ title: 'Line-Haul Transit Started 🚚', description: 'Vehicle gliding along overland highway route...', color: 'info' })
+
+  const coords = routeGeoJson.coordinates
+  let segmentIndex = 0
+  let progress = 0
+  const speedFactor = 1.5
+  let frameCount = 0
+
+  const interval = setInterval(async () => {
+    if (segmentIndex < coords.length - 1) {
+      const p1 = coords[segmentIndex]
+      const p2 = coords[segmentIndex + 1]
+
+      const currentPos = interpolatePosition(p1, p2, progress)
+
+      marker.setLngLat(currentPos)
+      map.panTo(currentPos)
+
+      frameCount++
+      if (frameCount % 10 === 0) {
+        try {
+          await storeTelemetry(scheduleId, currentPos[0], currentPos[1])
+        } catch (err) {
+          console.warn('Line-Haul telemetry ping failed:', err)
+        }
+      }
+
+      progress += speedFactor
+      if (progress >= 1) {
+        progress = 0
+        segmentIndex++
+      }
+    } else {
+      clearInterval(interval)
+      simulatingLineHaulId.value = null
+
+      try {
+        const bagIds = (schedule.masterBags || []).map((b: any) => b.code)
+
+        // Call dedicated delivered endpoint for each master bag (cascades parcels to ArrivedAtHub)
+        for (const bagCode of bagIds) {
+          await deliverMasterBag(bagCode).catch(() => {})
+        }
+
+        activeStatuses.value[scheduleId] = 'Arrived'
+
+        toast.add({
+          title: 'Line-Haul Arrived at Destination! 🎉',
+          description: 'Vehicle successfully reached destination hub. Master bags marked as Delivered & parcels updated!',
+          color: 'success',
+          icon: 'i-lucide-check-circle'
+        })
+
+        await refresh()
+      } catch (err) {
+        toast.add({ title: 'Arrival Update Failed', description: 'Could not update master bags destination status.', color: 'error' })
+      }
+    }
+  }, 30)
+}
+
+const pendingSchedules = computed(() => {
+  return schedules.value.filter((s: any) => {
+    const status = s.manifestStatus || s.status
+    return status !== 'Arrived' && status !== 'Completed'
+  })
+})
 </script>
 
 <template>
@@ -410,7 +511,8 @@ async function confirmParcelPickup() {
 
     <header>
       <h1 class="text-3xl font-bold text-primary">Good morning, {{ user?.firstName || 'Courier' }}!</h1>
-      <p class="text-gray-500 dark:text-gray-400 font-medium">Welcome back! You have {{ schedules.length }} pending
+      <p class="text-gray-500 dark:text-gray-400 font-medium">Welcome back! You have {{ pendingSchedules.length }}
+        pending
         task(s) today.</p>
     </header>
 
@@ -437,9 +539,18 @@ async function confirmParcelPickup() {
               <UBadge color="primary" variant="subtle">
                 {{ schedule.scheduledFor || schedule.type }}
               </UBadge>
-              <!-- Manifest Status Badge -->
-              <UBadge :color="schedule.manifestStatus === 'Accumulating' ? 'warning' : 'info'" variant="outline">
-                {{ schedule.manifestStatus || 'Scheduled' }}
+              
+              <!-- Dynamic Status Badge: Manifest Status for First-Mile, Master Bag Status for Line-Haul -->
+              <UBadge 
+                :color="(activeStatuses[schedule.id] || schedule.manifestStatus) === 'Accumulating' || (schedule.scheduledFor === 'LineHaul' && schedule.masterBags?.[0]?.status === 'Dispatched') ? 'warning' : 'info'" 
+                variant="outline"
+              >
+                <!-- If Line-Haul, show Master Bag status; else show Manifest status -->
+                {{ 
+                  schedule.scheduledFor === 'LineHaul' 
+                    ? (activeStatuses[schedule.id] === 'Arrived' ? 'Delivered' : (schedule.masterBags?.[0]?.status || 'Scheduled'))
+                    : (activeStatuses[schedule.id] || schedule.manifestStatus || 'Scheduled') 
+                }}
               </UBadge>
             </div>
           </div>
@@ -447,8 +558,17 @@ async function confirmParcelPickup() {
           <div class="text-sm text-gray-400 space-y-2 border-t border-gray-800 pt-3">
             <p><strong>Vehicle:</strong> {{ schedule.vehicleDetail }}</p>
             <p><strong>Scheduled Time:</strong> {{ formatDateTime(schedule.scheduledTime) }}</p>
-            <p><strong>Manifest Code:</strong> <span class="text-white font-mono">{{ schedule.manifestCode ||
-              schedule.manifestCodes }}</span></p>
+
+            <p v-if="schedule.manifestCode || schedule.manifestCodes">
+              <strong>Manifest Code:</strong>
+              <span class="text-white font-mono ml-1">{{ schedule.manifestCode || schedule.manifestCodes }}</span>
+            </p>
+            <p v-else-if="schedule.masterBags && schedule.masterBags.length > 0">
+              <strong>Assigned Master Bags:</strong>
+              <span class="text-secondary font-mono ml-1">
+                {{schedule.masterBags.map((b: any) => b.code).join(', ')}}
+              </span>
+            </p>
 
             <!-- Parcels list preview -->
             <div v-if="schedule.parcels && schedule.parcels.length > 0" class="pt-2">
@@ -462,21 +582,50 @@ async function confirmParcelPickup() {
               </div>
             </div>
 
-            <div v-if="schedule.manifestStatus === 'Accumulating'"
+            <!-- Map container for First-Mile Accumulation OR Line-Haul Transit -->
+            <div v-if="(activeStatuses[schedule.id] || schedule.manifestStatus) === 'Accumulating' && (activeRoutes[schedule.id] || schedule.route)"
               class="rounded-xl overflow-hidden border border-gray-700 h-[600px] relative mt-4">
               <div :id="`map-${schedule.id}`" class="w-full h-full" />
             </div>
 
-            <UButton v-if="schedule.manifestStatus === 'Accumulating'" block color="secondary" variant="subtle"
+            <!-- First-Mile Simulation Button -->
+            <UButton v-if="(activeStatuses[schedule.id] || schedule.manifestStatus) === 'Accumulating' && schedule.scheduledFor !== 'LineHaul'" block color="secondary" variant="subtle"
               icon="i-lucide-play-circle" :loading="simulatingId === schedule.id"
               @click="simulateManifestation(schedule)">
               Simulate Manifestation (Run Vehicle Pickup)
             </UButton>
 
+            <!-- Line-Haul Transit Simulation Button -->
+            <UButton v-if="(activeStatuses[schedule.id] || schedule.manifestStatus) === 'Accumulating' && schedule.scheduledFor === 'LineHaul' && (activeRoutes[schedule.id] || schedule.route)" block color="secondary" variant="subtle"
+              icon="i-lucide-truck" :loading="simulatingLineHaulId === schedule.id"
+              @click="simulateLineHaul(schedule)">
+              Simulate Line-Haul Transit (Facility A → B)
+            </UButton>
+
+            <!-- First-Mile Success Banner -->
+            <div v-if="schedule.scheduledFor !== 'LineHaul' && (activeStatuses[schedule.id] || schedule.manifestStatus) === 'Arrived'"
+              class="bg-emerald-950/40 border border-emerald-500/30 p-4 rounded-xl flex items-center gap-3 text-emerald-400 mt-4">
+              <UIcon name="i-lucide-check-circle-2" class="w-6 h-6 shrink-0" />
+              <div>
+                <p class="font-bold">Accumulation Completed Successfully!</p>
+                <p class="text-xs text-emerald-300/80">Vehicle arrived back at the hub. All parcels processed and marked as ArrivedAtOriginHub.</p>
+              </div>
+            </div>
+
+            <!-- Line-Haul Success Banner (Triggers when Line-Haul transit finishes and status is Arrived) -->
+            <div v-else-if="schedule.scheduledFor === 'LineHaul' && (activeStatuses[schedule.id] === 'Arrived' || schedule.masterBags?.[0]?.status === 'Delivered')"
+              class="bg-emerald-950/40 border border-emerald-500/30 p-4 rounded-xl flex items-center gap-3 text-emerald-400 mt-4">
+              <UIcon name="i-lucide-check-circle-2" class="w-6 h-6 shrink-0" />
+              <div>
+                <p class="font-bold">Line-Haul Transit Completed Successfully!</p>
+                <p class="text-xs text-emerald-300/80">Vehicle arrived at destination hub. Master bags marked as Delivered.</p>
+              </div>
+            </div>
+
             <!-- Simple Virtual Gate Departure Trigger -->
-            <div v-if="schedule.manifestStatus === 'Scheduled'" class="pt-4 border-t border-gray-800">
+            <div v-if="!activeStatuses[schedule.id] && (!schedule.manifestStatus || schedule.manifestStatus === 'Scheduled') && !schedule.route && !activeRoutes[schedule.id]" class="pt-4 border-t border-gray-800">
               <UButton block color="primary" icon="i-lucide-door-open" @click="handleStartDeparture(schedule.id)">
-                Start Departure & Calculate Route
+                {{ schedule.scheduledFor === 'LineHaul' ? 'Start Line-Haul Departure & Load Route' : 'Start Departure & Calculate Route' }}
               </UButton>
             </div>
           </div>

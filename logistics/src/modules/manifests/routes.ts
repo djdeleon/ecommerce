@@ -13,29 +13,42 @@ export default async function manifestRoutes(fastify: FastifyInstance) {
   // TODO: Middleware to check and get the Manager Data to get its assigned facility
   fastify.get(manifests.index, { preHandler: [userAuth] }, async (req, rep) => {
     const manager = (req as any).user
+    console.log(manager)
 
-    const facility = await fastify.prisma.facility.findUniqueOrThrow({
-      where: { id: manager.assignedFacilityId },
-      include: { sectors: true }
-    })
+    const facilityId = manager.assignedFacilityId;
 
-    const sectorIds = facility.sectors.map(s => s.id);
-    const sectorAggregates = await fastify.prisma.parcel.groupBy({
-      by: ['originSectorId'],
-      where: {
-        status: ShipmentStatus.ReadyForPickup,
-        currentFacilityId: manager.assignedFacilityId,
-        originSectorId: { in: sectorIds },
-      },
-      _count: {
-        id: true,
-      },
-      _sum: {
-        weightGrams: true,
-        calculatedCbm: true,
-        declaredValue: true,
-      },
-    });
+    const [facilityRaw]: any[] = await fastify.prisma.$queryRaw`
+      SELECT id, name, code, address, type, parent_id AS "parentId", ST_AsGeoJSON(location)::json AS location
+      FROM facilities WHERE id = ${facilityId}
+    `;
+
+    const sectorsRaw: any[] = await fastify.prisma.$queryRaw`
+      SELECT id, code, local_branch_id AS "localBranchId", ST_AsGeoJSON(zone)::json AS zone
+      FROM sectors WHERE local_branch_id = ${facilityId}
+    `;
+
+    const facility = { ...facilityRaw, sectors: sectorsRaw };
+    console.log(facility)
+
+    const sectorIds = sectorsRaw.map(s => s.id);
+    console.log(sectorIds)
+
+    const sectorAggregates: any[] = await fastify.prisma.$queryRaw`
+      SELECT 
+        "origin_sector_id" AS "originSectorId",
+        COUNT(id)::int AS "totalCount",
+        SUM(weight_grams)::int AS "totalWeightGrams",
+        SUM(calculated_cbm)::float AS "totalCbm",
+        SUM(declared_value)::float AS "totalDeclaredValue",
+        array_agg(id) AS "parcelIds" 
+      FROM parcels
+      WHERE status = 'ready_for_pickup'::shipment_status
+        AND current_facility_id IS NULL
+        AND origin_sector_id = ANY(${sectorIds})
+        AND manifest_id IS NULL
+      GROUP BY "origin_sector_id"
+    `;
+    console.log({ sectorAggregates })
 
     const physicalVehicles = await fastify.prisma.physicalVehicle.findMany({
       where: {
@@ -44,12 +57,14 @@ export default async function manifestRoutes(fastify: FastifyInstance) {
       },
       include: { vehicleProfile: true }
     });
+    console.log({ physicalVehicles })
 
     const assignedVehicleIds = new Set<number>();
+    console.log({ assignedVehicleIds })
 
     const manifestsBySector = sectorAggregates.map(sectorAgg => {
-      const sectorWeight = sectorAgg._sum.weightGrams ?? 0;
-      const sectorVolume = sectorAgg._sum.calculatedCbm ?? 0;
+      const sectorWeight = sectorAgg.totalWeightGrams ?? 0;
+      const sectorVolume = sectorAgg.totalCbm ?? 0;
 
       const eligibleVehicles = physicalVehicles.filter(vehicle => {
         if (assignedVehicleIds.has(vehicle.id)) return false;
@@ -69,78 +84,120 @@ export default async function manifestRoutes(fastify: FastifyInstance) {
         assignedVehicleIds.add(selectedVehicle.id); // Mark as used so next sector picks a different vehicle
       }
 
+      console.log({ sectorAgg })
+
       return {
         originSectorId: sectorAgg.originSectorId,
-        totalCount: sectorAgg._count.id,
+        totalCount: sectorAgg.totalCount,
         totalWeightGrams: sectorWeight,
         totalCbm: Number(sectorVolume.toFixed(4)),
-        totalDeclaredValue: sectorAgg._sum.declaredValue,
+        totalDeclaredValue: sectorAgg.totalDeclaredValue,
+        parcelIds: sectorAgg.parcelIds,
         selectedVehicle,
       };
     });
+    console.log({ manifestsBySector })
+
+    const pendingParcelsRaw: any[] = await fastify.prisma.$queryRaw`
+      SELECT 
+        p.id, 
+        p.tracking_number AS "trackingNumber", 
+        p.origin_sector_id AS "originSectorId",
+        p.status,
+        p.weight_grams AS "weightGrams",
+        p.calculated_cbm AS "calculatedCbm",
+        s.name AS "storeName",
+        ST_AsGeoJSON(s.location)::json AS "location" 
+      FROM parcels p
+      JOIN stores s ON p.store_id = s.id
+      WHERE p.status = 'ready_for_pickup'::shipment_status
+        AND p.current_facility_id IS NULL
+        AND p.origin_facility_id = ${facilityId}
+        AND p.manifest_id IS NULL
+    `;
+
+    const pendingParcels = pendingParcelsRaw.map(p => ({
+      ...p,
+      location: p.location?.coordinates || null
+    }));
+
 
     return rep.status(200).send({
       message: 'Manifests retrieved.',
-      data: manifestsBySector
-    })
-  })
-
-  fastify.post<{ Body: CreateManifestBody }>(manifests.store, { schema: CreateManifestSchema }, async (req, rep) => {
-    const { sectorId, courierId, vehicleId, scheduledTime, parcelIds, currentWeightGrams, currentVolumeCbm } = req.body;
-
-    const result = await fastify.prisma.$transaction(async (tx) => {
-      const courierSchedule = await tx.courierSchedule.create({
-        data: {
-          courierId: courierId ?? null,
-          vehicleId,
-          scheduledTime: new Date(scheduledTime),
-        },
-      });
-
-      const manifestCode = await generateManifestCode(fastify);
-      const manifest = await tx.manifest.create({
-        data: {
-          sectorId,
-          courierScheduleId: courierSchedule.id,
-          code: manifestCode,
-          currentWeightGrams,
-          currentVolumeCbm,
-        },
-      });
-
-      await tx.manifestLog.create({
-        data: {
-          manifestId: manifest.id,
-        }
-      })
-
-      const updatedParcels = await tx.parcel.updateManyAndReturn({
-        where: { id: { in: parcelIds } },
-        data: { manifestId: manifest.id },
-      });
-
-      return {
-        manifest,
-        courierSchedule,
-        updatedParcels,
-      };
-    });
-
-    return rep.status(201).send({
-      message: 'Manifest created successfully.',
       data: {
-        manifestId: result.manifest.id,
-        code: result.manifest.code,
-        courierScheduleId: result.courierSchedule.id,
-        courierSchedule: result.courierSchedule,
-        totalParcels: result.updatedParcels.length,
-        currentWeightGrams: result.manifest.currentWeightGrams,
-        currentVolumeCbm: result.manifest.currentVolumeCbm,
-      },
+        facility,
+        availableVehicles: physicalVehicles,
+        queue: manifestsBySector,
+        pendingParcels
+      }
     })
   })
 
-  fastify.patch(manifests.dispatch.url, async (req, rep) => {
+  fastify.post<{ Body: CreateManifestBody }>(
+    manifests.store,
+    {
+      schema: CreateManifestSchema,
+      preHandler: [userAuth]
+    },
+    async (req, rep) => {
+      const { sectorId, courierId, vehicleId, scheduledTime, parcelIds, currentWeightGrams, currentVolumeCbm } = req.body;
+      const manager = (req as any).user
+      const sanitizedCourierId = (courierId === 0 || !courierId) ? null : courierId;
+
+      const result = await fastify.prisma.$transaction(async (tx) => {
+        const courierSchedule = await tx.courierSchedule.create({
+          data: {
+            facilityId: manager.assignedFacilityId,
+            courierId: sanitizedCourierId,
+            vehicleId,
+            scheduledTime: new Date(scheduledTime),
+          },
+        });
+
+        const manifestCode = await generateManifestCode(fastify);
+        const manifest = await tx.manifest.create({
+          data: {
+            sectorId,
+            courierScheduleId: courierSchedule.id,
+            code: manifestCode,
+            currentWeightGrams,
+            currentVolumeCbm,
+          },
+        });
+
+        await tx.manifestLog.create({
+          data: {
+            manifestId: manifest.id,
+          }
+        })
+
+        const updatedParcels = await tx.parcel.updateManyAndReturn({
+          where: { id: { in: parcelIds } },
+          data: { manifestId: manifest.id },
+        });
+
+        return {
+          manifest,
+          courierSchedule,
+          updatedParcels,
+        };
+      });
+
+      return rep.status(201).send({
+        message: 'Manifest created successfully.',
+        data: {
+          manifestId: result.manifest.id,
+          code: result.manifest.code,
+          courierScheduleId: result.courierSchedule.id,
+          courierSchedule: result.courierSchedule,
+          totalParcels: result.updatedParcels.length,
+          currentWeightGrams: result.manifest.currentWeightGrams,
+          currentVolumeCbm: result.manifest.currentVolumeCbm,
+        },
+      })
+    })
+
+  fastify.patch(manifests.dispatch.url, { preHandler: [userAuth] }, async (req, rep) => {
     const { manifestCode } = req.params as { manifestCode: string }
 
     const manifest = await fastify.prisma.manifest.findUniqueOrThrow({
@@ -196,7 +253,7 @@ export default async function manifestRoutes(fastify: FastifyInstance) {
     })
   })
 
-  fastify.patch(manifests.complete.url, async (req, rep) => {
+  fastify.patch(manifests.complete.url, { preHandler: [userAuth] }, async (req, rep) => {
     const { manifestCode } = req.params as { manifestCode: string }
 
     const manifest = await fastify.prisma.manifest.findUniqueOrThrow({
@@ -244,7 +301,7 @@ export default async function manifestRoutes(fastify: FastifyInstance) {
     })
   })
 
-  fastify.patch(manifests.arrive.url, async (req, rep) => {
+  fastify.patch(manifests.arrive.url, { preHandler: [userAuth] }, async (req, rep) => {
     const { manifestCode } = req.params as { manifestCode: string }
 
     const manifest = await fastify.prisma.manifest.findUniqueOrThrow({
@@ -265,6 +322,8 @@ export default async function manifestRoutes(fastify: FastifyInstance) {
     const sector = await fastify.prisma.sector.findUniqueOrThrow({
       where: { id: manifest.sectorId }
     })
+
+    const facilityId = sector.localBranchId;
 
     const updatedManifest = await fastify.prisma.$transaction(async (tx) => {
       const updatedManifest = await fastify.prisma.manifest.update({
@@ -296,12 +355,15 @@ export default async function manifestRoutes(fastify: FastifyInstance) {
 
       const updatedParcels = await tx.parcel.updateManyAndReturn({
         where: { manifestId: updatedManifest.id },
-        data: { status: ShipmentStatus.ArrivedAtOriginHub }
+        data: {
+          status: ShipmentStatus.ArrivedAtOriginHub,
+          currentFacilityId: facilityId
+        }
       })
       const parcelIds = updatedParcels.map((p) => p.id)
 
       const facility = await tx.facility.findUniqueOrThrow({
-        where: { id: sector.localBranchId }
+        where: { id: facilityId }
       })
 
       await tx.trackingLog.createMany({

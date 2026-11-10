@@ -7,6 +7,7 @@ const createPath = (path: string) => {
 }
 
 export const parcels = {
+  getArrivedAtOriginHub: createPath('/parcels/arrived-at-origin-hub'),
   store: '/parcels',
   waybill: createPath('/parcels/:trackingNumber/waybill'),
   pickedUp: createPath('/parcels/:trackingNumber/picked-up'),

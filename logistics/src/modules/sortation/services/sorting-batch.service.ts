@@ -41,7 +41,12 @@ export async function createSortingBatch(
   fastify: FastifyInstance,
   data: CreateSortationBatchBody
 ) {
-  const { code, startTime, endTime, cutOffTime, facilityId, status } = data
+  const { startTime, endTime, cutOffTime, facilityId, status } = data
+  let code = `BATCH-${Date.now()}`
+
+  if (facilityId) {
+    code = await generateBatchCode(fastify, facilityId, 'NIGHT')
+  }
 
   return await fastify.prisma.sortationBatch.create({
     data: {
@@ -182,8 +187,16 @@ export async function simulateScannerTunnelPass(fastify: FastifyInstance, tracki
   })
 
   const auditedParcel = await fastify.prisma.$transaction(async (tx) => {
-    const auditLog = await tx.parcelAuditLog.create({
-      data: {
+    const auditLog = await tx.parcelAuditLog.upsert({
+      where: { parcelId: parcel.id },
+      update: {
+        weightGrams: simulatedWeightGrams,
+        lengthCm,
+        widthCm,
+        heightCm,
+        calculatedCbm,
+      },
+      create: {
         parcelId: parcel.id,
         weightGrams: simulatedWeightGrams,
         lengthCm,
@@ -211,7 +224,7 @@ export async function simulateScannerTunnelPass(fastify: FastifyInstance, tracki
 
   return {
     tunnelSensorStatus: "SUCCESS",
-    hardwareMessage: `Parcel routed to Chute for facility: ${parcel.destinationFacility?.name || 'Main Hub'}`,
+    hardwareMessage: `Parcel routed to Chute for facility: ${nextFacility?.name || 'Main Hub'}`,
     data: {
       auditedParcel,
       nextFacilityCode,

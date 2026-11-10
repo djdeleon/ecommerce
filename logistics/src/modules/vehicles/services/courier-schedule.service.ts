@@ -1,21 +1,23 @@
 import { FastifyInstance } from "fastify";
-import { CreateCourierScheduleBody, UpdateCourierScheduleBody } from "../schemas/courier-schedule.schema.js";
+import { UpdateCourierScheduleBody } from "../schemas/courier-schedule.schema.js";
 import parseId from "#commons/utils/id-parser.js";
 
-export async function createCourierSchedule(
-  fastify: FastifyInstance, 
-  data: CreateCourierScheduleBody
-) {
-  const { courierId, vehicleId, networkLegId, scheduledFor, scheduledTime } = data
+export async function createCourierSchedule(fastify: FastifyInstance, data: any) {
+  const { masterBagIds, ...scheduleData } = data;
 
-  return await fastify.prisma.courierSchedule.create({
-    data: {
-      courierId: courierId ?? null,
-      vehicleId,
-      networkLegId,
-      scheduledFor,
-      scheduledTime,
-    },
+  return await fastify.prisma.$transaction(async (tx) => {
+    const courierSchedule = await tx.courierSchedule.create({
+      data: scheduleData,
+    })
+
+    if (masterBagIds && masterBagIds.length > 0) {
+      await tx.masterBag.updateMany({
+        where: { id: { in: masterBagIds } },
+        data: { courierScheduleId: courierSchedule.id }
+      })
+    }
+
+    return courierSchedule;
   })
 }
 
@@ -25,7 +27,7 @@ export async function updateCourierSchedule(
   data: UpdateCourierScheduleBody
 ) {
   const id = parseId(idParam)
-  const { courierId, vehicleId, networkLegId } = data
+  const { courierId, vehicleId, networkLegId, scheduledTime } = data
 
   return await fastify.prisma.courierSchedule.update({
     where: { id },
@@ -33,6 +35,7 @@ export async function updateCourierSchedule(
       ...(courierId !== undefined && { courierId: courierId ?? null }),
       ...(vehicleId && { vehicleId }),
       ...(networkLegId && { networkLegId }),
+      ...(scheduledTime && { scheduledTime }),
     },
   })
 }

@@ -9,6 +9,7 @@ import JsBarcode from "jsbarcode";
 import { DOMImplementation, XMLSerializer } from "@xmldom/xmldom";
 import { generateEventDescription } from "../tracking-logs/logisticsEventDictionary.js";
 import { parcels } from "./paths.js";
+import { userAuth } from "#commons/middlewares/user-auth.js";
 
 export default async function parcelRoutes(fastify: FastifyInstance) {
   fastify.post('/api/shipments/book', async (req, rep) => {
@@ -24,8 +25,84 @@ export default async function parcelRoutes(fastify: FastifyInstance) {
     });
   })
 
+  fastify.get('/parcels/loose', { preHandler: [userAuth] }, async (req, rep) => {
+    const manager = (req as any).user;
+    const facilityId = manager?.assignedFacilityId;
 
+    if (!facilityId) {
+      return rep.status(400).send({ message: 'Manager has no assigned facility.' });
+    }
 
+    const parcelsList = await fastify.prisma.parcel.findMany({
+      where: {
+        currentFacilityId: facilityId,
+        masterBagId: null,
+        status: {
+          in: [
+            ShipmentStatus.ArrivedAtOriginHub,
+            ShipmentStatus.ArrivedAtHub,
+            ShipmentStatus.ArrivedAtDestinationHub
+          ]
+        }
+      },
+      include: {
+        store: true
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    const formattedParcels = parcelsList.map(p => ({
+      id: p.id,
+      trackingNumber: p.trackingNumber,
+      weightGrams: p.weightGrams,
+      customerName: p.customerName,
+      status: p.status,
+      storeName: p.store?.name || 'Seller Warehouse',
+      location: p.store?.location || null
+    }));
+
+    return rep.status(200).send({
+      message: 'Loose parcels retrieved successfully.',
+      data: formattedParcels
+    });
+  });
+
+  fastify.get(parcels.getArrivedAtOriginHub.url, { preHandler: [userAuth] }, async (req, rep) => {
+    const manager = (req as any).user;
+    const facilityId = manager?.assignedFacilityId;
+
+    if (!facilityId) {
+      return rep.status(400).send({ message: 'Manager has no assigned facility.' });
+    }
+
+    const parcelsList = await fastify.prisma.parcel.findMany({
+      where: {
+        currentFacilityId: facilityId,
+        status: {
+          in: [ShipmentStatus.ArrivedAtOriginHub, ShipmentStatus.ArrivedAtHub, ShipmentStatus.Bagged]
+        }
+      },
+      include: {
+        store: true
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    const formattedParcels = parcelsList.map(p => ({
+      id: p.id,
+      trackingNumber: p.trackingNumber,
+      weightGrams: p.weightGrams,
+      customerName: p.customerName,
+      status: p.status,
+      storeName: p.store?.name || 'Seller Warehouse',
+      location: p.store?.location || null
+    }));
+
+    return rep.status(200).send({
+      message: 'Arrived at origin hub parcels retrieved.',
+      data: formattedParcels
+    });
+  });
 
   fastify.post<{ Body: StoreBody }>(parcels.store, {
     schema: StoreSchema,

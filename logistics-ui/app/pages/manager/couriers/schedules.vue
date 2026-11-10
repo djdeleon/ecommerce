@@ -3,6 +3,24 @@ import { CalendarDate, Time, DateFormatter, getLocalTimeZone } from '@internatio
 
 const toast = useToast()
 
+const isNewScheduleModalOpen = ref(false)
+const initialScheduleForm = {
+  scheduledFor: 'Accumulation',
+  vehicleId: null,
+  courierId: null,
+  networkLegId: null,
+  masterBagIds: [],
+  scheduledTime: new Date().toISOString()
+}
+const newScheduleForm = ref({ ...initialScheduleForm })
+const isCreating = ref(false)
+
+watch(isNewScheduleModalOpen, (isOpen) => {
+  if (!isOpen) {
+    newScheduleForm.value = { ...initialScheduleForm }
+  }
+})
+
 const df = new DateFormatter('en-US', {
   dateStyle: 'medium'
 })
@@ -13,7 +31,7 @@ headerActions.value = h(UButton, {
   icon: 'i-heroicons-plus',
   label: 'New schedule',
   onClick: () => {
-    alert('Open New Schedule Modal!')
+    isNewScheduleModalOpen.value = true
   }
 })
 
@@ -26,7 +44,7 @@ onUnmounted(() => {
 })
 
 const { user } = useAuthService()
-const { getCourierSchedules, updateCourierSchedule } = useCourierScheduleService()
+const { getCourierSchedules, createCourierSchedule, updateCourierSchedule } = useCourierScheduleService()
 const { getFacility } = useFacilityService()
 
 const { data: pageData, pending, error, refresh } = await useAsyncData('courier-dashboard', async () => {
@@ -36,14 +54,37 @@ const { data: pageData, pending, error, refresh } = await useAsyncData('courier-
   ])
   console.log({ schedulesRes, facilityRes })
 
+  const facData = facilityRes.data || facilityRes
+
   return {
     schedules: schedulesRes.data || schedulesRes,
-    couriers: facilityRes.data?.users?.filter(u => u.role === 'courier') || []
+    couriers: facData?.users?.filter(u => u.role === 'courier') || [],
+    vehicles: facData?.vehicles || [],
+    networkLegs: facData?.sourceLegs || [],
+    masterBags: facData?.masterBags || [],
+    scheduleTypes: facData?.courierScheduleTypes || ['Accumulation', 'LineHaul', 'Delivery'],
   }
 })
 console.log({ pageData })
 
 const schedules = computed(() => pageData.value?.schedules || [])
+const vehicleOptions = computed(() => (pageData.value?.vehicles || []).map((v) => ({
+  label: `${v.plateNumber} (${v.vehicleProfile?.modelName || 'Vehicle'})`,
+  value: v.id
+})))
+const courierOptions = computed(() => (pageData.value?.couriers || []).map((c) => ({
+  label: `${c.firstName} ${c.lastName}`,
+  value: c.courier?.id
+})))
+const networkLegOptions = computed(() => (pageData.value?.networkLegs || []).map((l) => ({
+  label: `${l.laneCode} (${l.destinationFacility?.name || 'Hub'})`,
+  value: l.id
+})))
+const masterBagOptions = computed(() => (pageData.value?.masterBags || []).map((b) => ({
+  label: `${b.code} → ${b.nextFacility?.name || 'Hub'} (${b.totalParcels} parcels)`,
+  value: b.id
+})))
+const availableScheduleTypes = computed(() => pageData.value?.scheduleTypes)
 const availableCouriers = computed(() => pageData.value?.couriers || [])
 
 const assigningId = ref(null) // Track which row is currently saving
@@ -115,10 +156,73 @@ const formatDateTime = (dateStr) => {
     minute: '2-digit'
   })
 }
+
+async function handleCreateSchedule() {
+  isCreating.value = true
+  try {
+    await createCourierSchedule(newScheduleForm.value)
+
+    toast.add({ title: 'Schedule Created Successfully! 🚀', color: 'success', icon: 'i-lucide-check-circle' })
+    isNewScheduleModalOpen.value = false
+    newScheduleForm.value = { ...initialScheduleForm }
+    await refresh()
+  } catch (e) {
+    toast.add({ title: 'Creation Failed', description: e?.data?.message || 'Could not create schedule.', color: 'error', icon: 'i-lucide-x-circle' })
+  } finally {
+    isCreating.value = false
+  }
+}
 </script>
 
 <template>
   <div class="space-y-6">
+    <UModal v-model:open="isNewScheduleModalOpen">
+      <template #content>
+        <UCard class="p-6 space-y-4 bg-gray-900 border border-gray-700">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+              <UIcon name="i-lucide-calendar-plus" class="w-6 h-6" />
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-white">Create New Courier Schedule</h3>
+              <p class="text-sm text-gray-400">Assign mission type, vehicle, courier, and transit legs.</p>
+            </div>
+          </div>
+
+          <div class="space-y-4 pt-2">
+            <UFormField label="Mission Type">
+              <USelect v-model="newScheduleForm.scheduledFor" :items="availableScheduleTypes" />
+            </UFormField>
+
+            <UFormField label="Vehicle">
+              <USelect v-model.number="newScheduleForm.vehicleId" :items="vehicleOptions" value-attribute="value"
+                label-key="label" placeholder="Select vehicle..." />
+            </UFormField>
+
+            <UFormField label="Courier">
+              <USelect v-model.number="newScheduleForm.courierId" :items="courierOptions" value-attribute="value"
+                label-key="label" placeholder="Select courier..." />
+            </UFormField>
+
+            <UFormField v-if="newScheduleForm.scheduledFor === 'LineHaul'" label="Network Leg (Route Lane)">
+              <USelect v-model.number="newScheduleForm.networkLegId" :items="networkLegOptions" value-attribute="value"
+                label-key="label" placeholder="Select transit leg..." />
+            </UFormField>
+
+            <UFormField v-if="newScheduleForm.scheduledFor === 'LineHaul'" label="Select Sealed Master Bags">
+              <USelect v-model="newScheduleForm.masterBagIds" :items="masterBagOptions" value-attribute="value"
+                label-key="label" multiple placeholder="Select master bags to dispatch..." />
+            </UFormField>
+          </div>
+
+          <div class="flex justify-end gap-3 pt-4 border-t border-gray-800">
+            <UButton variant="ghost" color="neutral" @click="isNewScheduleModalOpen = false">Cancel</UButton>
+            <UButton color="primary" :loading="isCreating" @click="handleCreateSchedule">Create Schedule</UButton>
+          </div>
+        </UCard>
+      </template>
+    </UModal>
+
     <div v-if="pending" class="text-gray-400 text-center py-8">
       Retrieving Courier Schedules...
     </div>
@@ -128,9 +232,7 @@ const formatDateTime = (dateStr) => {
     </div>
 
     <UTable v-else sticky :data="schedules || []" :columns="columns" class="flex-1 max-h-8xl">
-      <!-- Slots now match the new IDs -->
       <template #courierName-cell="{ row }">
-        <!-- 🚀 Modern Inline Assign UI -->
         <div class="min-w-[180px]">
           <USelectMenu v-if="row.original.courierName === 'Unassigned'" :items="availableCouriers" label-key="firstName"
             value-attribute="courier.id" placeholder="Assign Courier..." :loading="assigningId === row.original.id"
@@ -207,10 +309,24 @@ const formatDateTime = (dateStr) => {
 
       <template #manifestCodes-cell="{ row }">
         <div class="flex flex-wrap gap-1">
-          <UBadge v-for="code in (row.original.manifestCodes || '').split(', ')" :key="code" color="neutral"
-            variant="outline" size="sm">
-            {{ code }}
-          </UBadge>
+          <!-- Show Manifest Codes if available -->
+          <template v-if="row.original.manifestCodes">
+            <UBadge v-for="code in (row.original.manifestCodes || '').split(', ')" :key="code" color="primary"
+              variant="outline" size="sm">
+              {{ code }}
+            </UBadge>
+          </template>
+
+          <!-- Show Master Bags if it's a Line-Haul schedule -->
+          <template v-else-if="row.original.masterBags && row.original.masterBags.length > 0">
+            <UBadge v-for="bag in row.original.masterBags" :key="bag.id" color="secondary" variant="outline" size="sm"
+              class="font-mono">
+              📦 {{ bag.code }}
+            </UBadge>
+          </template>
+
+          <!-- Fallback if neither -->
+          <span v-else class="text-gray-500 italic text-xs">No Cargo Assigned</span>
         </div>
       </template>
     </UTable>
