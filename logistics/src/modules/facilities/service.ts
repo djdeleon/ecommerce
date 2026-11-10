@@ -1,4 +1,4 @@
-import { CourierStatus, FacilityType, UserRole } from "@prisma/client";
+import { CourierScheduleType, CourierStatus, FacilityType, UserRole, VehicleStatus } from "@prisma/client";
 import { FastifyInstance } from "fastify";
 import { facilityTypeMap } from "./facilityTypeMap.js";
 import { CreateFacilityData } from "./schema.js";
@@ -190,13 +190,57 @@ export async function getFacility(fastify: FastifyInstance, facilityId: number) 
     }
   }
 
+  const usersRaw: any[] = await fastify.prisma.$queryRaw`
+    SELECT 
+      u.id, 
+      u.first_name AS "firstName", 
+      u.last_name AS "lastName", 
+      u.email,
+      u.role,
+      json_build_object(
+        'id', c.id,
+        'phoneNumber', c.phone_number,
+        'vehicleType', c.vehicle_type,
+        'status', c.status
+      ) AS courier
+    FROM users u
+    LEFT JOIN couriers c ON u.id = c.user_id
+    WHERE u.assigned_facility_id = ${facilityId}
+    AND u.role = 'courier'::"UserRole"
+  `;
+
+  const vehicles = await fastify.prisma.physicalVehicle.findMany({
+    where: { assignedFacilityId: facilityId, status: VehicleStatus.Available },
+    include: { vehicleProfile: true }
+  });
+
+  const sourceLegs = await fastify.prisma.networkLeg.findMany({
+    where: { sourceFacilityId: facilityId },
+    include: { destinationFacility: true }
+  });
+
+  const courierScheduleTypes = Object.values(CourierScheduleType)
+
+  const masterBags = await fastify.prisma.masterBag.findMany({
+    where: {
+      currentFacilityId: facilityId,
+      status: 'Sealed',
+      courierScheduleId: null
+    },
+    include: { nextFacility: true }
+  });
 
   return {
     ...facility,
     sectors: sectorsRaw,
     parcels: parcelsRaw,
     children: childrenWithSectors,
-    parent: parentFacility
+    users: usersRaw,
+    parent: parentFacility,
+    vehicles,
+    sourceLegs,
+    courierScheduleTypes,
+    masterBags,
   }
 }
 

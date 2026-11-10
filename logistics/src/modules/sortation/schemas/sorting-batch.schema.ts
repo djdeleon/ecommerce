@@ -9,7 +9,6 @@ export const SortationBatchStatusEnum = Type.Union([
 
 export const SortationBatchSchema = Type.Object({
   id: Type.Integer({ minimum: 1 }),
-  code: Type.String({ minLength: 2, maxLength: 50 }),
   startTime: Type.Optional(Type.String({ format: 'date-time' })),
   endTime: Type.Optional(Type.String({ format: 'date-time' })),
   cutOffTime: Type.String({ format: 'date-time' }),

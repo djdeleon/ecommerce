@@ -18,9 +18,12 @@ export const vehicles = {
     delete: createPath('/physical-vehicles/:physicalVehicleId', 'physicalVehicleId'),
   },
   courierSchedules: {
+    index: '/courier-schedules',
     store: '/courier-schedules',
     update: createPath('/courier-schedules/:courierScheduleId', 'courierScheduleId'),
     delete: createPath('/courier-schedules/:courierScheduleId', 'courierScheduleId'),
+    depart: createPath('/courier-schedules/:courierScheduleId/depart', 'courierScheduleId'),
+    telemetry: createPath('/courier-schedules/:courierScheduleId/telemetry', 'courierScheduleId'),
   },
   dispatchLogs: {
     store: '/dispatch-logs',

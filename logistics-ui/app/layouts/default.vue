@@ -65,7 +65,7 @@ const teamsItems = computed<DropdownMenuItem[][]>(() => {
 })
 
 function getItems(state: 'collapsed' | 'expanded') {
-  if (user.value.role === 'Manager') {
+  if (user.value?.role === 'Manager') {
     const assignedFacilityId = user.value.assignedFacilityId
 
     return [
@@ -81,17 +81,17 @@ function getItems(state: 'collapsed' | 'expanded') {
         children:
           state === 'expanded'
             ? [
-                {
-                  label: 'Overview',
-                  icon: 'i-lucide-layout-dashboard',
-                  to: '/manager/parcels/dashboard'
-                },
-                {
-                  label: 'Journey & Map',
-                  icon: 'i-lucide-map-pinned',
-                  to: '/manager/parcels/journey'
-                }
-              ]
+              {
+                label: 'Overview',
+                icon: 'i-lucide-layout-dashboard',
+                to: '/manager/parcels/dashboard'
+              },
+              {
+                label: 'Journey & Map',
+                icon: 'i-lucide-map-pinned',
+                to: '/manager/parcels/journey'
+              }
+            ]
             : []
       },
       {
@@ -101,14 +101,34 @@ function getItems(state: 'collapsed' | 'expanded') {
         children:
           state === 'expanded'
             ? [
-                {
-                  label: 'Schedules',
-                  icon: 'i-lucide-calendar-days',
-                  to: '/manager/couriers/schedules'
-                }
-              ]
+              {
+                label: 'Schedules',
+                icon: 'i-lucide-calendar-days',
+                to: '/manager/couriers/schedules'
+              }
+            ]
             : []
-      }
+      },
+      {
+        label: 'Sortation Hub',
+        icon: 'i-lucide-boxes',
+        defaultOpen: true,
+        children:
+          state === 'expanded'
+            ? [
+              {
+                label: 'Conveyor & Tunnel Scan',
+                icon: 'i-lucide-play-circle',
+                to: '/manager/sortation'
+              },
+              {
+                label: 'Master Bags',
+                icon: 'i-lucide-package-open',
+                to: '/manager/sortation/master-bags'
+              }
+            ]
+            : []
+      },
     ] satisfies NavigationMenuItem[]
   }
   return [

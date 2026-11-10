@@ -14,10 +14,14 @@ export const sortations = {
     tunnelScan: createPath('/sortation-batches/:trackingNumber/tunnel-scan', 'trackingNumber'),
   },
   masterBags: {
+    index: '/master-bags',
     store: '/master-bags',
     update: createPath('/master-bags/:masterBagId', 'masterBagId'),
     delete: createPath('/master-bags/:masterBagId', 'masterBagId'),
     label: createPath('/master-bags/:masterBagCode/label', 'masterBagCode'),
     seal: createPath('/master-bags/:masterBagCode/seal', 'masterBagCode'),
+    dispatched: createPath('/master-bags/:masterBagCode/dispatched', 'masterBagCode'),
+    delivered: createPath('/master-bags/:masterBagCode/delivered', 'masterBagCode'),
+    unbag: createPath('/master-bags/:masterBagCode/unbag', 'masterBagCode'),
   },
 } as const;

@@ -1,5 +1,5 @@
 import { FacilityType, ShipmentStatus } from "@prisma/client";
-import { createCourier, createFacility } from "#factory";
+import { createCourier, createFacility, createTrackingLog } from "#factory";
 import { FastifyInstance } from "fastify";
 import { createSector } from "./sector.factory.js";
 
@@ -89,6 +89,8 @@ export async function createParcel(fastify: FastifyInstance, overrides = {}) {
       ...overrides,
     },
   });
+
+  await createTrackingLog(fastify, parcel.id, ShipmentStatus.PendingPickup)
 
   await fastify.prisma.$executeRaw`
     UPDATE parcels

@@ -22,7 +22,7 @@ export default async function facilityRoutes(fastify: FastifyInstance) {
     const data = await getFacility(fastify, parsedId)
 
     return rep.status(200).send({
-      message: 'Facilities retrieved.',
+      message: 'Facility Data retrieved.',
       data
     })
   })

@@ -25,7 +25,7 @@ CREATE TYPE "VehicleType" AS ENUM ('van', 'truck', 'motorcycle');
 CREATE TYPE "VehicleStatus" AS ENUM ('available', 'transit', 'maintenance');
 
 -- CreateEnum
-CREATE TYPE "MasterBagStatus" AS ENUM ('open', 'full', 'sealed', 'dispatched', 'delivered');
+CREATE TYPE "MasterBagStatus" AS ENUM ('open', 'full', 'sealed', 'dispatched', 'delivered', 'unbagged');
 
 -- CreateEnum
 CREATE TYPE "SortationBatchStatus" AS ENUM ('scheduled', 'active', 'completed', 'cancelled');
@@ -143,11 +143,13 @@ CREATE TABLE "network_legs" (
 -- CreateTable
 CREATE TABLE "courier_schedules" (
     "id" SERIAL NOT NULL,
+    "facility_id" INTEGER NOT NULL,
     "courier_id" INTEGER,
     "vehicle_id" INTEGER NOT NULL,
     "network_leg_id" INTEGER,
     "scheduledFor" "CourierScheduleType" NOT NULL DEFAULT 'accumulation',
     "scheduled_time" TIMESTAMP(3) NOT NULL,
+    "route" JSONB,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -515,6 +517,9 @@ CREATE UNIQUE INDEX "stores_name_key" ON "stores"("name");
 CREATE UNIQUE INDEX "physical_vehicles_plate_number_key" ON "physical_vehicles"("plate_number");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "manifests_courier_schedule_id_key" ON "manifests"("courier_schedule_id");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "manifests_code_key" ON "manifests"("code");
 
 -- AddForeignKey
@@ -543,6 +548,9 @@ ALTER TABLE "network_legs" ADD CONSTRAINT "network_legs_source_facility_id_fkey"
 
 -- AddForeignKey
 ALTER TABLE "network_legs" ADD CONSTRAINT "network_legs_destination_facility_id_fkey" FOREIGN KEY ("destination_facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "courier_schedules" ADD CONSTRAINT "courier_schedules_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "courier_schedules" ADD CONSTRAINT "courier_schedules_courier_id_fkey" FOREIGN KEY ("courier_id") REFERENCES "couriers"("id") ON DELETE SET NULL ON UPDATE CASCADE;

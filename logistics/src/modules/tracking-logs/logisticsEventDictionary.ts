@@ -9,6 +9,7 @@ type TrackingEventPayload =
   | { status: 'ArrivedAtOriginHub'; hubName?: string; }
   | { status: 'InTransit'; originHub?: string; destinationHub?: string }
   | { status: 'ArrivedAtHub'; hubName?: string; }
+  | { status: 'ArrivedAtDestinationHub'; hubName?: string; }
   | { status: 'OutForDelivery'; courierName?: string }
   | { status: 'Delivered' }
   | { status: 'FailedDelivery'; reason?: string }
@@ -39,6 +40,9 @@ export function generateEventDescription(payload: TrackingEventPayload) {
 
     case ShipmentStatus.ArrivedAtHub:
       return `Parcel arrived and sorted at fulfillment facility: ${payload.hubName}.`;
+      
+    case ShipmentStatus.ArrivedAtDestinationHub:
+      return `Parcel arrived at ${payload.hubName}.`;
 
     case ShipmentStatus.OutForDelivery:
       return `Parcel is out for delivery. Courier ${payload.courierName} will attempt drop-off today.`;

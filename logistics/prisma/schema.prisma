@@ -92,6 +92,7 @@ enum MasterBagStatus {
   Sealed     @map("sealed")
   Dispatched @map("dispatched")
   Delivered  @map("delivered")
+  Unbagged   @map("unbagged")
 }
 
 enum SortationBatchStatus {
@@ -232,7 +233,8 @@ model Facility {
   destinationParcels     Parcel[]             @relation("DestinationFacility")
   trackingLogs           TrackingLog[]
   dispatchLogs           DispatchLog[]
-  routingPipelines      ParcelFacilityPipeline[]
+  routingPipelines       ParcelFacilityPipeline[]
+  courierSchedules       CourierSchedule[]
 
   @@map("facilities")
 }
@@ -283,6 +285,9 @@ model NetworkLeg {
 model CourierSchedule {
   id                     Int                  @id @default(autoincrement())
 
+  facilityId             Int                  @map("facility_id")
+  facility               Facility             @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+
   courierId              Int?                 @map("courier_id")                 
   courier                Courier?             @relation(fields: [courierId], references: [id], onDelete: SetNull)
 
@@ -295,10 +300,12 @@ model CourierSchedule {
   scheduledFor           CourierScheduleType  @default(Accumulation)
   scheduledTime          DateTime             @map("scheduled_time")
 
+  route                  Json?
+
   createdAt              DateTime             @default(now()) @map("created_at")
   updatedAt              DateTime             @updatedAt @map("updated_at")
 
-  manifests              Manifest[]
+  manifest               Manifest?
   masterBags             MasterBag[]
   deliveries             Delivery[]
 
@@ -731,7 +738,7 @@ model Manifest {
   sectorId               Int                   @map("sector_id")
   sector                 Sector                @relation(fields: [sectorId], references: [id], onDelete: Restrict)
 
-  courierScheduleId      Int                   @map("courier_schedule_id")
+  courierScheduleId      Int                   @unique @map("courier_schedule_id")
   courierSchedule        CourierSchedule       @relation(fields: [courierScheduleId], references: [id], onDelete: Restrict)
 
   code                   String                @unique // e.g., "MNF-20261005-001"
@@ -780,5 +787,4 @@ model VehicleLocationLog {
 
   // @@index([physicalVehicleId, timestamp(sort: Desc)]) // Fast querying for "latest" location
   @@map("vehicle_location_logs")
-
 }

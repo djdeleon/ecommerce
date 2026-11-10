@@ -14,6 +14,16 @@ export const useCourierScheduleService = () => {
     })
   }
 
+  const createCourierSchedule = async (payload: any) => {
+    return await $fetch(`${apiBase}/courier-schedules`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${userToken.value}`
+      },
+      body: payload
+    })
+  }
+
   const updateCourierSchedule = async (courierScheduleId: number, payload: any) => {
     console.log({ courierScheduleId, payload })
     return await $fetch(`${apiBase}/courier-schedules/${courierScheduleId}`, {
@@ -47,5 +57,5 @@ export const useCourierScheduleService = () => {
     })
   }
 
-  return { getCourierSchedules, updateCourierSchedule, departSchedule, storeTelemetry }
+  return { getCourierSchedules, createCourierSchedule, updateCourierSchedule, departSchedule, storeTelemetry }
 }
