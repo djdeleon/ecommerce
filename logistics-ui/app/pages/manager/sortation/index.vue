@@ -199,7 +199,7 @@ async function handleHandheldReceive(parcel: any) {
 
     <!-- Parcels Table -->
     <UCard class="p-6 space-y-4">
-      <div class="flex justify-between items-center">
+      <div class="flex justify-between items-center mb-6">
         <h2 class="text-xl font-bold text-white">
           {{ isLocalBranch ? 'Incoming Line-Haul Parcels Awaiting Branch Receipt' : 'Arrived Loose Parcels Awaiting Sortation' }}
         </h2>

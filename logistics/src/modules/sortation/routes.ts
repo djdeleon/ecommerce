@@ -398,16 +398,6 @@ export async function masterBagRoutes(fastify: FastifyInstance) {
           where: { id: { in: parcelIds } },
           data: { masterBagId: null }
         })
-
-        for (const parcelId of parcelIds) {
-          await tx.trackingLog.create({
-            data: {
-              parcelId,
-              status: ShipmentStatus.ArrivedAtHub,
-              description: `Master bag ${masterBag.code} unbagged at destination facility. Parcels released to sortation queue.`
-            }
-          })
-        }
       }
 
       const updated = await tx.masterBag.update({

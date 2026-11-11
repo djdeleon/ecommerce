@@ -20,5 +20,11 @@ export const useParcelService = () => {
     })
   }
 
-  return { getLooseParcels, markAsPickedUp }
+  const markAsDelivered = async (trackingNumber: string) => {
+    return await $fetch(`${apiBase}/parcels/${trackingNumber}/delivered`, {
+      method: 'PATCH',
+    })
+  }
+
+  return { getLooseParcels, markAsPickedUp, markAsDelivered }
 }

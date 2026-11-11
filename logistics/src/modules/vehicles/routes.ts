@@ -122,6 +122,11 @@ export async function courierScheduleRoutes(fastify: FastifyInstance) {
             }
           }
         },
+        delivery: {
+          include: {
+            parcels: true
+          }
+        },
         masterBags: true,
       },
       orderBy: { scheduledTime: 'asc' }
@@ -141,29 +146,56 @@ export async function courierScheduleRoutes(fastify: FastifyInstance) {
       })
     }
 
-    const formattedSchedules = courierSchedules.map(s => ({
-      id: s.id,
-      facilityName: s.facility.name,
-      email: s.courier?.user.email || '-',
-      courierName: s.courier ? `${s.courier.user.firstName} ${s.courier.user.lastName}` : 'Unassigned',
-      vehicleDetail: s.vehicle ? `${s.vehicle.vehicleProfile.modelName} (${s.vehicle.plateNumber})` : 'Unassigned',
-      scheduledFor: s.scheduledFor,
-      type: s.scheduledFor,
-      scheduledTime: s.scheduledTime,
-      manifestCodes: s.manifest?.code,
-      manifestStatus: s.manifest?.status,
-      parcels: (s.manifest?.parcels || []).map(p => ({
-        ...p,
-        store: p.store ? {
-          ...p.store,
-          location: {
-            coordinates: storeCoordsMap[p.storeId] ? [storeCoordsMap[p.storeId].lng, storeCoordsMap[p.storeId].lat] : null
-          }
-        } : null
-      })),
-      masterBags: s.masterBags || [],
-      route: s.route || null
-    }))
+    const allDeliveryParcelIds = [...new Set(courierSchedules.flatMap(s => s.delivery?.parcels.map(p => p.id) || []))]
+    let customerCoordsMap: Record<number, { lng: number; lat: number }> = {}
+
+    if (allDeliveryParcelIds.length > 0) {
+      const customersRaw: any = await fastify.prisma.$queryRaw`
+        SELECT id, ST_X(customer_location::geometry) as lng, ST_Y(customer_location::geometry) as lat 
+        FROM parcels WHERE id = ANY(${allDeliveryParcelIds})
+      `.catch(() => [])
+
+      customersRaw.forEach((c: any) => {
+        customerCoordsMap[c.id] = { lng: c.lng, lat: c.lat }
+      })
+    }
+
+    const formattedSchedules = courierSchedules.map(s => {
+      const isDelivery = s.scheduledFor === 'Delivery';
+      const targetParcels = isDelivery ? (s.delivery?.parcels || []) : (s.manifest?.parcels || []);
+
+      return {
+        id: s.id,
+        facilityName: s.facility.name,
+        email: s.courier?.user.email || '-',
+        courierName: s.courier ? `${s.courier.user.firstName} ${s.courier.user.lastName}` : 'Unassigned',
+        vehicleDetail: s.vehicle ? `${s.vehicle.vehicleProfile.modelName} (${s.vehicle.plateNumber})` : 'Unassigned',
+        scheduledFor: s.scheduledFor,
+        type: s.scheduledFor,
+        scheduledTime: s.scheduledTime,
+        manifestCodes: s.manifest?.code,
+        manifestStatus: s.manifest?.status,
+        deliveryCode: s.delivery?.code,
+        deliveryStatus: s.delivery?.status,
+        parcels: targetParcels.map(p => ({
+          ...p,
+          ...(isDelivery ? {
+            customerLocation: {
+              coordinates: customerCoordsMap[p.id] ? [customerCoordsMap[p.id].lng, customerCoordsMap[p.id].lat] : null
+            }
+          } : {
+            store: p.storeId && storeCoordsMap[p.storeId] ? {
+              ...p.store,
+              location: {
+                coordinates: [storeCoordsMap[p.storeId].lng, storeCoordsMap[p.storeId].lat]
+              }
+            } : null
+          })
+        })),
+        masterBags: s.masterBags || [],
+        route: s.route || null
+      }
+    })
 
     return rep.status(200).send({
       message: 'Courier Schedules retrieved.',
@@ -245,6 +277,11 @@ export async function courierScheduleRoutes(fastify: FastifyInstance) {
               }
             }
           },
+          delivery: {
+            include: {
+              parcels: true
+            }
+          },
           masterBags: true
         }
       })
@@ -320,8 +357,8 @@ export async function courierScheduleRoutes(fastify: FastifyInstance) {
         });
       }
 
-      if (!schedule || !schedule.manifest) {
-        return rep.code(404).send({ message: 'Schedule or Manifest not found' })
+      if (!schedule.manifest && !schedule.delivery) {
+        return rep.code(404).send({ message: 'Schedule must be associated with a Manifest or Delivery' })
       }
 
       const facilityLoc: any = await fastify.prisma.$queryRaw`
@@ -331,52 +368,62 @@ export async function courierScheduleRoutes(fastify: FastifyInstance) {
 
       const facLng = facilityLoc[0]?.lng || 121.04
       const facLat = facilityLoc[0]?.lat || 14.50
-      console.log({ facLng, facLat })
 
-      const storeIds = [...new Set(schedule.manifest.parcels.map(p => p.storeId).filter(Boolean))]
+      const isDelivery = !!schedule.delivery;
+      const parcels = isDelivery ? schedule.delivery!.parcels : schedule.manifest!.parcels;
 
-      let storeCoordsMap: Record<number, { lng: number; lat: number }> = {}
-      if (storeIds.length > 0) {
-        const storesRaw: any = await fastify.prisma.$queryRaw`
-          SELECT id, ST_X(location::geometry) as lng, ST_Y(location::geometry) as lat 
-          FROM stores WHERE id = ANY(${storeIds})
-        `.catch(() => [])
+      let coordsMap: Record<number, { lng: number; lat: number; name?: string }> = {}
 
-        storesRaw.forEach((s: any) => {
-          storeCoordsMap[s.id] = { lng: s.lng, lat: s.lat }
-        })
+      if (isDelivery) {
+        const parcelIds = parcels.map(p => p.id);
+        if (parcelIds.length > 0) {
+          const customersRaw: any = await fastify.prisma.$queryRaw`
+            SELECT id, customer_name AS "name", ST_X(customer_location::geometry) as lng, ST_Y(customer_location::geometry) as lat 
+            FROM parcels WHERE id = ANY(${parcelIds})
+          `.catch(() => [])
+
+          customersRaw.forEach((c: any) => {
+            coordsMap[c.id] = { lng: c.lng, lat: c.lat, name: c.name }
+          })
+        }
+      } else {
+        const storeIds = [...new Set(parcels.map(p => p.storeId).filter(Boolean))]
+        if (storeIds.length > 0) {
+          const storesRaw: any = await fastify.prisma.$queryRaw`
+            SELECT id, name, ST_X(location::geometry) as lng, ST_Y(location::geometry) as lat 
+            FROM stores WHERE id = ANY(${storeIds})
+          `.catch(() => [])
+
+          storesRaw.forEach((s: any) => {
+            coordsMap[s.id] = { lng: s.lng, lat: s.lat, name: s.name }
+          })
+        }
       }
-      console.log({ storeCoordsMap })
 
       const coordinatesList = [`${facLng},${facLat}`]
       const stopDetails: any[] = []
 
-      schedule.manifest.parcels.forEach(p => {
-        const storeCoord = storeCoordsMap[p.storeId]
-        if (storeCoord && storeCoord.lng && storeCoord.lat) {
-          coordinatesList.push(`${storeCoord.lng},${storeCoord.lat}`)
+      parcels.forEach(p => {
+        const key = isDelivery ? p.id : p.storeId;
+        const targetCoord = coordsMap[key];
+
+        if (targetCoord && targetCoord.lng && targetCoord.lat) {
+          coordinatesList.push(`${targetCoord.lng},${targetCoord.lat}`)
           stopDetails.push({
             parcelId: p.id,
             trackingNumber: p.trackingNumber,
-            storeId: p.storeId,
-            storeName: storeCoord.storeName,
-            lng: storeCoord.lng,
-            lat: storeCoord.lat
+            ...(isDelivery ? { customerName: targetCoord.name } : { storeId: p.storeId, storeName: targetCoord.name }),
+            lng: targetCoord.lng,
+            lat: targetCoord.lat
           })
         }
       })
-      console.log({ coordinatesList })
 
       coordinatesList.push(`${facLng},${facLat}`)
 
       let osrmRouteData = null
       try {
         const coordsString = coordinatesList.join(';')
-        console.log({ coordsString })
-
-        // Use OSRM trip/v1 service for Traveling Salesperson Problem (TSP) optimized multi-stop routing
-        // source=first ensures the route starts at the facility (index 0)
-        // roundtrip=true ensures it returns to the starting facility
         const osrmRes: any = await fetch(
           `https://router.project-osrm.org/trip/v1/driving/${coordsString}?source=first&roundtrip=true&overview=full&geometries=geojson`
         ).then(res => res.json())
@@ -386,7 +433,6 @@ export async function courierScheduleRoutes(fastify: FastifyInstance) {
         } else if (osrmRes.routes && osrmRes.routes.length > 0) {
           osrmRouteData = osrmRes.routes[0]
         }
-        console.log({ osrmRouteData })
       } catch (err) {
         console.warn('OSRM Route calculation skipped/failed:', err)
       }
@@ -396,21 +442,30 @@ export async function courierScheduleRoutes(fastify: FastifyInstance) {
         data: { route: osrmRouteData ? osrmRouteData.geometry : undefined }
       });
 
-      await fastify.prisma.manifest.update({
-        where: { id: schedule.manifest.id },
-        data: {
-          status: ManifestStatus.Accumulating,
-        }
-      });
+      if (isDelivery && schedule.delivery) {
+        await fastify.prisma.delivery.update({
+          where: { id: schedule.delivery.id },
+          data: { status: 'Loading' }
+        });
+        await fastify.prisma.deliveryLog.create({
+          data: {
+            deliveryId: schedule.delivery.id,
+            status: 'Loading'
+          }
+        });
+      } else if (schedule.manifest) {
+        await fastify.prisma.manifest.update({
+          where: { id: schedule.manifest.id },
+          data: { status: ManifestStatus.Accumulating }
+        });
+        await fastify.prisma.manifestLog.create({
+          data: {
+            manifestId: schedule.manifest.id,
+            status: ManifestStatus.Accumulating
+          }
+        });
+      }
 
-      await fastify.prisma.manifestLog.create({
-        data: {
-          manifestId: schedule.manifest.id,
-          status: ManifestStatus.Accumulating
-        }
-      });
-
-      // I think I am not supposed to store every bit of gps updates
       await fastify.prisma.vehicleLocationLog.create({
         data: {
           physicalVehicleId: schedule.vehicleId,
@@ -422,9 +477,9 @@ export async function courierScheduleRoutes(fastify: FastifyInstance) {
       })
 
       return rep.code(200).send({
-        message: 'Multi-stop departure confirmed and route calculated!',
+        message: `${isDelivery ? 'Delivery' : 'Manifest'} multi-stop departure confirmed and route calculated!`,
         data: {
-          status: 'Accumulating',
+          status: isDelivery ? 'Loading' : 'Accumulating',
           route: osrmRouteData ? osrmRouteData.geometry : null,
           distanceMeters: osrmRouteData ? osrmRouteData.distance : 0,
           durationSeconds: osrmRouteData ? osrmRouteData.duration : 0,

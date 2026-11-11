@@ -3,8 +3,9 @@ import * as maplibregl from 'maplibre-gl'
 
 const { user, userToken, loadUser } = useAuthService()
 const { getCourierSchedules, departSchedule, storeTelemetry } = useCourierScheduleService()
-const { markAsPickedUp } = useParcelService()
+const { markAsPickedUp, markAsDelivered } = useParcelService()
 const { dispatchManifest, completeManifest, arriveManifest } = useManifestService()
+const { dispatchDelivery, completedDelivery, arrivedDelivery } = useDeliveryService()
 const { dispatchMasterBag, deliverMasterBag } = useMasterBagService()
 const toast = useToast()
 
@@ -12,6 +13,7 @@ const router = useRouter()
 const departingId = ref<number | null>(null)
 const activeRoutes = ref<Record<number, any>>({})
 const activeStatuses = ref<Record<number, string>>({})
+const activeScheduleType = ref<string>('Accumulation')
 const maps = ref<Record<number, any>>({})
 const markers = ref<Record<number, any>>({})
 const simulatingId = ref<number | null>(null)
@@ -82,15 +84,21 @@ async function handleStartDeparture(scheduleId: number) {
     const res: any = await departSchedule(scheduleId)
 
     const currentSchedule = schedules.value.find((s: any) => s.id === scheduleId)
+    console.log({ currentSchedule })
 
     const manifestCode = currentSchedule?.manifestCodes || currentSchedule?.manifestCode
     if (manifestCode) {
       await dispatchManifest(manifestCode)
     }
 
+    const deliveryCode = currentSchedule?.deliveryCode || currentSchedule?.deliveryCodes
+    if (deliveryCode) {
+      await dispatchDelivery(deliveryCode)
+    }
+
     if (currentSchedule?.scheduledFor === 'LineHaul' && currentSchedule?.masterBags) {
       for (const bag of currentSchedule.masterBags) {
-        await dispatchMasterBag(bag.code).catch(() => {})
+        await dispatchMasterBag(bag.code).catch(() => { })
       }
     }
 
@@ -104,19 +112,25 @@ async function handleStartDeparture(scheduleId: number) {
     if (res.data?.route) {
       activeRoutes.value[scheduleId] = res.data.route
     }
-    // Set status locally so UI reactivity instantly renders the map container
-    activeStatuses.value[scheduleId] = 'Accumulating'
+
+    if (currentSchedule?.scheduledFor === 'Delivery') {
+      activeStatuses.value[scheduleId] = 'Loading'
+    } else {
+      activeStatuses.value[scheduleId] = 'Accumulating'
+    }
 
     await refresh()
     await nextTick()
     setTimeout(() => {
       const targetSchedule = schedules.value.find((s: any) => s.id === scheduleId)
-      const routeGeo = res.data?.route || activeRoutes.value[scheduleId]
+      const routeGeo = res.data?.route || activeRoutes.value[scheduleId] || targetSchedule?.route
       if (targetSchedule && routeGeo) {
         initMap(targetSchedule, routeGeo)
       }
-    }, 100)
+    }, 200)
   } catch (e: any) {
+    delete activeStatuses.value[scheduleId]
+
     toast.add({
       title: 'Departure Failed',
       description: e?.data?.message || 'Could not initiate departure. Please try again.',
@@ -185,15 +199,17 @@ function initMap(schedule: any, routeGeoJson: any) {
 
           if (schedule?.parcels) {
             schedule.parcels.forEach((parcel: any, index: number) => {
-              if (parcel.store?.location?.coordinates) {
-                const storeLngLat = parcel.store.location.coordinates
-                const storeEl = document.createElement('div')
-                storeEl.className = 'w-7 h-7 bg-amber-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center text-white text-xs font-bold'
-                storeEl.innerHTML = `<span>S${index + 1}</span>`
+              const locationCoord = schedule.scheduledFor === 'Delivery' ? parcel.customerLocation?.coordinates : parcel.store?.location?.coordinates
+              const titleName = schedule.scheduledFor === 'Delivery' ? (parcel.customerName || 'Customer') : (parcel.store?.name || 'Seller')
 
-                new maplibregl.Marker({ element: storeEl })
-                  .setLngLat(storeLngLat)
-                  .setPopup(new maplibregl.Popup().setHTML(`<div class="p-1 text-gray-900 font-bold text-xs">Warehouse: ${parcel.store.name || 'Seller'}</div>`))
+              if (locationCoord) {
+                const el = document.createElement('div')
+                el.className = 'w-7 h-7 bg-amber-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center text-white text-xs font-bold'
+                el.innerHTML = `<span>${schedule.scheduledFor === 'Delivery' ? 'D' : 'S'}${index + 1}</span>`
+
+                new maplibregl.Marker({ element: el })
+                  .setLngLat(locationCoord)
+                  .setPopup(new maplibregl.Popup().setHTML(`<div class="p-1 text-gray-900 font-bold text-xs">${schedule.scheduledFor === 'Delivery' ? 'Destination' : 'Warehouse'}: ${titleName}</div>`))
                   .addTo(map)
               }
             })
@@ -226,6 +242,7 @@ function interpolatePosition(p1: [number, number], p2: [number, number], t: numb
 
 async function simulateManifestation(schedule: any) {
   const scheduleId = schedule.id
+  activeScheduleType.value = schedule.scheduledFor || 'Accumulation'
   const map = maps.value[scheduleId]
   const marker = markers.value[scheduleId]
   const routeGeoJson = activeRoutes.value[scheduleId] || schedule.route
@@ -449,7 +466,7 @@ async function simulateLineHaul(schedule: any) {
 
         // Call dedicated delivered endpoint for each master bag (cascades parcels to ArrivedAtHub)
         for (const bagCode of bagIds) {
-          await deliverMasterBag(bagCode).catch(() => {})
+          await deliverMasterBag(bagCode).catch(() => { })
         }
 
         activeStatuses.value[scheduleId] = 'Arrived'
@@ -475,12 +492,182 @@ const pendingSchedules = computed(() => {
     return status !== 'Arrived' && status !== 'Completed'
   })
 })
+
+async function simulateDelivery(schedule: any) {
+  const scheduleId = schedule.id
+  activeScheduleType.value = schedule.scheduledFor || 'Delivery'
+  const routeGeoJson = activeRoutes.value[scheduleId] || schedule.route
+  let map = maps.value[scheduleId]
+  let marker = markers.value[scheduleId]
+
+  if (!map && routeGeoJson) {
+    initMap(schedule, routeGeoJson)
+    await nextTick()
+    map = maps.value[scheduleId]
+    marker = markers.value[scheduleId]
+  }
+
+  if (!map || !marker || !routeGeoJson?.coordinates) {
+    toast.add({ title: 'Simulation Error', description: 'Route not loaded on map.', color: 'error' })
+    return
+  }
+
+  simulatingId.value = scheduleId
+  toast.add({ title: 'Delivery Started 🚚', description: 'Vehicle navigating delivery route...', color: 'info' })
+
+  const coords = routeGeoJson.coordinates
+  let segmentIndex = activeScheduleId.value === scheduleId ? activeSegmentIndex.value : 0
+  let progress = activeScheduleId.value === scheduleId ? activeProgress.value : 0
+  const speedFactor = 1
+  let frameCount = 0
+
+  const undeliveredParcels = (schedule.parcels || []).filter((p: any) => p.status !== 'Delivered')
+
+  const interval = setInterval(async () => {
+    if (segmentIndex < coords.length - 1) {
+      const p1 = coords[segmentIndex]
+      const p2 = coords[segmentIndex + 1]
+
+      const currentPos = interpolatePosition(p1, p2, progress)
+
+      marker.setLngLat(currentPos)
+      map.panTo(currentPos)
+
+      if (segmentIndex > 2 && undeliveredParcels.length > 0) {
+        for (const parcel of undeliveredParcels) {
+          if (parcel.customerLocation?.coordinates) {
+            const customerCoord = parcel.customerLocation.coordinates
+            const distance = getDistanceFromLatLonInMeters(currentPos, customerCoord)
+
+            if (distance < 50) {
+              clearInterval(interval)
+
+              activeScheduleId.value = scheduleId
+              activeParcel.value = parcel
+              activeStoreName.value = parcel.customerName || 'Customer Drop'
+              activeSegmentIndex.value = segmentIndex
+              activeProgress.value = progress
+              activeCoords.value = coords
+              isModalOpen.value = true
+
+              toast.add({
+                title: 'Arrived at Customer Location! 📦',
+                description: `Vehicle arrived at ${parcel.customerName}'s address. Confirming drop-off.`,
+                color: 'warning',
+                icon: 'i-lucide-map-pin'
+              })
+              return
+            }
+          }
+        }
+      }
+
+      frameCount++
+      if (frameCount % 10 === 0) {
+        try {
+          await storeTelemetry(scheduleId, currentPos[0], currentPos[1])
+        } catch (err) {
+          console.warn('Delivery telemetry ping failed:', err)
+        }
+      }
+
+      progress += speedFactor
+      if (progress >= 1) {
+        progress = 0
+        segmentIndex++
+      }
+    } else {
+      // Vehicle has arrived back at the facility (end of route)
+      clearInterval(interval)
+      simulatingId.value = null
+
+      try {
+        const deliveryCode = schedule.deliveryCode
+        if (deliveryCode) {
+          await arrivedDelivery(deliveryCode)
+        }
+
+        activeStatuses.value[scheduleId] = 'Arrived'
+        schedule.deliveryStatus = 'Arrived'
+
+        toast.add({
+          title: 'Vehicle Arrived Back at Facility! 🎉',
+          description: 'Delivery run fully completed and vehicle checked in.',
+          color: 'success',
+          icon: 'i-lucide-check-circle'
+        })
+
+        await refresh()
+      } catch (err: any) {
+        toast.add({ 
+          title: 'Arrival Failed', 
+          description: err?.data?.message || 'Could not finalize vehicle arrival.', 
+          color: 'error' 
+        })
+      }
+    }
+  }, 30)
+}
+
+async function confirmParcelDelivery() {
+  const parcel = activeParcel.value
+  const scheduleId = activeScheduleId.value
+  if (!parcel || !scheduleId) return
+
+  try {
+    await markAsDelivered(parcel.trackingNumber)
+
+    toast.add({
+      title: 'Parcel Delivered! ✅',
+      description: `Tracking ${parcel.trackingNumber} status updated to Delivered.`,
+      color: 'success',
+      icon: 'i-lucide-check-check'
+    })
+
+    const schedule = schedules.value.find((s: any) => s.id === scheduleId)
+    if (schedule && schedule.parcels) {
+      const found = schedule.parcels.find((p: any) => p.id === parcel.id)
+      if (found) {
+        found.status = 'Delivered'
+      }
+    }
+
+    isModalOpen.value = false
+
+    // Check if this was the last undelivered parcel
+    const remainingUndelivered = (schedule?.parcels || []).filter((p: any) => p.status !== 'Delivered')
+    if (remainingUndelivered.length === 0) {
+      try {
+        const deliveryCode = schedule.deliveryCode || schedule.deliveryCodes
+        if (deliveryCode) {
+          await completedDelivery(deliveryCode)
+          schedule.deliveryStatus = 'Completed'
+          
+          toast.add({
+            title: 'Delivery Run Completed! 🏁',
+            description: 'All parcels delivered. Delivery marked as Completed! Vehicle returning to hub.',
+            color: 'success',
+            icon: 'i-lucide-flag'
+          })
+        }
+      } catch (err: any) {
+        console.warn('Delivery completion trigger failed:', err)
+      }
+    }
+
+    if (schedule) {
+      simulateDelivery(schedule)
+    }
+  } catch (err) {
+    toast.add({ title: 'Update Failed', description: 'Could not update parcel status.', color: 'error' })
+  }
+}
 </script>
 
 <template>
   <div class="p-6 sm:p-10 max-w-5xl mx-auto space-y-8">
     <!-- Arrival Modal Confirmation -->
-    <UModal v-model:open="isModalOpen">
+    <!-- <UModal v-model:open="isModalOpen">
       <template #content>
         <UCard class="p-6 space-y-4 bg-gray-900 border border-gray-700">
           <div class="flex items-center gap-3">
@@ -502,6 +689,40 @@ const pendingSchedules = computed(() => {
 
           <div class="flex gap-3 pt-2">
             <UButton block color="primary" icon="i-lucide-scan-line" @click="confirmParcelPickup">
+              Scan & Confirm Pickup
+            </UButton>
+          </div>
+        </UCard>
+      </template>
+    </UModal> -->
+
+    <UModal v-model:open="isModalOpen">
+      <template #content>
+        <UCard class="p-6 space-y-4 bg-gray-900 border border-gray-700">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400">
+              <UIcon :name="activeScheduleType === 'Delivery' ? 'i-lucide-map-pin' : 'i-lucide-warehouse'" class="w-6 h-6" />
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-white">
+                {{ activeScheduleType === 'Delivery' ? 'Driver Arrived at Customer Location' : 'Driver Arrived at Warehouse' }}
+              </h3>
+              <p class="text-sm text-gray-400">{{ activeStoreName }}</p>
+            </div>
+          </div>
+
+          <div class="bg-gray-800 p-4 rounded-xl space-y-2 border border-gray-700">
+            <p class="text-xs text-gray-400 font-medium">ASSIGNED PARCEL:</p>
+            <p class="text-indigo-400 font-mono font-bold">{{ activeParcel?.trackingNumber }}</p>
+            <p class="text-sm text-gray-300">Customer: <span class="text-white font-semibold">{{
+              activeParcel?.customerName }}</span></p>
+          </div>
+
+          <div class="flex gap-3 pt-2">
+            <UButton v-if="activeScheduleType === 'Delivery'" block color="primary" icon="i-lucide-check-circle" @click="confirmParcelDelivery">
+              Confirm Customer Drop-Off
+            </UButton>
+            <UButton v-else block color="primary" icon="i-lucide-scan-line" @click="confirmParcelPickup">
               Scan & Confirm Pickup
             </UButton>
           </div>
@@ -539,17 +760,18 @@ const pendingSchedules = computed(() => {
               <UBadge color="primary" variant="subtle">
                 {{ schedule.scheduledFor || schedule.type }}
               </UBadge>
-              
+
               <!-- Dynamic Status Badge: Manifest Status for First-Mile, Master Bag Status for Line-Haul -->
-              <UBadge 
-                :color="(activeStatuses[schedule.id] || schedule.manifestStatus) === 'Accumulating' || (schedule.scheduledFor === 'LineHaul' && schedule.masterBags?.[0]?.status === 'Dispatched') ? 'warning' : 'info'" 
-                variant="outline"
-              >
-                <!-- If Line-Haul, show Master Bag status; else show Manifest status -->
-                {{ 
-                  schedule.scheduledFor === 'LineHaul' 
-                    ? (activeStatuses[schedule.id] === 'Arrived' ? 'Delivered' : (schedule.masterBags?.[0]?.status || 'Scheduled'))
-                    : (activeStatuses[schedule.id] || schedule.manifestStatus || 'Scheduled') 
+              <UBadge
+                :color="(activeStatuses[schedule.id] || schedule.manifestStatus || schedule.deliveryStatus) === 'Accumulating' || (activeStatuses[schedule.id] || schedule.manifestStatus || schedule.deliveryStatus) === 'Loading' ? 'warning' : 'info'"
+                variant="outline">
+                {{
+                  schedule.scheduledFor === 'LineHaul'
+                    ? (activeStatuses[schedule.id] === 'Arrived' ? 'Delivered' : (schedule.masterBags?.[0]?.status ||
+                      'Scheduled'))
+                    : schedule.scheduledFor === 'Delivery'
+                      ? (activeStatuses[schedule.id] || schedule.deliveryStatus || 'Scheduled')
+                      : (activeStatuses[schedule.id] || schedule.manifestStatus || 'Scheduled')
                 }}
               </UBadge>
             </div>
@@ -562,6 +784,10 @@ const pendingSchedules = computed(() => {
             <p v-if="schedule.manifestCode || schedule.manifestCodes">
               <strong>Manifest Code:</strong>
               <span class="text-white font-mono ml-1">{{ schedule.manifestCode || schedule.manifestCodes }}</span>
+            </p>
+            <p v-else-if="schedule.deliveryCode || schedule.deliveryCodes">
+              <strong>Delivery Code:</strong>
+              <span class="text-white font-mono ml-1">{{ schedule.deliveryCode || schedule.deliveryCodes }}</span>
             </p>
             <p v-else-if="schedule.masterBags && schedule.masterBags.length > 0">
               <strong>Assigned Master Bags:</strong>
@@ -583,49 +809,72 @@ const pendingSchedules = computed(() => {
             </div>
 
             <!-- Map container for First-Mile Accumulation OR Line-Haul Transit -->
-            <div v-if="(activeStatuses[schedule.id] || schedule.manifestStatus) === 'Accumulating' && (activeRoutes[schedule.id] || schedule.route)"
+            <div
+              v-if="['Accumulating', 'Loading'].includes(activeStatuses[schedule.id] || schedule.manifestStatus || schedule.deliveryStatus) && (activeRoutes[schedule.id] || schedule.route)"
               class="rounded-xl overflow-hidden border border-gray-700 h-[600px] relative mt-4">
               <div :id="`map-${schedule.id}`" class="w-full h-full" />
             </div>
 
             <!-- First-Mile Simulation Button -->
-            <UButton v-if="(activeStatuses[schedule.id] || schedule.manifestStatus) === 'Accumulating' && schedule.scheduledFor !== 'LineHaul'" block color="secondary" variant="subtle"
-              icon="i-lucide-play-circle" :loading="simulatingId === schedule.id"
-              @click="simulateManifestation(schedule)">
+            <UButton
+              v-if="((activeStatuses[schedule.id] || schedule.manifestStatus) === 'Accumulating') && schedule.scheduledFor === 'Accumulation'"
+              block color="secondary" variant="subtle" icon="i-lucide-play-circle"
+              :loading="simulatingId === schedule.id" @click="simulateManifestation(schedule)">
               Simulate Manifestation (Run Vehicle Pickup)
             </UButton>
 
+            <!-- Delivery Simulation Button -->
+            <UButton
+              v-else-if="((activeStatuses[schedule.id] || schedule.deliveryStatus) === 'Loading' || (activeStatuses[schedule.id] || schedule.deliveryStatus) === 'Accumulating') && schedule.scheduledFor === 'Delivery'"
+              block color="secondary" variant="subtle" icon="i-lucide-truck" :loading="simulatingId === schedule.id"
+              @click="simulateDelivery(schedule)">
+              Simulate Delivery Run (Run Customer Drops)
+            </UButton>
+
             <!-- Line-Haul Transit Simulation Button -->
-            <UButton v-if="(activeStatuses[schedule.id] || schedule.manifestStatus) === 'Accumulating' && schedule.scheduledFor === 'LineHaul' && (activeRoutes[schedule.id] || schedule.route)" block color="secondary" variant="subtle"
-              icon="i-lucide-truck" :loading="simulatingLineHaulId === schedule.id"
-              @click="simulateLineHaul(schedule)">
+            <UButton
+              v-else-if="((activeStatuses[schedule.id] || schedule.manifestStatus) === 'Accumulating') && schedule.scheduledFor === 'LineHaul' && (activeRoutes[schedule.id] || schedule.route)"
+              block color="secondary" variant="subtle" icon="i-lucide-truck"
+              :loading="simulatingLineHaulId === schedule.id" @click="simulateLineHaul(schedule)">
               Simulate Line-Haul Transit (Facility A → B)
             </UButton>
 
             <!-- First-Mile Success Banner -->
-            <div v-if="schedule.scheduledFor !== 'LineHaul' && (activeStatuses[schedule.id] || schedule.manifestStatus) === 'Arrived'"
+            <div
+              v-if="schedule.scheduledFor !== 'LineHaul' && (activeStatuses[schedule.id] || schedule.manifestStatus) === 'Arrived'"
               class="bg-emerald-950/40 border border-emerald-500/30 p-4 rounded-xl flex items-center gap-3 text-emerald-400 mt-4">
               <UIcon name="i-lucide-check-circle-2" class="w-6 h-6 shrink-0" />
               <div>
                 <p class="font-bold">Accumulation Completed Successfully!</p>
-                <p class="text-xs text-emerald-300/80">Vehicle arrived back at the hub. All parcels processed and marked as ArrivedAtOriginHub.</p>
+                <p class="text-xs text-emerald-300/80">Vehicle arrived back at the hub. All parcels processed and marked
+                  as ArrivedAtOriginHub.</p>
               </div>
             </div>
 
             <!-- Line-Haul Success Banner (Triggers when Line-Haul transit finishes and status is Arrived) -->
-            <div v-else-if="schedule.scheduledFor === 'LineHaul' && (activeStatuses[schedule.id] === 'Arrived' || schedule.masterBags?.[0]?.status === 'Delivered')"
+            <div
+              v-else-if="schedule.scheduledFor === 'LineHaul' && (activeStatuses[schedule.id] === 'Arrived' || schedule.masterBags?.[0]?.status === 'Delivered')"
               class="bg-emerald-950/40 border border-emerald-500/30 p-4 rounded-xl flex items-center gap-3 text-emerald-400 mt-4">
               <UIcon name="i-lucide-check-circle-2" class="w-6 h-6 shrink-0" />
               <div>
                 <p class="font-bold">Line-Haul Transit Completed Successfully!</p>
-                <p class="text-xs text-emerald-300/80">Vehicle arrived at destination hub. Master bags marked as Delivered.</p>
+                <p class="text-xs text-emerald-300/80">Vehicle arrived at destination hub. Master bags marked as
+                  Delivered.</p>
               </div>
             </div>
 
             <!-- Simple Virtual Gate Departure Trigger -->
-            <div v-if="!activeStatuses[schedule.id] && (!schedule.manifestStatus || schedule.manifestStatus === 'Scheduled') && !schedule.route && !activeRoutes[schedule.id]" class="pt-4 border-t border-gray-800">
+            <div
+              v-if="!activeStatuses[schedule.id] && (!schedule.manifestStatus || schedule.manifestStatus === 'Scheduled') && !schedule.route && !activeRoutes[schedule.id]"
+              class="pt-4 border-t border-gray-800">
               <UButton block color="primary" icon="i-lucide-door-open" @click="handleStartDeparture(schedule.id)">
-                {{ schedule.scheduledFor === 'LineHaul' ? 'Start Line-Haul Departure & Load Route' : 'Start Departure & Calculate Route' }}
+                {{
+                  schedule.scheduledFor === 'LineHaul'
+                    ? 'Start Line-Haul Departure & Load Route'
+                    : schedule.scheduledFor === 'Delivery'
+                      ? 'Start Delivery Departure & Calculate Route'
+                      : 'Start Departure & Calculate Route'
+                }}
               </UButton>
             </div>
           </div>

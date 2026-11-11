@@ -10,7 +10,6 @@ import { generateEventDescription } from "../tracking-logs/logisticsEventDiction
 import { manifests } from "./paths.js";
 
 export default async function manifestRoutes(fastify: FastifyInstance) {
-  // TODO: Middleware to check and get the Manager Data to get its assigned facility
   fastify.get(manifests.index, { preHandler: [userAuth] }, async (req, rep) => {
     const manager = (req as any).user
     console.log(manager)

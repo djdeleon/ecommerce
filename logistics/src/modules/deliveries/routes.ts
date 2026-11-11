@@ -10,32 +10,44 @@ import { generateEventDescription } from "../tracking-logs/logisticsEventDiction
 import { deliveries } from "./paths.js";
 
 export default async function deliveryRoutes(fastify: FastifyInstance) {
-  // TODO: Middleware to check and get the Manager Data to get its assigned facility
   fastify.get(deliveries.index, { preHandler: [userAuth] }, async (req, rep) => {
     const manager = (req as any).user
+    console.log(manager)
 
-    const facility = await fastify.prisma.facility.findUniqueOrThrow({
-      where: { id: manager.assignedFacilityId },
-      include: { sectors: true }
-    })
+    const facilityId = manager.assignedFacilityId;
 
-    const sectorIds = facility.sectors.map(s => s.id);
-    const sectorAggregates = await fastify.prisma.parcel.groupBy({
-      by: ['originSectorId'],
-      where: {
-        status: ShipmentStatus.ArrivedAtDestinationHub,
-        currentFacilityId: manager.assignedFacilityId,
-        originSectorId: { in: sectorIds },
-      },
-      _count: {
-        id: true,
-      },
-      _sum: {
-        weightGrams: true,
-        calculatedCbm: true,
-        declaredValue: true,
-      },
-    });
+    const [facilityRaw]: any[] = await fastify.prisma.$queryRaw`
+      SELECT id, name, code, address, type, parent_id AS "parentId", ST_AsGeoJSON(location)::json AS location
+      FROM facilities WHERE id = ${facilityId}
+    `;
+
+    const sectorsRaw: any[] = await fastify.prisma.$queryRaw`
+      SELECT id, code, local_branch_id AS "localBranchId", ST_AsGeoJSON(zone)::json AS zone
+      FROM sectors WHERE local_branch_id = ${facilityId}
+    `;
+
+    const facility = { ...facilityRaw, sectors: sectorsRaw };
+    console.log(facility)
+
+    const sectorIds = sectorsRaw.map(s => s.id);
+    console.log(sectorIds)
+
+    const sectorAggregates: any[] = await fastify.prisma.$queryRaw`
+      SELECT 
+        "destination_sector_id" AS "destinationSectorId",
+        COUNT(id)::int AS "totalCount",
+        SUM(weight_grams)::int AS "totalWeightGrams",
+        SUM(calculated_cbm)::float AS "totalCbm",
+        SUM(declared_value)::float AS "totalDeclaredValue",
+        array_agg(id) AS "parcelIds" 
+      FROM parcels
+      WHERE status = 'arrived_at_destination_hub'::shipment_status
+        AND current_facility_id = ${facilityId}
+        AND destination_sector_id = ANY(${sectorIds})
+        AND delivery_id IS NULL
+      GROUP BY "destination_sector_id"
+    `;
+    console.log({ sectorAggregates })
 
     const physicalVehicles = await fastify.prisma.physicalVehicle.findMany({
       where: {
@@ -44,12 +56,14 @@ export default async function deliveryRoutes(fastify: FastifyInstance) {
       },
       include: { vehicleProfile: true }
     });
+    console.log({ physicalVehicles })
 
     const assignedVehicleIds = new Set<number>();
+    console.log({ assignedVehicleIds })
 
     const deliveriesBySector = sectorAggregates.map(sectorAgg => {
-      const sectorWeight = sectorAgg._sum.weightGrams ?? 0;
-      const sectorVolume = sectorAgg._sum.calculatedCbm ?? 0;
+      const sectorWeight = sectorAgg.totalWeightGrams ?? 0;
+      const sectorVolume = sectorAgg.totalCbm ?? 0;
 
       const eligibleVehicles = physicalVehicles.filter(vehicle => {
         if (assignedVehicleIds.has(vehicle.id)) return false;
@@ -69,32 +83,66 @@ export default async function deliveryRoutes(fastify: FastifyInstance) {
         assignedVehicleIds.add(selectedVehicle.id); // Mark as used so next sector picks a different vehicle
       }
 
+      console.log({ sectorAgg })
+
       return {
-        originSectorId: sectorAgg.originSectorId,
-        totalCount: sectorAgg._count.id,
+        originSectorId: sectorAgg.destinationSectorId,
+        totalCount: sectorAgg.totalCount,
         totalWeightGrams: sectorWeight,
         totalCbm: Number(sectorVolume.toFixed(4)),
-        totalDeclaredValue: sectorAgg._sum.declaredValue,
+        totalDeclaredValue: sectorAgg.totalDeclaredValue,
+        parcelIds: sectorAgg.parcelIds,
         selectedVehicle,
       };
     });
+    console.log({ deliveriesBySector })
+
+    const pendingParcelsRaw: any[] = await fastify.prisma.$queryRaw`
+      SELECT 
+        p.id, 
+        p.tracking_number AS "trackingNumber", 
+        p.destination_sector_id AS "destinationSectorId",
+        p.status,
+        p.weight_grams AS "weightGrams",
+        p.calculated_cbm AS "calculatedCbm",
+        p.customer_name AS "customerName",
+        ST_AsGeoJSON(p.customer_location)::json AS "location" 
+      FROM parcels p
+      WHERE p.status = 'arrived_at_destination_hub'::shipment_status
+        AND p.current_facility_id = ${facilityId}
+        AND p.destination_sector_id = ANY(${sectorIds})
+        AND p.delivery_id IS NULL
+    `;
+
+    const pendingParcels = pendingParcelsRaw.map(p => ({
+      ...p,
+      location: p.location?.coordinates || null
+    }));
 
     return rep.status(200).send({
       message: 'Deliveries retrieved.',
-      data: deliveriesBySector
+      data: {
+        facility,
+        availableVehicles: physicalVehicles,
+        queue: deliveriesBySector,
+        pendingParcels
+      }
     })
   })
 
-  fastify.post<{ Body: CreateDeliveryBody }>(deliveries.store, { schema: CreateDeliverySchema }, async (req, rep) => {
+  fastify.post<{ Body: CreateDeliveryBody }>(deliveries.store, { schema: CreateDeliverySchema, preHandler: [userAuth] }, async (req, rep) => {
     const { sectorId, courierId, vehicleId, scheduledTime, parcelIds, currentWeightGrams, currentVolumeCbm } = req.body;
+    const manager = (req as any).user
+    const sanitizedCourierId = (courierId === 0 || !courierId) ? null : courierId;
 
     const result = await fastify.prisma.$transaction(async (tx) => {
       const courierSchedule = await tx.courierSchedule.create({
         data: {
-          courierId: courierId ?? null,
+          facilityId: manager.assignedFacilityId,
+          courierId: sanitizedCourierId,
           vehicleId,
           scheduledTime: new Date(scheduledTime),
-          scheduledFor: CourierScheduleType.Delivery
+          scheduledFor: CourierScheduleType.Delivery,
         },
       });
 

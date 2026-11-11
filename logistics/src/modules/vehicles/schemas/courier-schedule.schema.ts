@@ -10,7 +10,7 @@ export const CourierScheduleSchema = Type.Object({
   id: Type.Integer({ minimum: 1 }),
   courierId: Type.Optional(Type.Integer({ minimum: 1 })),
   vehicleId: Type.Integer({ minimum: 1 }),
-  networkLegId: Type.Integer({ minimum: 1 }),
+  networkLegId: Type.Optional(Type.Integer({ minimum: 1 })),
   scheduledFor: Type.Optional(CourierScheduleStatusEnum),
   scheduledTime: Type.String({ format: 'date-time' }),
   masterBagIds: Type.Optional(Type.Array(Type.Number())),
