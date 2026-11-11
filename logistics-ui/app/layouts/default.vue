@@ -82,9 +82,14 @@ function getItems(state: 'collapsed' | 'expanded') {
           state === 'expanded'
             ? [
               {
-                label: 'Overview',
-                icon: 'i-lucide-layout-dashboard',
-                to: '/manager/parcels/dashboard'
+                label: 'Manifests',
+                icon: 'i-lucide-file-text',
+                to: '/manager/parcels/manifests'
+              },
+              {
+                label: 'Deliveries',
+                icon: 'i-lucide-truck',
+                to: '/manager/parcels/deliveries'
               },
               {
                 label: 'Journey & Map',

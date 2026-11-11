@@ -478,6 +478,9 @@ CREATE UNIQUE INDEX "facility_schedules_facility_id_key" ON "facility_schedules"
 CREATE UNIQUE INDEX "master_bags_code_key" ON "master_bags"("code");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "deliveries_courier_schedule_id_key" ON "deliveries"("courier_schedule_id");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "deliveries_code_key" ON "deliveries"("code");
 
 -- CreateIndex

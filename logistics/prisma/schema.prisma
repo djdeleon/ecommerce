@@ -39,13 +39,13 @@ enum ShipmentStatus {
   PendingPickup           @map("pending_pickup")
   ReadyForPickup          @map("ready_for_pickup")
   PickedUp                @map("picked_up")
-  ArrivedAtOriginHub      @map("arrived_at_origin_hub") // Local Branch
+  ArrivedAtOriginHub      @map("arrived_at_origin_hub")      // Local Branch
 
   // Mid-Mile Lifecycle
   Sorting                 @map("sorting")
   Bagged                  @map("bagged")
-  DepartedFromHub         @map("departed_from_hub") // For Ancestors of Local Branch
-  ArrivedAtHub            @map("arrived_at_hub") // For Ancestors of Local Branch
+  DepartedFromHub         @map("departed_from_hub")          // For Ancestors of Local Branch
+  ArrivedAtHub            @map("arrived_at_hub")             // For Ancestors of Local Branch
   ArrivedAtDestinationHub @map("arrived_at_destination_hub") // Local Branch
 
   // Last-Mile Lifecycle
@@ -307,7 +307,7 @@ model CourierSchedule {
 
   manifest               Manifest?
   masterBags             MasterBag[]
-  deliveries             Delivery[]
+  delivery               Delivery?
 
   @@map("courier_schedules")
 }
@@ -399,13 +399,14 @@ model MasterBagLog {
   @@map("master_bag_logs")
 }
 
+// We can get rid of this and simply rely on the Manifest table alone and implement Manifest Inbound - Outbound Code
 model Delivery {
   id                     Int                  @id @default(autoincrement())
 
   sectorId               Int                  @map("sector_id")
   sector                 Sector               @relation(fields: [sectorId], references: [id], onDelete: Restrict)
 
-  courierScheduleId      Int                  @map("courier_schedule_id")
+  courierScheduleId      Int                  @unique @map("courier_schedule_id")
   courierSchedule        CourierSchedule      @relation(fields: [courierScheduleId], references: [id], onDelete: Restrict)
 
   code                   String               @unique

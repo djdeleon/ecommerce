@@ -145,7 +145,6 @@ function renderMapLayers() {
     paint: { 'line-color': '#10b981', 'line-width': 2 }
   })
 
-  // Draw Pulsing Parcel Markers (Sellers)
   pendingParcels.value.forEach(p => {
     if (!p.location) return
     const el = document.createElement('div')

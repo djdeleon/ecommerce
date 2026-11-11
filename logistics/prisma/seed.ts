@@ -9443,6 +9443,11 @@ async function seed() {
 
   await createTrackingLog(app, parcel.id, ShipmentStatus.ReadyForPickup)
 
+  await app.prisma.$executeRaw`
+    UPDATE parcels 
+    SET customer_location = ST_GeomFromGeoJSON(${customerLocation})
+    WHERE id = ${parcel.id}
+  `
 
   const sellerWarehouseB = JSON.stringify({
     type: "Point",
@@ -9470,9 +9475,54 @@ async function seed() {
       RETURNING *;
     `
 
+  const customerLocationB = JSON.stringify({
+    type: "Point",
+    coordinates: [ // Barangay Malanday
+      121.0938207,
+      14.6501732
+    ]
+  })
+  const customerLocationC = JSON.stringify({
+    type: "Point",
+    coordinates: [ // Barangay Concepcion Uno
+      121.1041222,
+      14.6510041
+    ]
+  })
+  const customerLocationD = JSON.stringify({
+    type: "Point",
+    coordinates: [ // Barangay Parang
+      121.1117207,
+      14.6587468
+    ]
+  })
+  const customerLocationE = JSON.stringify({
+    type: "Point",
+    coordinates: [ // Barangay Fortune
+      121.1274664,
+      14.6633175
+    ]
+  })
+  const customerLocationF = JSON.stringify({
+    type: "Point",
+    coordinates: [ // Barangay Marikina Heights (Concepcion)
+      121.1172114,
+      14.6501737
+    ]
+  })
+  const customerLocationG = JSON.stringify({
+    type: "Point",
+    coordinates: [ // Barangay Concepcion Dos
+      121.1207537,
+      14.6407395
+    ]
+  })
+  const customerNearbySectorB = marFacility.sectors[1]
+
+  // Malanday
   const parcelB = await createParcel(app, {
     originSectorId: sellerWarehouseNearbySectorB.id,
-    destinationSectorId: customerNearbySector.id,
+    destinationSectorId: customerNearbySectorB.id,
     originFacilityId: parFacility.id,      // Origin is Parañaque DC
     currentFacilityId: null,               // Currently sitting at the Seller's Warehouse
     destinationFacilityId: marFacility.id, // Destination is Marikina Branch
@@ -9485,11 +9535,120 @@ async function seed() {
     customerAddress: "Marikina City",
   })
   await createTrackingLog(app, parcelB.id, ShipmentStatus.ReadyForPickup)
-
   await app.prisma.$executeRaw`
     UPDATE parcels 
-    SET customer_location = ST_GeomFromGeoJSON(${customerLocation})
-    WHERE id = ${parcel.id}
+    SET customer_location = ST_GeomFromGeoJSON(${customerLocationB})
+    WHERE id = ${parcelB.id}
+  `
+
+  // Concepcion Uno
+  const parcelC = await createParcel(app, {
+    originSectorId: sellerWarehouseNearbySectorB.id,
+    destinationSectorId: customerNearbySectorB.id,
+    originFacilityId: parFacility.id,      // Origin is Parañaque DC
+    currentFacilityId: null,               // Currently sitting at the Seller's Warehouse
+    destinationFacilityId: marFacility.id, // Destination is Marikina Branch
+    storeId: storeB.id,
+    status: ShipmentStatus.ReadyForPickup,
+    weightGrams: 1500,
+    routingPipelineCache: `${parFacility.code} > ${mnlFacility.code} > ${marFacility.code} > ${sellerWarehouseNearbySector.code}`,
+    customerName: "Doe John",
+    customerPhone: "09123456789",
+    customerAddress: "Marikina City",
+  })
+  await createTrackingLog(app, parcelC.id, ShipmentStatus.ReadyForPickup)
+  await app.prisma.$executeRaw`
+    UPDATE parcels 
+    SET customer_location = ST_GeomFromGeoJSON(${customerLocationC})
+    WHERE id = ${parcelC.id}
+  `
+
+  // Parang
+  const parcelD = await createParcel(app, {
+    originSectorId: sellerWarehouseNearbySectorB.id,
+    destinationSectorId: customerNearbySectorB.id,
+    originFacilityId: parFacility.id,      // Origin is Parañaque DC
+    currentFacilityId: null,               // Currently sitting at the Seller's Warehouse
+    destinationFacilityId: marFacility.id, // Destination is Marikina Branch
+    storeId: storeB.id,
+    status: ShipmentStatus.ReadyForPickup,
+    weightGrams: 1500,
+    routingPipelineCache: `${parFacility.code} > ${mnlFacility.code} > ${marFacility.code} > ${sellerWarehouseNearbySector.code}`,
+    customerName: "Doe John",
+    customerPhone: "09123456789",
+    customerAddress: "Marikina City",
+  })
+  await createTrackingLog(app, parcelD.id, ShipmentStatus.ReadyForPickup)
+  await app.prisma.$executeRaw`
+    UPDATE parcels 
+    SET customer_location = ST_GeomFromGeoJSON(${customerLocationD})
+    WHERE id = ${parcelD.id}
+  `
+
+  // Fortune
+  const parcelE = await createParcel(app, {
+    originSectorId: sellerWarehouseNearbySectorB.id,
+    destinationSectorId: customerNearbySectorB.id,
+    originFacilityId: parFacility.id,      // Origin is Parañaque DC
+    currentFacilityId: null,               // Currently sitting at the Seller's Warehouse
+    destinationFacilityId: marFacility.id, // Destination is Marikina Branch
+    storeId: storeB.id,
+    status: ShipmentStatus.ReadyForPickup,
+    weightGrams: 1500,
+    routingPipelineCache: `${parFacility.code} > ${mnlFacility.code} > ${marFacility.code} > ${sellerWarehouseNearbySector.code}`,
+    customerName: "Doe John",
+    customerPhone: "09123456789",
+    customerAddress: "Marikina City",
+  })
+  await createTrackingLog(app, parcelE.id, ShipmentStatus.ReadyForPickup)
+  await app.prisma.$executeRaw`
+    UPDATE parcels 
+    SET customer_location = ST_GeomFromGeoJSON(${customerLocationE})
+    WHERE id = ${parcelE.id}
+  `
+
+  // Marikina Heights (Concepcion)
+  const parcelF = await createParcel(app, {
+    originSectorId: sellerWarehouseNearbySectorB.id,
+    destinationSectorId: customerNearbySectorB.id,
+    originFacilityId: parFacility.id,      // Origin is Parañaque DC
+    currentFacilityId: null,               // Currently sitting at the Seller's Warehouse
+    destinationFacilityId: marFacility.id, // Destination is Marikina Branch
+    storeId: storeB.id,
+    status: ShipmentStatus.ReadyForPickup,
+    weightGrams: 1500,
+    routingPipelineCache: `${parFacility.code} > ${mnlFacility.code} > ${marFacility.code} > ${sellerWarehouseNearbySector.code}`,
+    customerName: "Doe John",
+    customerPhone: "09123456789",
+    customerAddress: "Marikina City",
+  })
+  await createTrackingLog(app, parcelF.id, ShipmentStatus.ReadyForPickup)
+  await app.prisma.$executeRaw`
+    UPDATE parcels 
+    SET customer_location = ST_GeomFromGeoJSON(${customerLocationF})
+    WHERE id = ${parcelF.id}
+  `
+
+  // Concepcion Dos
+  const parcelG = await createParcel(app, {
+    originSectorId: sellerWarehouseNearbySectorB.id,
+    destinationSectorId: customerNearbySectorB.id,
+    originFacilityId: parFacility.id,      // Origin is Parañaque DC
+    currentFacilityId: null,               // Currently sitting at the Seller's Warehouse
+    destinationFacilityId: marFacility.id, // Destination is Marikina Branch
+    storeId: storeB.id,
+    status: ShipmentStatus.ReadyForPickup,
+    weightGrams: 1500,
+    routingPipelineCache: `${parFacility.code} > ${mnlFacility.code} > ${marFacility.code} > ${sellerWarehouseNearbySector.code}`,
+    customerName: "Doe John",
+    customerPhone: "09123456789",
+    customerAddress: "Marikina City",
+  })
+  await createTrackingLog(app, parcelG.id, ShipmentStatus.ReadyForPickup)
+  await app.prisma.$executeRaw`
+    UPDATE parcels 
+    SET customer_location = ST_GeomFromGeoJSON(${customerLocationG})
+    WHERE id = ${parcelG.id}
   `
 
   await app.prisma.parcelFacilityPipeline.createMany({

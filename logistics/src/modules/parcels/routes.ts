@@ -569,6 +569,35 @@ export default async function parcelRoutes(fastify: FastifyInstance) {
     })
   })
 
+  fastify.patch(parcels.outForDelivery.url, async (req, rep) => {
+    const { trackingNumber } = req.params as { trackingNumber: string; }
+    const parcel = await fastify.prisma.parcel.findUniqueOrThrow({
+      where: { trackingNumber }
+    })
+
+    const updatedParcel = await fastify.prisma.$transaction(async (tx) => {
+      const updatedParcel = await tx.parcel.update({
+        where: { trackingNumber },
+        data: { status: ShipmentStatus.OutForDelivery }
+      })
+
+      await tx.trackingLog.create({
+        data: {
+          parcelId: parcel.id,
+          status: ShipmentStatus.OutForDelivery,
+          description: generateEventDescription({ status: ShipmentStatus.OutForDelivery })
+        }
+      })
+
+      return updatedParcel
+    })
+
+    return rep.status(200).send({
+      message: 'Parcel is successfully marked as out for delivery.',
+      data: updatedParcel
+    })
+  })
+
   fastify.patch(parcels.bagged.url, async (req, rep) => {
     const { trackingNumber } = req.params as { trackingNumber: string; }
     const parcel = await fastify.prisma.parcel.findUniqueOrThrow({
