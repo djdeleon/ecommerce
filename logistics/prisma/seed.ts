@@ -267,7 +267,6 @@ async function seed() {
   (globalThis as any).app = app;
   // 1. Leaf / Dependent child tables (no other tables depend on them)
   await app.prisma.trackingLog.deleteMany();
-  await app.prisma.dispatchLog.deleteMany();
   await app.prisma.delivery.deleteMany();
   await app.prisma.manifest.deleteMany();
 
@@ -277,7 +276,7 @@ async function seed() {
 
   // 3. Operational batching and schedules (depend on courier, vehicles, network legs, facilities)
   await app.prisma.sortationBatch.deleteMany();
-  await app.prisma.courierSchedule.deleteMany();
+  await app.prisma.fleetTransport.deleteMany();
 
   // 4. Vehicles & Network Legs (depend on vehicle profiles and facilities)
   await app.prisma.physicalVehicle.deleteMany();

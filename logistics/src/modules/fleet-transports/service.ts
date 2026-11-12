@@ -1,35 +1,35 @@
 import { FastifyInstance } from "fastify";
-import { UpdateCourierScheduleBody } from "../schemas/courier-schedule.schema.js";
+import { UpdateBody } from "./schema.js";
 import parseId from "#commons/utils/id-parser.js";
 
-export async function createCourierSchedule(fastify: FastifyInstance, data: any) {
+export async function create(fastify: FastifyInstance, data: any) {
   const { masterBagIds, ...scheduleData } = data;
 
   return await fastify.prisma.$transaction(async (tx) => {
-    const courierSchedule = await tx.courierSchedule.create({
+    const fleetTransport = await tx.fleetTransport.create({
       data: scheduleData,
     })
 
     if (masterBagIds && masterBagIds.length > 0) {
       await tx.masterBag.updateMany({
         where: { id: { in: masterBagIds } },
-        data: { courierScheduleId: courierSchedule.id }
+        data: { courierScheduleId: fleetTransport.id }
       })
     }
 
-    return courierSchedule;
+    return fleetTransport;
   })
 }
 
-export async function updateCourierSchedule(
+export async function update(
   fastify: FastifyInstance,
   idParam: string,
-  data: UpdateCourierScheduleBody
+  data: UpdateBody
 ) {
   const id = parseId(idParam)
   const { courierId, vehicleId, networkLegId, scheduledTime } = data
 
-  return await fastify.prisma.courierSchedule.update({
+  return await fastify.prisma.fleetTransport.update({
     where: { id },
     data: {
       ...(courierId !== undefined && { courierId: courierId ?? null }),
@@ -40,13 +40,13 @@ export async function updateCourierSchedule(
   })
 }
 
-export async function deleteCourierSchedule(
+export async function destroy(
   fastify: FastifyInstance,
   idParam: string
 ) {
   const id = parseId(idParam)
 
-  return await fastify.prisma.courierSchedule.delete({
+  return await fastify.prisma.fleetTransport.delete({
     where: { id },
   })
 }
