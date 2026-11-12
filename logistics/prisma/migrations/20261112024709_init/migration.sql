@@ -150,22 +150,12 @@ CREATE TABLE "courier_schedules" (
     "scheduledFor" "CourierScheduleType" NOT NULL DEFAULT 'accumulation',
     "scheduled_time" TIMESTAMP(3) NOT NULL,
     "route" JSONB,
+    "dispatched_at" TIMESTAMP(3),
+    "arrived_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "courier_schedules_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "dispatch_logs" (
-    "id" SERIAL NOT NULL,
-    "assigned_courier_id" INTEGER NOT NULL,
-    "origin_facility_id" INTEGER,
-    "dispatched_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "arrived_at" TIMESTAMP(3),
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "dispatch_logs_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -563,12 +553,6 @@ ALTER TABLE "courier_schedules" ADD CONSTRAINT "courier_schedules_vehicle_id_fke
 
 -- AddForeignKey
 ALTER TABLE "courier_schedules" ADD CONSTRAINT "courier_schedules_network_leg_id_fkey" FOREIGN KEY ("network_leg_id") REFERENCES "network_legs"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "dispatch_logs" ADD CONSTRAINT "dispatch_logs_assigned_courier_id_fkey" FOREIGN KEY ("assigned_courier_id") REFERENCES "couriers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "dispatch_logs" ADD CONSTRAINT "dispatch_logs_origin_facility_id_fkey" FOREIGN KEY ("origin_facility_id") REFERENCES "facilities"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "sortation_batches" ADD CONSTRAINT "sortation_batches_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
