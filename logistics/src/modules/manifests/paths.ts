@@ -1,7 +1,7 @@
 import { compilePath } from "#commons/utils/path-compiler.js";
 
 const createPath = (path: string) => {
-  const fn = (id: string | number) => compilePath(path, { manifestCode: id });
+  const fn = (code: string | number) => compilePath(path, { code });
   fn.url = path;
   return fn;
 }
@@ -9,7 +9,7 @@ const createPath = (path: string) => {
 export const manifests = {
   index: '/manifests',
   store: '/manifests',
-  dispatch: createPath('/manifests/:manifestCode/dispatch'),
-  complete: createPath('/manifests/:manifestCode/complete'),
-  arrive: createPath('/manifests/:manifestCode/arrive'),
+  dispatch: createPath('/manifests/:code/dispatch'),
+  complete: createPath('/manifests/:code/complete'),
+  arrive: createPath('/manifests/:code/arrive'),
 } as const;

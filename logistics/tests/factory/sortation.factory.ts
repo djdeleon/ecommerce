@@ -1,7 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { SortationBatchStatus, MasterBagStatus } from "@prisma/client";
 import { createFacility } from "./facility.factory.js";
-import { createCourierSchedule } from "./vehicles.factory.js";
+import { createFleetTransport } from "./vehicles.factory.js";
 import { generateBatchCode } from "../../src/modules/sortation/services/sorting-batch.service.js";
 import { generateMasterBagCode } from "../../src/modules/sortation/services/master-bag.service.js";
 
@@ -75,7 +75,7 @@ export async function createMasterBag(
 
   let courierScheduleId = overrides?.courierScheduleId;
   if (!courierScheduleId) {
-    const schedule = await createCourierSchedule(fastify);
+    const schedule = await createFleetTransport(fastify);
     courierScheduleId = schedule.id;
   }
 

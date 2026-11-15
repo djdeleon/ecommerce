@@ -11,7 +11,7 @@ describe('Tracking Number Domain', () => {
   })
 
   test('a pool of tracking numbers can be allocated to a designated client', async () => {
-    const client = await createClient()
+    const client = await createClient(app)
 
     const response = await app.inject({
       method: 'POST',

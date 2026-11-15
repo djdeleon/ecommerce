@@ -3,8 +3,6 @@ import { StoreBody, StoreSchema } from "./schema.js";
 import { createParcel } from "./service.js";
 import { Parcel, ShipmentStatus } from "@prisma/client";
 import { createTrackingLog } from "../tracking-logs/service.js";
-import parcelAuth from "#commons/middlewares/client-auth.js";
-import { activateTrackingNumber } from "../tracking-numbers/service.js";
 import JsBarcode from "jsbarcode";
 import { DOMImplementation, XMLSerializer } from "@xmldom/xmldom";
 import { generateEventDescription } from "../tracking-logs/logisticsEventDictionary.js";

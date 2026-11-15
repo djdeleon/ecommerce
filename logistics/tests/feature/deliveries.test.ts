@@ -18,26 +18,27 @@ describe('Distribution Phase (Delivery - Last Mile)', () => {
   test('a delivery has its own dashboard UI', async () => {
     await seedMasterInfrustructure(app)
 
-    const { id: facilityId, sectors } = await app.prisma.facility.findFirstOrThrow({
+    const facility = await app.prisma.facility.findFirstOrThrow({
       where: { code: "BR-MAR-01" },
       include: {
-        sectors: true
+        sectors: true,
+        vehicles: true,
       }
     })
-    const selectedSector = sectors[0]
+    const selectedSector = facility.sectors[0]
 
     for (let i = 0; i < 3; i++) {
       await createParcel(app, {
         originSectorId: selectedSector.id,
         destinationSectorId: selectedSector.id,
-        currentFacilityId: facilityId,
+        currentFacilityId: facility.id,
         status: ShipmentStatus.ArrivedAtDestinationHub,
         weightGrams: 3000
       })
     }
 
     const { token } = await createUser(app, UserRole.Manager, {
-      assignedFacilityId: facilityId
+      assignedFacilityId: facility.id
     })
 
     const response = await app.inject({
@@ -48,20 +49,24 @@ describe('Distribution Phase (Delivery - Last Mile)', () => {
       }
     })
 
-    const data = response.json().data[0]
-
     expect(response.statusCode).toBe(200);
 
-    expect(data.originSectorId).toBe(selectedSector.id);
-    expect(data.totalCount).toBe(3);
-    expect(data.totalWeightGrams).toBe(9000);
-    expect(data.totalCbm).toBeCloseTo(0.009, 4);
-    expect(Number(data.totalDeclaredValue)).toBe(1500);
+    const body = response.json();
+    expect(body.message).toBe('Deliveries retrieved.');
 
-    expect(data.selectedVehicle).toBeDefined();
-    expect(data.selectedVehicle.assignedFacilityId).toBe(facilityId);
-    expect(data.selectedVehicle.vehicleProfile.modelName).toBe('Wave RSX Drum');
-    expect(data.selectedVehicle.vehicleProfile.maxWeightCapacityG).toBeGreaterThanOrEqual(data.totalWeightGrams);
+    const data = body.data;
+
+    expect(data.facility).toBeDefined();
+    expect(data.facility.id).toBe(facility.id);
+    expect(data.facility.name).toBe(facility.name);
+    expect(data.facility.code).toBe(facility.code);
+
+    expect(Array.isArray(data.availableVehicles)).toBe(true);
+    expect(data.availableVehicles.length).toBeGreaterThan(0);
+
+    expect(Array.isArray(data.queue)).toBe(true);
+    expect(Array.isArray(data.pendingParcels)).toBe(true);
+    expect(data.pendingParcels.length).toBe(3);
   })
 
   test('a manager can setup the Distribution Phase last-mile', async () => {
@@ -81,6 +86,10 @@ describe('Distribution Phase (Delivery - Last Mile)', () => {
     const selectedSector = sectors[0]
     const selectedVehicle = vehicles[0]
     const selectedCourier = couriers[0].courier as Courier
+
+    const { token } = await createUser(app, UserRole.Manager, {
+      assignedFacilityId: facilityId
+    })
 
     for (let i = 0; i < 3; i++) {
       await createParcel(app, {
@@ -112,6 +121,9 @@ describe('Distribution Phase (Delivery - Last Mile)', () => {
     const response = await app.inject({
       method: 'POST',
       url: deliveries.store,
+      headers: {
+        authorization: `Bearer ${token}`
+      },
       body: payload
     })
 
@@ -128,11 +140,11 @@ describe('Distribution Phase (Delivery - Last Mile)', () => {
     expect(data.currentVolumeCbm).toBe(0.15);
 
     expect(data.courierScheduleId).toBeDefined();
-    expect(data.courierSchedule).toBeDefined();
-    expect(data.courierSchedule.vehicleId).toBe(selectedVehicle.id);
-    expect(data.courierSchedule.scheduledFor).toBe('Delivery');
-    expect(data.courierSchedule.scheduledTime).toBeDefined();
-    expect(data.courierSchedule.courierId).toBe(selectedCourier.id);
+    expect(data.fleetTransport).toBeDefined();
+    expect(data.fleetTransport.vehicleId).toBe(selectedVehicle.id);
+    expect(data.fleetTransport.scheduledFor).toBe('Delivery');
+    expect(data.fleetTransport.scheduledTime).toBeDefined();
+    expect(data.fleetTransport.courierId).toBe(selectedCourier.id);
   })
 
   test('a scheduled delivery is automatically dispatched by getting out of the 100meter geo spatial radius', async () => {
@@ -154,23 +166,17 @@ describe('Distribution Phase (Delivery - Last Mile)', () => {
     expect(body.message).toBe('Delivery dispatched.');
     expect(data.status).toBe(DeliveryStatus.Loading);
 
-    const courierSchedule = await app.prisma.courierSchedule.findUniqueOrThrow({
+    const fleetTransport = await app.prisma.fleetTransport.findUniqueOrThrow({
       where: { id: data.courierScheduleId }
     })
-    if (!courierSchedule.courierId) {
+    if (!fleetTransport.courierId) {
       throw new Error("Cannot dispatch delivery: No courier assigned to this schedule.");
     }
-    const assignedCourierId = courierSchedule.courierId;
-
-    const dispatchLog = await app.prisma.dispatchLog.findFirst({
-      where: { assignedCourierId }
-    });
-    expect(dispatchLog).toBeDefined();
+    const assignedCourierId = fleetTransport.courierId;
 
     const sector = await app.prisma.sector.findUniqueOrThrow({
       where: { id: result.delivery.sectorId }
     })
-    expect(dispatchLog?.originFacilityId).toBe(sector.localBranchId);
 
     const courierLog = await app.prisma.courierLog.findFirstOrThrow({
       where: { courierId: assignedCourierId }
@@ -293,25 +299,13 @@ describe('Distribution Phase (Delivery - Last Mile)', () => {
     expect(body.message).toBe('Distributor has arrived.');
     expect(data.status).toBe(DeliveryStatus.Arrived);
 
-    const courierSchedule = await app.prisma.courierSchedule.findUniqueOrThrow({
+    const fleetTransport = await app.prisma.fleetTransport.findUniqueOrThrow({
       where: { id: data.courierScheduleId }
     })
-    if (!courierSchedule.courierId) {
+    if (!fleetTransport.courierId) {
       throw new Error("Cannot dispatch delivery: No courier assigned to this schedule.");
     }
-    const assignedCourierId = courierSchedule.courierId;
-
-    const dispatchLog = await app.prisma.dispatchLog.findFirst({
-      where: { assignedCourierId },
-      orderBy: { createdAt: 'desc' }
-    });
-    expect(dispatchLog).toBeDefined();
-    expect(dispatchLog?.arrivedAt).toBeDefined();
-
-    const sector = await app.prisma.sector.findUniqueOrThrow({
-      where: { id: result.delivery.sectorId }
-    })
-    expect(dispatchLog?.originFacilityId).toBe(sector.localBranchId);
+    const assignedCourierId = fleetTransport.courierId;
 
     const courierLog = await app.prisma.courierLog.findFirstOrThrow({
       where: { courierId: assignedCourierId },

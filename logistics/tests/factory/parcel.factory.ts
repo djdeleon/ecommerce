@@ -90,7 +90,7 @@ export async function createParcel(fastify: FastifyInstance, overrides = {}) {
     },
   });
 
-  await createTrackingLog(fastify, parcel.id, ShipmentStatus.PendingPickup)
+  await createTrackingLog(fastify, parcel.id, parcel.status)
 
   await fastify.prisma.$executeRaw`
     UPDATE parcels

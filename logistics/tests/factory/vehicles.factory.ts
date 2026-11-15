@@ -52,7 +52,7 @@ export async function createPhysicalVehicle(
   })
 }
 
-export async function createCourierSchedule(
+export async function createFleetTransport(
   fastify: FastifyInstance,
   overrides?: Record<string, any>
 ) {
@@ -68,10 +68,17 @@ export async function createCourierSchedule(
     networkLegId = networkLeg.id;
   }
 
+  let facilityId = overrides?.facilityId;
+  if (facilityId === undefined) {
+    const facility = await createFacility(fastify);
+    facilityId = facility.id;
+  }
+
   const courierId = overrides?.courierId ?? null;
 
-  return await fastify.prisma.courierSchedule.create({
+  return await fastify.prisma.fleetTransport.create({
     data: {
+      facilityId,
       vehicleId,
       networkLegId: networkLegId ?? null,
       courierId,

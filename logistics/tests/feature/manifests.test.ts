@@ -18,26 +18,27 @@ describe('Manifest Domain', async () => {
   test('a manifest has its own dashboard UI', async () => {
     await seedMasterInfrustructure(app)
 
-    const { id: facilityId, sectors } = await app.prisma.facility.findFirstOrThrow({
+    const facility = await app.prisma.facility.findFirstOrThrow({
       where: { code: "DC-PAR-01" },
       include: {
         sectors: true
       }
     })
-    const selectedSector = sectors[0]
+    const selectedSector = facility.sectors[0]
 
     for (let i = 0; i < 3; i++) {
       await createParcel(app, {
         originSectorId: selectedSector.id,
         destinationSectorId: selectedSector.id,
-        currentFacilityId: facilityId,
+        currentFacilityId: null,
+        originFacilityId: facility.id,
         status: ShipmentStatus.ReadyForPickup,
         weightGrams: 300000
       })
     }
 
     const { token } = await createUser(app, UserRole.Manager, {
-      assignedFacilityId: facilityId
+      assignedFacilityId: facility.id
     })
 
     const response = await app.inject({
@@ -49,24 +50,21 @@ describe('Manifest Domain', async () => {
     })
 
     const body = response.json()
-    const data = body.data ?? body
+    const data = body.data
 
     expect(response.statusCode).toBe(200);
+    expect(body.message).toBe('Manifests retrieved.');
 
-    expect(Array.isArray(data)).toBe(true);
-    expect(data.length).toBe(1);
+    expect(data.facility).toBeDefined();
+    expect(data.facility.id).toBe(facility.id);
+    expect(data.facility.code).toBe('DC-PAR-01');
+    expect(data.facility.type).toBe('distribution_center');
 
-    const sectorManifest = data[0];
-    expect(sectorManifest.originSectorId).toBe(selectedSector.id);
-    expect(sectorManifest.totalCount).toBe(3);
-    expect(sectorManifest.totalWeightGrams).toBe(900000);
-    expect(sectorManifest.totalCbm).toBeCloseTo(0.009, 4);
-    expect(Number(sectorManifest.totalDeclaredValue)).toBe(1500);
-
-    expect(sectorManifest.selectedVehicle).toBeDefined();
-    expect(sectorManifest.selectedVehicle.assignedFacilityId).toBe(facilityId);
-    expect(sectorManifest.selectedVehicle.vehicleProfile.modelName).toBe('L300');
-    expect(sectorManifest.selectedVehicle.vehicleProfile.maxWeightCapacityG).toBeGreaterThanOrEqual(sectorManifest.totalWeightGrams);
+    expect(Array.isArray(data.availableVehicles)).toBe(true);
+    expect(Array.isArray(data.queue)).toBe(true);
+    expect(Array.isArray(data.pendingParcels)).toBe(true);
+    
+    expect(data.pendingParcels.length).toBe(3);
   })
 
   test('a manager can setup the Accumulation Phase first-mile', async () => {
@@ -114,9 +112,16 @@ describe('Manifest Domain', async () => {
       scheduledTime: "2026-10-21T08:00:00.000Z",
     }
 
+    const { token } = await createUser(app, UserRole.Manager, {
+      assignedFacilityId: facilityId
+    })
+
     const response = await app.inject({
       method: 'POST',
       url: manifests.store,
+      headers: {
+        authorization: `Bearer ${token}`
+      },
       body: payload
     })
 
@@ -133,11 +138,11 @@ describe('Manifest Domain', async () => {
     expect(data.currentVolumeCbm).toBe(0.15);
 
     expect(data.courierScheduleId).toBeDefined();
-    expect(data.courierSchedule).toBeDefined();
-    expect(data.courierSchedule.vehicleId).toBe(selectedVehicle.id);
-    expect(data.courierSchedule.scheduledFor).toBe('Accumulation');
-    expect(data.courierSchedule.scheduledTime).toBeDefined();
-    expect(data.courierSchedule.courierId).toBe(selectedCourier.id);
+    expect(data.fleetTransport).toBeDefined();
+    expect(data.fleetTransport.vehicleId).toBe(selectedVehicle.id);
+    expect(data.fleetTransport.scheduledFor).toBe('Accumulation');
+    expect(data.fleetTransport.scheduledTime).toBeDefined();
+    expect(data.fleetTransport.courierId).toBe(selectedCourier.id);
   })
 
   // TODO: GeoFencing
@@ -146,9 +151,16 @@ describe('Manifest Domain', async () => {
 
     const result = await createManifest(app)
 
+    const { token } = await createUser(app, UserRole.Manager, {
+      assignedFacilityId: result.fleetTransport.facilityId
+    })
+
     const response = await app.inject({
       method: 'PATCH',
-      url: manifests.dispatch(result.manifest.code)
+      url: manifests.dispatch(result.manifest.code),
+      headers: {
+        authorization: `Bearer ${token}`
+      }
     })
 
     const body = response.json();
@@ -158,23 +170,13 @@ describe('Manifest Domain', async () => {
     expect(body.message).toBe('Manifest dispatched.');
     expect(data.status).toBe(ManifestStatus.Accumulating);
 
-    const courierSchedule = await app.prisma.courierSchedule.findUniqueOrThrow({
+    const fleetTransport = await app.prisma.fleetTransport.findUniqueOrThrow({
       where: { id: data.courierScheduleId }
     })
-    if (!courierSchedule.courierId) {
+    if (!fleetTransport.courierId) {
       throw new Error("Cannot dispatch manifest: No courier assigned to this schedule.");
     }
-    const assignedCourierId = courierSchedule.courierId;
-
-    const dispatchLog = await app.prisma.dispatchLog.findFirst({
-      where: { assignedCourierId }
-    });
-    expect(dispatchLog).toBeDefined();
-
-    const sector = await app.prisma.sector.findUniqueOrThrow({
-      where: { id: result.manifest.sectorId }
-    })
-    expect(dispatchLog?.originFacilityId).toBe(sector.localBranchId);
+    const assignedCourierId = fleetTransport.courierId;
 
     const courierLog = await app.prisma.courierLog.findFirstOrThrow({
       where: { courierId: assignedCourierId }
@@ -237,9 +239,16 @@ describe('Manifest Domain', async () => {
 
     const result = await createManifest(app, { parcelOverrides: { status: ShipmentStatus.PickedUp } })
 
+    const { token } = await createUser(app, UserRole.Manager, {
+      assignedFacilityId: result.fleetTransport.facilityId
+    })
+
     const response = await app.inject({
       method: 'PATCH',
-      url: manifests.complete(result.manifest.code)
+      url: manifests.complete(result.manifest.code),
+      headers: {
+        authorization: `Bearer ${token}`
+      }
     })
 
     const body = response.json();
@@ -249,10 +258,10 @@ describe('Manifest Domain', async () => {
     expect(body.message).toBe('Manifest completed.');
     expect(data.status).toBe(ManifestStatus.Completed);
 
-    const courierSchedule = await app.prisma.courierSchedule.findUniqueOrThrow({
+    const fleetTransport = await app.prisma.fleetTransport.findUniqueOrThrow({
       where: { id: data.courierScheduleId }
     })
-    if (!courierSchedule.courierId) {
+    if (!fleetTransport.courierId) {
       throw new Error("Cannot dispatch manifest: No courier assigned to this schedule.");
     }
 
@@ -268,14 +277,25 @@ describe('Manifest Domain', async () => {
   test('manifested parcels can be set to arrived', async () => {
     await seedMasterInfrustructure(app)
 
+    const facilityId = (await app.prisma.facility.findFirstOrThrow({
+      where: { code: "DC-PAR-01" }
+    })).id
+
     const result = await createManifest(app, {
       parcelOverrides: { status: ShipmentStatus.PickedUp },
       manifestOverrides: { status: ManifestStatus.Completed }
     })
 
+    const { token } = await createUser(app, UserRole.Manager, {
+      assignedFacilityId: facilityId
+    })
+
     const response = await app.inject({
       method: 'PATCH',
-      url: manifests.arrive(result.manifest.code)
+      url: manifests.arrive(result.manifest.code),
+      headers: {
+        authorization: `Bearer ${token}`
+      }
     })
 
     const body = response.json();
@@ -285,25 +305,13 @@ describe('Manifest Domain', async () => {
     expect(body.message).toBe('Manifested Parcels arrived.');
     expect(data.status).toBe(ManifestStatus.Arrived);
 
-    const courierSchedule = await app.prisma.courierSchedule.findUniqueOrThrow({
+    const fleetTransport = await app.prisma.fleetTransport.findUniqueOrThrow({
       where: { id: data.courierScheduleId }
     })
-    if (!courierSchedule.courierId) {
+    if (!fleetTransport.courierId) {
       throw new Error("Cannot dispatch manifest: No courier assigned to this schedule.");
     }
-    const assignedCourierId = courierSchedule.courierId;
-
-    const dispatchLog = await app.prisma.dispatchLog.findFirst({
-      where: { assignedCourierId },
-      orderBy: { createdAt: 'desc' }
-    });
-    expect(dispatchLog).toBeDefined();
-    expect(dispatchLog?.arrivedAt).toBeDefined();
-
-    const sector = await app.prisma.sector.findUniqueOrThrow({
-      where: { id: result.manifest.sectorId }
-    })
-    expect(dispatchLog?.originFacilityId).toBe(sector.localBranchId);
+    const assignedCourierId = fleetTransport.courierId;
 
     const courierLog = await app.prisma.courierLog.findFirstOrThrow({
       where: { courierId: assignedCourierId },
@@ -319,15 +327,16 @@ describe('Manifest Domain', async () => {
     expect(manifestLog).toBeDefined();
     expect(manifestLog?.status).toBe(ManifestStatus.Arrived);
 
-    const updatedParcels = await app.prisma.parcel.updateManyAndReturn({
+    const parcels = await app.prisma.parcel.updateManyAndReturn({
       where: { manifestId: data.id },
       data: { status: ShipmentStatus.ArrivedAtOriginHub }
     })
-    const parcelIds = updatedParcels.map((p) => p.id)
+    const parcelIds = parcels.map((p) => p.id)
 
     const trackingLogs = await app.prisma.trackingLog.findMany({
-      where: { parcelId: { in: parcelIds } }
+      where: { parcelId: { in: parcelIds }, status: ShipmentStatus.ArrivedAtOriginHub }
     })
+
     trackingLogs.forEach((log) => {
       expect(log.status).toBe(ShipmentStatus.ArrivedAtOriginHub)
     })

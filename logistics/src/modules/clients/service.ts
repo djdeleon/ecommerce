@@ -6,7 +6,7 @@ export async function dashboardData() {
   return await prisma.client.findMany()
 }
 
-export async function createClient(name: string) {
+export async function store(name: string) {
   const webhookUrl = 'http://reverse-proxy/api/v1/logistics/webhook'
   const apiKey = 'apk_' + crypto.randomBytes(16).toString('hex')
   const plainTextSecret = crypto.randomBytes(32).toString('hex')

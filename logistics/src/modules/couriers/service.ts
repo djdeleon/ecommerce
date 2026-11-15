@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
-import { createUser } from "../users/service.js";
+import { storeUser } from "../users/service.js";
 import { RegisterCourierData } from "./schema.js";
+import { UserRole } from "@prisma/client";
 
 export async function dashboardData(fastify: FastifyInstance) {
     const couriers = await fastify.prisma.courier.findMany();
@@ -12,7 +13,10 @@ export async function dashboardData(fastify: FastifyInstance) {
 }
 
 export async function registerCourier(fastify: FastifyInstance, data: RegisterCourierData) {
-  const { user, token } = await createUser(fastify, data)
+  const { user, token } = await storeUser(fastify, {
+    ...data,
+    role: UserRole.Courier
+  })
 
   const courier = await fastify.prisma.courier.create({
     data: {

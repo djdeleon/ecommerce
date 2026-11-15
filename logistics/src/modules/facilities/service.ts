@@ -1,10 +1,10 @@
-import { CourierScheduleType, CourierStatus, FacilityType, UserRole, VehicleStatus } from "@prisma/client";
+import { FleetTransportType, CourierStatus, FacilityType, UserRole, VehicleStatus, MasterBagStatus } from "@prisma/client";
 import { FastifyInstance } from "fastify";
 import { facilityTypeMap } from "./facilityTypeMap.js";
 import { CreateFacilityData } from "./schema.js";
 
 interface AssignCourierData {
-  facilityId: number;
+  id: number;
   userId: number;
 }
 
@@ -12,6 +12,13 @@ export function generateSortingCode(): string {
   const randomSuffix = Math.floor(Math.random() * 10000);
 
   return `JTE-${randomSuffix}`
+}
+
+export async function getFacilityCouriers(fastify: FastifyInstance, id: number) {
+  return await fastify.prisma.user.findMany({
+    where: { assignedFacilityId: id, role: UserRole.Courier },
+    include: { courier: true }
+  })
 }
 
 export async function createFacility(fastify: FastifyInstance, data: CreateFacilityData) {
@@ -47,17 +54,18 @@ export async function updateFacility(
   return fastify.prisma.$transaction(async (tx) => {
     await tx.user.update({
       where: { id: data.userId, role: UserRole.Courier },
-      data: { assignedFacilityId: data.facilityId }
+      data: { assignedFacilityId: data.id }
     })
 
     return await tx.facility.findUniqueOrThrow({
-      where: { id: data.facilityId },
+      where: { id: data.id },
       include: { users: true }
     })
   })
 }
 
-export async function getFacility(fastify: FastifyInstance, facilityId: number) {
+export async function getFacility(fastify: FastifyInstance, id: number) {
+  console.log({id})
   const facilityRaw: any[] = await fastify.prisma.$queryRaw`
     SELECT 
       id, 
@@ -70,7 +78,7 @@ export async function getFacility(fastify: FastifyInstance, facilityId: number) 
       created_at AS "createdAt",
       updated_at AS "updatedAt"
     FROM facilities
-    WHERE id = ${facilityId}
+    WHERE id = ${id}
   `;
 
   if (!facilityRaw || facilityRaw.length === 0) {
@@ -88,7 +96,7 @@ export async function getFacility(fastify: FastifyInstance, facilityId: number) 
       created_at AS "createdAt",
       updated_at AS "updatedAt"
     FROM sectors
-    WHERE local_branch_id = ${facilityId}
+    WHERE local_branch_id = ${id}
   `;
 
   const parcelsRaw: any[] = await fastify.prisma.$queryRaw`
@@ -112,11 +120,11 @@ export async function getFacility(fastify: FastifyInstance, facilityId: number) 
       ) AS store,
       -- 🧠 Added Contextual Logic for the Manager UI
       CASE 
-        WHEN p.current_facility_id = ${facilityId} THEN 'At Hub'
-        WHEN p.origin_facility_id = ${facilityId} AND p.status = 'ready_for_pickup' THEN 'Pending Pickup'
+        WHEN p.current_facility_id = ${id} THEN 'At Hub'
+        WHEN p.origin_facility_id = ${id} AND p.status = 'ready_for_pickup' THEN 'Pending Pickup'
         WHEN EXISTS (
           SELECT 1 FROM parcel_facility_pipelines pfp 
-          WHERE pfp.parcel_id = p.id AND pfp.facility_id = ${facilityId} AND pfp.status = 'incoming'
+          WHERE pfp.parcel_id = p.id AND pfp.facility_id = ${id} AND pfp.status = 'incoming'
         ) THEN 'Incoming'
         ELSE 'In Transit'
       END AS "contextualStatus",
@@ -125,11 +133,11 @@ export async function getFacility(fastify: FastifyInstance, facilityId: number) 
     FROM parcels p
     LEFT JOIN stores s ON p.store_id = s.id
     WHERE 
-      p.current_facility_id = ${facilityId} -- Physically here
-      OR (p.origin_facility_id = ${facilityId} AND p.status = 'ready_for_pickup') -- Waiting at seller for us
+      p.current_facility_id = ${id} -- Physically here
+      OR (p.origin_facility_id = ${id} AND p.status = 'ready_for_pickup') -- Waiting at seller for us
       OR EXISTS (
         SELECT 1 FROM parcel_facility_pipelines pfp 
-        WHERE pfp.parcel_id = p.id AND pfp.facility_id = ${facilityId} -- Part of our pipeline
+        WHERE pfp.parcel_id = p.id AND pfp.facility_id = ${id} -- Part of our pipeline
       )
     ORDER BY p.updated_at DESC
   `;
@@ -144,7 +152,7 @@ export async function getFacility(fastify: FastifyInstance, facilityId: number) 
       parent_id AS "parentId",
       ST_AsGeoJSON(location)::json AS location
     FROM facilities
-    WHERE parent_id = ${facilityId}
+    WHERE parent_id = ${id}
   `;
 
   const childrenWithSectors = await Promise.all(
@@ -205,25 +213,25 @@ export async function getFacility(fastify: FastifyInstance, facilityId: number) 
       ) AS courier
     FROM users u
     LEFT JOIN couriers c ON u.id = c.user_id
-    WHERE u.assigned_facility_id = ${facilityId}
+    WHERE u.assigned_facility_id = ${id}
     AND u.role = 'courier'::"UserRole"
   `;
 
   const vehicles = await fastify.prisma.physicalVehicle.findMany({
-    where: { assignedFacilityId: facilityId, status: VehicleStatus.Available },
+    where: { assignedFacilityId: id, status: VehicleStatus.Available },
     include: { vehicleProfile: true }
   });
 
   const sourceLegs = await fastify.prisma.networkLeg.findMany({
-    where: { sourceFacilityId: facilityId },
+    where: { sourceFacilityId: id },
     include: { destinationFacility: true }
   });
 
-  const courierScheduleTypes = Object.values(CourierScheduleType)
+  const fleetTransportTypes = Object.values(FleetTransportType)
 
   const masterBags = await fastify.prisma.masterBag.findMany({
     where: {
-      currentFacilityId: facilityId,
+      currentFacilityId: id,
       status: 'Sealed',
       courierScheduleId: null
     },
@@ -239,7 +247,7 @@ export async function getFacility(fastify: FastifyInstance, facilityId: number) 
     parent: parentFacility,
     vehicles,
     sourceLegs,
-    courierScheduleTypes,
+    fleetTransportTypes,
     masterBags,
   }
 }

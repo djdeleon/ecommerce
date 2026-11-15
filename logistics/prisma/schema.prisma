@@ -118,7 +118,7 @@ enum DeliveryStatus {
   Arrived      @map("arrived")
 }
 
-enum CourierScheduleType {
+enum FleetTransportType {
   Accumulation @map("accumulation")
   LineHaul     @map("line_haul")
   Delivery     @map("delivery")
@@ -296,7 +296,7 @@ model FleetTransport {
   networkLegId           Int?                 @map("network_leg_id")
   networkLeg             NetworkLeg?          @relation(fields: [networkLegId], references: [id], onDelete: Cascade)
 
-  scheduledFor           CourierScheduleType  @default(Accumulation)
+  scheduledFor           FleetTransportType  @default(Accumulation)
   scheduledTime          DateTime             @map("scheduled_time")
 
   route                  Json?
@@ -311,7 +311,7 @@ model FleetTransport {
   masterBags             MasterBag[]
   delivery               Delivery?
 
-  @@map("courier_schedules")
+  @@map("fleet_transports")
 }
 
 model SortationBatch {

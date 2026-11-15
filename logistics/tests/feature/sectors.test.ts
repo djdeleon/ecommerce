@@ -107,8 +107,6 @@ describe('Sector Domain', () => {
       include: { barangays: true }
     })
 
-    console.log(sector)
-
     expect(response.statusCode).toBe(201)
     expect(body.message).toBe('Sector created successfully.')
     expect(body.data).toMatchObject({

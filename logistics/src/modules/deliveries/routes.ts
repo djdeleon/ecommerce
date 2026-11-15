@@ -3,16 +3,15 @@ import {
   CreateDeliveryBody,
   CreateDeliverySchema,
 } from "./schema.js";
-import { CourierScheduleType, CourierStatus, DeliveryStatus, ShipmentStatus } from "@prisma/client";
+import { FleetTransportType, CourierStatus, DeliveryStatus, ShipmentStatus } from "@prisma/client";
 import { userAuth } from "#commons/middlewares/user-auth.js";
 import { generateDeliveryCode } from "./service.js";
 import { generateEventDescription } from "../tracking-logs/logisticsEventDictionary.js";
 import { deliveries } from "./paths.js";
 
-export default async function deliveryRoutes(fastify: FastifyInstance) {
+export default async function routes(fastify: FastifyInstance) {
   fastify.get(deliveries.index, { preHandler: [userAuth] }, async (req, rep) => {
     const manager = (req as any).user
-    console.log(manager)
 
     const facilityId = manager.assignedFacilityId;
 
@@ -27,10 +26,8 @@ export default async function deliveryRoutes(fastify: FastifyInstance) {
     `;
 
     const facility = { ...facilityRaw, sectors: sectorsRaw };
-    console.log(facility)
 
     const sectorIds = sectorsRaw.map(s => s.id);
-    console.log(sectorIds)
 
     const sectorAggregates: any[] = await fastify.prisma.$queryRaw`
       SELECT 
@@ -47,7 +44,6 @@ export default async function deliveryRoutes(fastify: FastifyInstance) {
         AND delivery_id IS NULL
       GROUP BY "destination_sector_id"
     `;
-    console.log({ sectorAggregates })
 
     const physicalVehicles = await fastify.prisma.physicalVehicle.findMany({
       where: {
@@ -56,10 +52,8 @@ export default async function deliveryRoutes(fastify: FastifyInstance) {
       },
       include: { vehicleProfile: true }
     });
-    console.log({ physicalVehicles })
 
     const assignedVehicleIds = new Set<number>();
-    console.log({ assignedVehicleIds })
 
     const deliveriesBySector = sectorAggregates.map(sectorAgg => {
       const sectorWeight = sectorAgg.totalWeightGrams ?? 0;
@@ -83,8 +77,6 @@ export default async function deliveryRoutes(fastify: FastifyInstance) {
         assignedVehicleIds.add(selectedVehicle.id); // Mark as used so next sector picks a different vehicle
       }
 
-      console.log({ sectorAgg })
-
       return {
         originSectorId: sectorAgg.destinationSectorId,
         totalCount: sectorAgg.totalCount,
@@ -95,7 +87,6 @@ export default async function deliveryRoutes(fastify: FastifyInstance) {
         selectedVehicle,
       };
     });
-    console.log({ deliveriesBySector })
 
     const pendingParcelsRaw: any[] = await fastify.prisma.$queryRaw`
       SELECT 
@@ -136,22 +127,22 @@ export default async function deliveryRoutes(fastify: FastifyInstance) {
     const sanitizedCourierId = (courierId === 0 || !courierId) ? null : courierId;
 
     const result = await fastify.prisma.$transaction(async (tx) => {
-      const courierSchedule = await tx.courierSchedule.create({
+      const fleetTransport = await tx.fleetTransport.create({
         data: {
           facilityId: manager.assignedFacilityId,
           courierId: sanitizedCourierId,
           vehicleId,
           scheduledTime: new Date(scheduledTime),
-          scheduledFor: CourierScheduleType.Delivery,
+          scheduledFor: FleetTransportType.Delivery,
         },
       });
 
-      const deliveryCode = await generateDeliveryCode(fastify);
+      const code = await generateDeliveryCode(fastify);
       const delivery = await tx.delivery.create({
         data: {
           sectorId,
-          courierScheduleId: courierSchedule.id,
-          code: deliveryCode,
+          courierScheduleId: fleetTransport.id,
+          code,
           currentWeightGrams,
           currentVolumeCbm,
         },
@@ -170,7 +161,7 @@ export default async function deliveryRoutes(fastify: FastifyInstance) {
 
       return {
         delivery,
-        courierSchedule,
+        fleetTransport,
         updatedParcels,
       };
     });
@@ -180,8 +171,8 @@ export default async function deliveryRoutes(fastify: FastifyInstance) {
       data: {
         deliveryId: result.delivery.id,
         code: result.delivery.code,
-        courierScheduleId: result.courierSchedule.id,
-        courierSchedule: result.courierSchedule,
+        courierScheduleId: result.fleetTransport.id,
+        fleetTransport: result.fleetTransport,
         totalParcels: result.updatedParcels.length,
         currentWeightGrams: result.delivery.currentWeightGrams,
         currentVolumeCbm: result.delivery.currentVolumeCbm,
@@ -190,20 +181,20 @@ export default async function deliveryRoutes(fastify: FastifyInstance) {
   })
 
   fastify.patch(deliveries.dispatch.url, async (req, rep) => {
-    const { deliveryCode } = req.params as { deliveryCode: string }
+    const { code } = req.params as { code: string }
 
     const delivery = await fastify.prisma.delivery.findUniqueOrThrow({
-      where: { code: deliveryCode },
+      where: { code },
       include: { parcels: true }
     });
 
-    const courierSchedule = await fastify.prisma.courierSchedule.findUniqueOrThrow({
+    const fleetTransport = await fastify.prisma.fleetTransport.findUniqueOrThrow({
       where: { id: delivery.courierScheduleId }
     })
-    if (!courierSchedule.courierId) {
+    if (!fleetTransport.courierId) {
       throw new Error("Cannot dispatch delivery: No courier assigned to this schedule.");
     }
-    const assignedCourierId = courierSchedule.courierId;
+    const assignedCourierId = fleetTransport.courierId;
     const courierName = (await fastify.prisma.courier.findUniqueOrThrow({
       where: { id: assignedCourierId },
       include: { user: true }
@@ -228,10 +219,10 @@ export default async function deliveryRoutes(fastify: FastifyInstance) {
         }
       })
 
-      await tx.dispatchLog.create({
+      await tx.fleetTransport.update({
+        where: { id: fleetTransport.id },
         data: {
-          assignedCourierId,
-          originFacilityId: sector.localBranchId
+          dispatchedAt: new Date(),
         }
       })
 
@@ -269,10 +260,10 @@ export default async function deliveryRoutes(fastify: FastifyInstance) {
   })
 
   fastify.patch(deliveries.completed.url, async (req, rep) => {
-    const { deliveryCode } = req.params as { deliveryCode: string }
+    const { code } = req.params as { code: string }
 
     const delivery = await fastify.prisma.delivery.findUniqueOrThrow({
-      where: { code: deliveryCode },
+      where: { code },
     })
     const totalParcels = await fastify.prisma.parcel.aggregate({
       where: { deliveryId: delivery.id },
@@ -289,7 +280,7 @@ export default async function deliveryRoutes(fastify: FastifyInstance) {
 
     const updatedDelivery = await fastify.prisma.$transaction(async (tx) => {
       const updatedDelivery = await fastify.prisma.delivery.update({
-        where: { code: deliveryCode },
+        where: { code },
         data: { status: DeliveryStatus.Completed }
       })
 
@@ -310,30 +301,26 @@ export default async function deliveryRoutes(fastify: FastifyInstance) {
   })
 
   fastify.patch(deliveries.arrived.url, async (req, rep) => {
-    const { deliveryCode } = req.params as { deliveryCode: string }
+    const { code } = req.params as { code: string }
 
     const delivery = await fastify.prisma.delivery.findUniqueOrThrow({
-      where: { code: deliveryCode },
+      where: { code },
     })
     if (delivery.status !== DeliveryStatus.Completed) {
       throw new Error(`Delivery cannot be set to arrive. Complete the parcel distribution first.`)
     }
 
-    const courierSchedule = await fastify.prisma.courierSchedule.findUniqueOrThrow({
+    const fleetTransport = await fastify.prisma.fleetTransport.findUniqueOrThrow({
       where: { id: delivery.courierScheduleId }
     })
-    if (!courierSchedule.courierId) {
+    if (!fleetTransport.courierId) {
       throw new Error("Cannot dispatch delivery: No courier assigned to this schedule.");
     }
-    const assignedCourierId = courierSchedule.courierId;
-
-    const sector = await fastify.prisma.sector.findUniqueOrThrow({
-      where: { id: delivery.sectorId }
-    })
-
+    const assignedCourierId = fleetTransport.courierId;
+    
     const updatedDelivery = await fastify.prisma.$transaction(async (tx) => {
       const updatedDelivery = await fastify.prisma.delivery.update({
-        where: { code: deliveryCode },
+        where: { code },
         data: { status: DeliveryStatus.Arrived }
       })
 
@@ -344,10 +331,9 @@ export default async function deliveryRoutes(fastify: FastifyInstance) {
         }
       })
 
-      await tx.dispatchLog.create({
+      await tx.fleetTransport.update({
+        where: { id: fleetTransport.id },
         data: {
-          assignedCourierId,
-          originFacilityId: sector.localBranchId,
           arrivedAt: new Date(),
         }
       })
