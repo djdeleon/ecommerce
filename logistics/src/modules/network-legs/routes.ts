@@ -11,7 +11,7 @@ import {
 import { createNetworkLeg, deleteNetworkLeg, updateNetworkLeg } from "./service.js";
 import { networkLegs } from "./paths.js";
 
-export default async function networkLegRoutes(fastify: FastifyInstance) {
+export default async function routes(fastify: FastifyInstance) {
   fastify.post<{ Body: CreateNetworkLegBody }>(
     networkLegs.store, 
     { schema: CreateNetworkLegSchema }, 
@@ -29,9 +29,9 @@ export default async function networkLegRoutes(fastify: FastifyInstance) {
     networkLegs.update.url, 
     { schema: UpdateNetworkLegSchema },
     async (req, rep) => {
-      const { networkLegId } = req.params
+      const { id } = req.params
 
-      const updatedLeg = await updateNetworkLeg(fastify, networkLegId, req.body)
+      const updatedLeg = await updateNetworkLeg(fastify, id, req.body)
 
       return rep.code(200).send({
         message: 'Network leg updated successfully.',
@@ -44,9 +44,9 @@ export default async function networkLegRoutes(fastify: FastifyInstance) {
     networkLegs.delete.url,
     { schema: DeleteNetworkLegSchema },
     async (req, rep) => {
-      const { networkLegId } = req.params
+      const { id } = req.params
 
-      await deleteNetworkLeg(fastify, networkLegId)
+      await deleteNetworkLeg(fastify, id)
 
       return rep.code(200).send({
         message: 'Network leg deleted successfully.',

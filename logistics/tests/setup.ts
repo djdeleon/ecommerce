@@ -17,14 +17,13 @@ beforeEach(async () => {
   await prisma.$executeRawUnsafe(`
     TRUNCATE TABLE 
       tracking_logs,
-      dispatch_logs,
       vehicle_location_logs,
       parcels,
       master_bags,
       manifests,
       deliveries,
       sortation_batches,
-      courier_schedules,
+      fleet_transports,
       physical_vehicles,
       network_legs,
       barangays,

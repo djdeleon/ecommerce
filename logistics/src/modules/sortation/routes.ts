@@ -22,7 +22,7 @@ import { generateEventDescription } from "../tracking-logs/logisticsEventDiction
 export async function sortingBatchRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: CreateSortationBatchBody }>(
     sortations.sortingBatches.store,
-    { schema: CreateSortationBatchSchema },
+    { schema: CreateSortationBatchSchema, preHandler: [userAuth] },
     async (req, rep) => {
       const batch = await createSortingBatch(fastify, req.body)
 
@@ -115,7 +115,7 @@ export async function masterBagRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.get(sortations.masterBags.label.url, async (req, rep) => {
+  fastify.get(sortations.masterBags.label.url, { preHandler: [userAuth] }, async (req, rep) => {
     const { masterBagCode } = req.params as { masterBagCode: string };
 
     const masterBag = await fastify.prisma.masterBag.findUniqueOrThrow({

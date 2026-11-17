@@ -11,7 +11,7 @@ import {
 import { createSector, deleteSector, updateSector } from "./service.js";
 import { sectors } from "./paths.js";
 
-export default async function sectorRoutes(fastify: FastifyInstance) {
+export default async function routes(fastify: FastifyInstance) {
   fastify.post<{ Body: CreateSectorBody }>(
     sectors.store,
     { schema: CreateSectorSchema },
@@ -29,9 +29,9 @@ export default async function sectorRoutes(fastify: FastifyInstance) {
     sectors.update.url,
     { schema: UpdateSectorSchema },
     async (req, rep) => {
-      const { sectorId } = req.params
+      const { id } = req.params
 
-      const updatedSector = await updateSector(fastify, sectorId, req.body)
+      const updatedSector = await updateSector(fastify, id, req.body)
 
       return rep.code(200).send({
         message: 'Sector updated successfully.',
@@ -44,9 +44,9 @@ export default async function sectorRoutes(fastify: FastifyInstance) {
     sectors.delete.url,
     { schema: DeleteSectorSchema },
     async (req, rep) => {
-      const { sectorId } = req.params
+      const { id } = req.params
 
-      await deleteSector(fastify, sectorId)
+      await deleteSector(fastify, id)
 
       return rep.code(200).send({
         message: 'Sector deleted successfully.',

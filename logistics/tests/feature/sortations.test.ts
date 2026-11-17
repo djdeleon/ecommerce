@@ -1,14 +1,16 @@
 import { FastifyInstance } from "fastify";
 import { beforeAll, describe, expect, test } from "vitest";
 import { createFacility, createParcel } from "#factory";
-import { Courier, CourierScheduleType, ManifestStatus, MasterBagStatus, ShipmentStatus, SortationBatchStatus, UserRole } from "@prisma/client";
-import { createCourierSchedule } from "../factory/vehicles.factory.js";
+import { Courier, FleetTransportType, ManifestStatus, MasterBagStatus, ShipmentStatus, SortationBatchStatus, UserRole } from "@prisma/client";
+import { createFleetTransport } from "../factory/vehicles.factory.js";
 import { createMasterBag, createSortingBatch } from "../factory/sortation.factory.js";
 import { seedMasterInfrustructure } from "../../prisma/seeders/tests/master-infrastructure-tests.seed.js";
 import { createManifest } from "../factory/manifest.factory.js";
 import { vehicles } from "../../src/modules/vehicles/paths.js";
 import { parcels } from "../../src/modules/parcels/paths.js";
 import { sortations } from "../../src/modules/sortation/paths.js";
+import { createUser } from "../factory/user.factory.js";
+import { fleetTransports } from "../../src/modules/fleet-transports/paths.js";
 
 describe('Sortation Domain', () => {
   describe('Sorting Batch Management', () => {
@@ -79,17 +81,21 @@ describe('Sortation Domain', () => {
         const selectedVehicle = vehicleList[0]
         const selectedCourier = couriers[0].courier as Courier
         const selectedNetworkLeg = sourceLegs[0] // 'LEG-PAR-MNL-IN'
+        const { token } = await createUser(app, UserRole.Manager, { assignedFacilityId: facilityId })
 
         const payload = {
           courierId: selectedCourier.id,
           vehicleId: selectedVehicle.id,
           networkLegId: selectedNetworkLeg.id,
-          scheduledFor: CourierScheduleType.LineHaul,
+          scheduledFor: FleetTransportType.LineHaul,
           scheduledTime: "2026-10-23T08:00:00.000Z",
         }
         const response = await app.inject({
           method: 'POST',
-          url: vehicles.courierSchedules.store,
+          url: fleetTransports.store,
+          headers: {
+            authorization: `Bearer ${token}`
+          },
           body: payload
         })
 
@@ -97,7 +103,7 @@ describe('Sortation Domain', () => {
         const data = body.data ?? body;
 
         expect(response.statusCode).toBe(201);
-        expect(body.message).toBe('Courier schedule created successfully.');
+        expect(body.message).toBe('Fleet Transport created successfully.');
 
         expect(data.id).toBeDefined();
         expect(data.courierId).toBe(selectedCourier.id);
@@ -198,6 +204,8 @@ describe('Sortation Domain', () => {
           where: { code: "BR-MAR-01" } // Final Destination not the next one
         })
 
+        const { token } = await createUser(app, UserRole.Manager, { assignedFacilityId: originFacility.id })
+
         const result = await createManifest(app, {
           parcelOverrides: {
             status: ShipmentStatus.DepartedFromHub,
@@ -217,6 +225,9 @@ describe('Sortation Domain', () => {
         const response = await app.inject({
           method: 'POST',
           url: sortations.sortingBatches.tunnelScan(selectedParcel.trackingNumber),
+          headers: {
+            authorization: `Bearer ${token}`
+          },
         });
 
         const body = response.json();
@@ -282,8 +293,8 @@ describe('Sortation Domain', () => {
         const selectedCourier = couriers[0].courier as Courier
         const selectedNetworkLeg = sourceLegs[1] // 'LEG-MNL-MAR-OUT'
 
-        const courierSchedule = await createCourierSchedule(app, {
-          scheduledFor: CourierScheduleType.LineHaul,
+        const courierSchedule = await createFleetTransport(app, {
+          scheduledFor: FleetTransportType.LineHaul,
           courierId: selectedCourier.id,
           vehicleId: selectedVehicle.id,
           networkLegId: selectedNetworkLeg.id,
@@ -471,8 +482,9 @@ describe('Sortation Domain', () => {
     test('a sortation batch can be created', async () => {
       const facility = await createFacility(app)
 
+      const { token } = await createUser(app, UserRole.Manager, { assignedFacilityId: facility.id })
+
       const payload = {
-        code: `${facility.code}-20261022-NIGHT-001`,
         startTime: "1970-01-01T18:00:00Z",
         endTime: "1970-01-01T04:00:00Z",
         cutOffTime: "1970-01-01T23:00:00Z",
@@ -482,6 +494,9 @@ describe('Sortation Domain', () => {
       const response = await app.inject({
         method: 'POST',
         url: sortations.sortingBatches.store,
+        headers: {
+          authorization: `Bearer ${token}`
+        },
         body: payload
       })
 
@@ -491,7 +506,7 @@ describe('Sortation Domain', () => {
       expect(body.message).toBe('Sortation batch created successfully.')
       expect(body.data).toMatchObject({
         id: expect.any(Number),
-        code: payload.code,
+        code: expect.any(String),
         facilityId: payload.facilityId,
         cutOffTime: expect.any(String),
         createdAt: expect.any(String),
@@ -500,6 +515,8 @@ describe('Sortation Domain', () => {
     })
 
     test('a sortation batch can be updated', async () => {
+      const { token } = await createUser(app, UserRole.Manager)
+
       const createdBatch = await createSortingBatch(app)
 
       const updatePayload = {
@@ -510,6 +527,9 @@ describe('Sortation Domain', () => {
       const response = await app.inject({
         method: 'PUT',
         url: sortations.sortingBatches.update(createdBatch.id),
+        headers: {
+          authorization: `Bearer ${token}`
+        },
         body: updatePayload
       })
 
@@ -525,11 +545,16 @@ describe('Sortation Domain', () => {
     })
 
     test('a sortation batch can be deleted', async () => {
+      const { token } = await createUser(app, UserRole.Manager)
+
       const createdBatch = await createSortingBatch(app)
 
       const response = await app.inject({
         method: 'DELETE',
         url: sortations.sortingBatches.delete(createdBatch.id),
+        headers: {
+          authorization: `Bearer ${token}`
+        },
       })
 
       const body = response.json()
@@ -552,9 +577,11 @@ describe('Sortation Domain', () => {
     })
 
     test('a master bag can be created', async () => {
+      const { token } = await createUser(app, UserRole.Manager)
+
       const facilityCurrent = await createFacility(app)
       const facilityNext = await createFacility(app)
-      const courierSchedule = await createCourierSchedule(app)
+      const courierSchedule = await createFleetTransport(app)
 
       const sortingBatch = await app.prisma.sortationBatch.create({
         data: {
@@ -579,6 +606,9 @@ describe('Sortation Domain', () => {
       const response = await app.inject({
         method: 'POST',
         url: sortations.masterBags.store,
+        headers: {
+          authorization: `Bearer ${token}`
+        },
         body: payload
       })
 
@@ -600,6 +630,8 @@ describe('Sortation Domain', () => {
     })
 
     test('a master bag label can be printed', async () => {
+      const { token } = await createUser(app, UserRole.Manager)
+
       const originFacility = await createFacility(app, { name: 'Manila Gateway' });
       const nextFacility = await createFacility(app, { name: 'Cebu Hub' });
 
@@ -609,7 +641,7 @@ describe('Sortation Domain', () => {
         status: SortationBatchStatus.Active
       });
 
-      const schedule = await createCourierSchedule(app);
+      const schedule = await createFleetTransport(app);
 
       const masterBag = await createMasterBag(app, {
         code: 'GW-MNL-01-20261023-BAG-001',
@@ -623,6 +655,9 @@ describe('Sortation Domain', () => {
       const response = await app.inject({
         method: 'GET',
         url: sortations.masterBags.label(masterBag.code),
+        headers: {
+          authorization: `Bearer ${token}`
+        },
       });
 
       const htmlBody = response.body;
@@ -638,6 +673,8 @@ describe('Sortation Domain', () => {
     });
 
     test('a master bag can be updated', async () => {
+      const { token } = await createUser(app, UserRole.Manager)
+
       const createdBag = await createMasterBag(app)
 
       const updatePayload = {
@@ -648,6 +685,9 @@ describe('Sortation Domain', () => {
       const response = await app.inject({
         method: 'PUT',
         url: sortations.masterBags.update(createdBag.id),
+        headers: {
+          authorization: `Bearer ${token}`
+        },
         body: updatePayload
       })
 
@@ -663,11 +703,16 @@ describe('Sortation Domain', () => {
     })
 
     test('a master bag can be deleted', async () => {
+      const { token } = await createUser(app, UserRole.Manager)
+
       const createdBag = await createMasterBag(app)
 
       const response = await app.inject({
         method: 'DELETE',
         url: sortations.masterBags.delete(createdBag.id),
+        headers: {
+          authorization: `Bearer ${token}`
+        }
       })
 
       const body = response.json()
@@ -682,6 +727,8 @@ describe('Sortation Domain', () => {
     })
 
     test('a master bag can be sealed', async () => {
+      const { token } = await createUser(app, UserRole.Manager)
+
       const parcel = await createParcel(app, {
         weightGrams: 2000,
         lengthCm: 30,
@@ -693,7 +740,10 @@ describe('Sortation Domain', () => {
 
       const response = await app.inject({
         method: 'PATCH',
-        url: sortations.masterBags.seal(masterBag.code)
+        url: sortations.masterBags.seal(masterBag.code),
+        headers: {
+          authorization: `Bearer ${token}`
+        }
       })
 
       const body = response.json();

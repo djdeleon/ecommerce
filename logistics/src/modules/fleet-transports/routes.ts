@@ -1,124 +1,46 @@
 import { FastifyInstance } from "fastify";
-import { create, destroy, update } from "./service.js";
+import { createFleetTransport, deleteFleetTransport, getCourierTasks, getCreateData, getFacilitySchedules, getFleetTransports, updateFleetTransport } from "./service.js";
 import { CreateBody, CreateSchema, DeleteParams, DeleteSchema, UpdateBody, UpdateParams, UpdateSchema } from "./schema.js";
-import { paths } from "./paths.js";
+import { fleetTransports } from "./paths.js";
 import { userAuth } from "#commons/middlewares/user-auth.js";
 import { ManifestStatus, MasterBagStatus } from "@prisma/client";
 
 export default async function routes(fastify: FastifyInstance) {
-  fastify.get(paths.index, {
+  fastify.get(fleetTransports.index, {
     preHandler: [userAuth]
   }, async (req, rep) => {
-    const user = (req as any).user
-    const where: any = {}
+    const data = await getFleetTransports(fastify)
 
-    if (user.courier) {
-      where.courierId = user.courier.id
-    } else if (user.assignedFacilityId) {
-      // Fallback for facility managers
-      where.facilityId = user.assignedFacilityId
-    }
-
-    const fleetTransports = await fastify.prisma.fleetTransport.findMany({
-      where,
-      include: {
-        facility: true,
-        courier: { include: { user: true } },
-        vehicle: { include: { vehicleProfile: true } },
-        manifest: {
-          include: {
-            parcels: {
-              include: { store: true }
-            }
-          }
-        },
-        delivery: {
-          include: {
-            parcels: true
-          }
-        },
-        masterBags: true,
-      },
-      orderBy: { scheduledTime: 'asc' }
-    })
-
-    const allStoreIds = [...new Set(fleetTransports.flatMap(s => s.manifest?.parcels.map(p => p.storeId).filter(Boolean) || []))]
-    let storeCoordsMap: Record<number, { lng: number; lat: number }> = {}
-
-    if (allStoreIds.length > 0) {
-      const storesRaw: any = await fastify.prisma.$queryRaw`
-        SELECT id, ST_X(location::geometry) as lng, ST_Y(location::geometry) as lat 
-        FROM stores WHERE id = ANY(${allStoreIds})
-      `.catch(() => [])
-
-      storesRaw.forEach((s: any) => {
-        storeCoordsMap[s.id] = { lng: s.lng, lat: s.lat }
-      })
-    }
-
-    const allDeliveryParcelIds = [...new Set(fleetTransports.flatMap(s => s.delivery?.parcels.map(p => p.id) || []))]
-    let customerCoordsMap: Record<number, { lng: number; lat: number }> = {}
-
-    if (allDeliveryParcelIds.length > 0) {
-      const customersRaw: any = await fastify.prisma.$queryRaw`
-        SELECT id, ST_X(customer_location::geometry) as lng, ST_Y(customer_location::geometry) as lat 
-        FROM parcels WHERE id = ANY(${allDeliveryParcelIds})
-      `.catch(() => [])
-
-      customersRaw.forEach((c: any) => {
-        customerCoordsMap[c.id] = { lng: c.lng, lat: c.lat }
-      })
-    }
-
-    const formattedSchedules = fleetTransports.map(s => {
-      const isDelivery = s.scheduledFor === 'Delivery';
-      const targetParcels = isDelivery ? (s.delivery?.parcels || []) : (s.manifest?.parcels || []);
-
-      return {
-        id: s.id,
-        facilityName: s.facility.name,
-        email: s.courier?.user.email || '-',
-        courierName: s.courier ? `${s.courier.user.firstName} ${s.courier.user.lastName}` : 'Unassigned',
-        vehicleDetail: s.vehicle ? `${s.vehicle.vehicleProfile.modelName} (${s.vehicle.plateNumber})` : 'Unassigned',
-        scheduledFor: s.scheduledFor,
-        type: s.scheduledFor,
-        scheduledTime: s.scheduledTime,
-        manifestCodes: s.manifest?.code,
-        manifestStatus: s.manifest?.status,
-        deliveryCode: s.delivery?.code,
-        deliveryStatus: s.delivery?.status,
-        parcels: targetParcels.map(p => ({
-          ...p,
-          ...(isDelivery ? {
-            customerLocation: {
-              coordinates: customerCoordsMap[p.id] ? [customerCoordsMap[p.id].lng, customerCoordsMap[p.id].lat] : null
-            }
-          } : {
-            store: p.storeId && storeCoordsMap[p.storeId] ? {
-              ...p.store,
-              location: {
-                coordinates: [storeCoordsMap[p.storeId].lng, storeCoordsMap[p.storeId].lat]
-              }
-            } : null
-          })
-        })),
-        masterBags: s.masterBags || [],
-        route: s.route || null
-      }
-    })
-
-    return rep.status(200).send({
-      message: 'Courier Schedules retrieved.',
-      data: formattedSchedules
-    })
+    return rep.status(200).send({ message: 'Fleet Transports retrieved successfully.', data })
   })
 
-  fastify.post<{ Body: CreateBody }>(
-    paths.store,
-    {
-      schema: CreateSchema,
-      preHandler: [userAuth]
-    },
+  fastify.get(fleetTransports.create, { preHandler: [userAuth] }, async (req, rep) => {
+    const user = (req as any).user;
+    const data = await getCreateData(fastify, user.assignedFacilityId);
+
+    return rep.send({ message: 'Options for new fleet transport retrieved.', data });
+  });
+
+  fastify.get(fleetTransports.tasks, { preHandler: [userAuth] }, async (req, rep) => {
+    const user = (req as any).user;
+    if (!user.courier?.id) return rep.code(403).send({ message: "Courier profile not found." });
+
+    const data = await getCourierTasks(fastify, user.courier.id);
+    return rep.status(200).send({ message: 'Courier Fleet Tranport Tasks retrieved.', data });
+  });
+
+  fastify.get(fleetTransports.schedules, { preHandler: [userAuth] }, async (req, rep) => {
+    const user = (req as any).user;
+    if (!user.assignedFacilityId) return rep.code(403).send({ message: "Facility assignment required." });
+
+    const data = await getFacilitySchedules(fastify, user.assignedFacilityId);
+    return rep.status(200).send({ message: 'Facility Fleet Transport Schedules retrieved.', data });
+  });
+
+  fastify.post<{ Body: CreateBody }>(fleetTransports.store, {
+    schema: CreateSchema,
+    preHandler: [userAuth]
+  },
     async (req, rep) => {
       const manager = (req as any).user
       const payload = {
@@ -126,49 +48,48 @@ export default async function routes(fastify: FastifyInstance) {
         facilityId: manager.assignedFacilityId,
       }
 
-      const fleetTransport = await create(fastify, payload)
+      const fleetTransport = await createFleetTransport(fastify, payload)
 
       return rep.code(201).send({
-        message: 'Courier schedule created successfully.',
+        message: 'Fleet Transport created successfully.',
         data: fleetTransport,
       })
     }
   )
 
-  fastify.put<{ Body: UpdateBody; Params: UpdateParams }>(
-    paths.update.url,
-    {
-      schema: UpdateSchema,
-      preHandler: [userAuth]
-    },
+  fastify.put<{ Body: UpdateBody; Params: UpdateParams }>(fleetTransports.update.url, {
+    schema: UpdateSchema,
+    preHandler: [userAuth]
+  },
     async (req, rep) => {
       const { id } = req.params
 
-      const updatedFleetTransport = await update(fastify, id, req.body)
+      const updatedFleetTransport = await updateFleetTransport(fastify, id, req.body)
 
       return rep.code(200).send({
-        message: 'Courier schedule updated successfully.',
+        message: 'Fleet Transport updated successfully.',
         data: updatedFleetTransport,
       })
     }
   )
 
-  fastify.delete<{ Params: DeleteParams }>(
-    paths.delete.url,
-    { schema: DeleteSchema },
+  fastify.delete<{ Params: DeleteParams }>(fleetTransports.delete.url, {
+    schema: DeleteSchema
+  },
     async (req, rep) => {
       const { id } = req.params
 
-      await destroy(fastify, id)
+      await deleteFleetTransport(fastify, id)
 
       return rep.code(200).send({
-        message: 'Courier schedule deleted successfully.',
+        message: 'Fleet Transport deleted successfully.',
       })
     }
   )
 
-  fastify.post<{ Params: { id: string } }>(paths.depart.url,
-    { preHandler: [userAuth] },
+  fastify.post<{ Params: { id: string } }>(fleetTransports.depart.url, {
+    preHandler: [userAuth]
+  },
     async (req, rep) => {
       const { id } = req.params;
 
@@ -400,9 +321,9 @@ export default async function routes(fastify: FastifyInstance) {
     }
   );
 
-  fastify.post<{ Params: { id: string }; Body: { longitude: number; latitude: number; speed?: number; heading?: number } }>(
-    paths.telemetry.url,
-    { preHandler: [userAuth] },
+  fastify.post<{ Params: { id: string }; Body: { longitude: number; latitude: number; speed?: number; heading?: number } }>(fleetTransports.telemetry.url, {
+    preHandler: [userAuth]
+  },
     async (req, rep) => {
       const { id } = req.params;
       const { longitude, latitude, speed = 35, heading = 0 } = req.body;
@@ -436,7 +357,7 @@ export default async function routes(fastify: FastifyInstance) {
     }
   );
 
-  fastify.patch(paths.dispatch.url, { preHandler: [userAuth] }, async (req, rep) => {
+  fastify.patch(fleetTransports.dispatch.url, { preHandler: [userAuth] }, async (req, rep) => {
     const { id } = req.params as { id: string };
 
     const run = await fastify.prisma.fleetTransport.update({
@@ -457,7 +378,7 @@ export default async function routes(fastify: FastifyInstance) {
     return rep.send({ message: 'Transport run dispatched', data: run });
   });
 
-  fastify.patch(paths.arrive.url, { preHandler: [userAuth] }, async (req, rep) => {
+  fastify.patch(fleetTransports.arrive.url, { preHandler: [userAuth] }, async (req, rep) => {
     const { id } = req.params as { id: string };
 
     // Basic Validation: Can't arrive if not dispatched

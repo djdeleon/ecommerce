@@ -40,11 +40,10 @@ export const RegisterSchema = {
     email: Type.String({ format: "email" }),
     password: Type.String({ minLength: 6 }),
     assignedFacilityId: Type.Optional(
-      Type.Integer({
-        minimum: 1,
-        description: "ID of the facility the courier is assigned to",
-        examples: [1]
-      })
+      Type.Union([
+        Type.Integer({ minimum: 1 }),
+        Type.Null()
+      ])
     ),
     role: Type.Optional(Type.Enum(UserRole)),
   }),
@@ -66,5 +65,28 @@ export const RegisterSchema = {
   }
 }
 
+export const GetUsersQuerySchema = Type.Object({
+  role: Type.Optional(Type.Enum(UserRole)),
+  assignedFacilityId: Type.Optional(Type.String()),
+  search: Type.Optional(Type.String()),
+})
+
+export const UserParamSchema = Type.Object({
+  id: Type.String(),
+})
+
+export const UpdateUserBodySchema = Type.Object({
+  firstName: Type.Optional(Type.String({ minLength: 1 })),
+  lastName: Type.Optional(Type.String({ minLength: 1 })),
+  email: Type.Optional(Type.String({ format: "email" })),
+  assignedFacilityId: Type.Optional(
+    Type.Union([Type.Integer({ minimum: 1 }), Type.Null()])
+  ),
+  role: Type.Optional(Type.Enum(UserRole)),
+})
+
 export type LoginBody = Static<typeof LoginSchema.body>
 export type RegisterBody = Static<typeof RegisterSchema.body>
+export type GetUsersQuery = Static<typeof GetUsersQuerySchema>
+export type UserParam = Static<typeof UserParamSchema>
+export type UpdateUserBody = Static<typeof UpdateUserBodySchema>

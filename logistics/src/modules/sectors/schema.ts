@@ -31,13 +31,13 @@ export const CreateSectorSchema = {
 export const UpdateSectorSchema = {
   body: UpdateSectorBodySchema,
   params: Type.Object({
-    sectorId: Type.String(),
+    id: Type.String(),
   }),
 }
 
 export const DeleteSectorSchema = {
   params: Type.Object({
-    sectorId: Type.String(),
+    id: Type.String(),
   }),
 }
 

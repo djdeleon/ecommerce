@@ -1,7 +1,7 @@
 import { compilePath } from "#commons/utils/path-compiler.js";
 
 const createPath = (path: string) => {
-  const fn = (id: string | number) => compilePath(path, { deliveryCode: id });
+  const fn = (code: string | number) => compilePath(path, { code });
   fn.url = path;
   return fn;
 }
@@ -9,7 +9,7 @@ const createPath = (path: string) => {
 export const deliveries = {
   index: '/deliveries',
   store: '/deliveries',
-  dispatch: createPath('/deliveries/:deliveryCode/dispatch'),
-  completed: createPath('/deliveries/:deliveryCode/completed'),
-  arrived: createPath('/deliveries/:deliveryCode/arrived'),
+  dispatch: createPath('/deliveries/:code/dispatch'),
+  completed: createPath('/deliveries/:code/completed'),
+  arrived: createPath('/deliveries/:code/arrived'),
 } as const;

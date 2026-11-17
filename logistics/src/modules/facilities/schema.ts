@@ -65,7 +65,7 @@ export const AssignSchema = {
     })
   }),
   params: Type.Object({
-    facilityId: Type.String({
+    id: Type.String({
       pattern: "^[0-9]+$",
       description: "Numeric ID of the facility"
     })

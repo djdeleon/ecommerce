@@ -37,7 +37,7 @@ CREATE TYPE "ManifestStatus" AS ENUM ('scheduled', 'accumulating', 'dispatched',
 CREATE TYPE "DeliveryStatus" AS ENUM ('scheduled', 'loading', 'dispatched', 'completed', 'arrived');
 
 -- CreateEnum
-CREATE TYPE "CourierScheduleType" AS ENUM ('accumulation', 'line_haul', 'delivery');
+CREATE TYPE "FleetTransportType" AS ENUM ('accumulation', 'line_haul', 'delivery');
 
 -- CreateEnum
 CREATE TYPE "pipeline_status" AS ENUM ('incoming', 'arrived', 'departed');
@@ -141,13 +141,13 @@ CREATE TABLE "network_legs" (
 );
 
 -- CreateTable
-CREATE TABLE "courier_schedules" (
+CREATE TABLE "fleet_transports" (
     "id" SERIAL NOT NULL,
     "facility_id" INTEGER NOT NULL,
     "courier_id" INTEGER,
     "vehicle_id" INTEGER NOT NULL,
     "network_leg_id" INTEGER,
-    "scheduledFor" "CourierScheduleType" NOT NULL DEFAULT 'accumulation',
+    "scheduledFor" "FleetTransportType" NOT NULL DEFAULT 'accumulation',
     "scheduled_time" TIMESTAMP(3) NOT NULL,
     "route" JSONB,
     "dispatched_at" TIMESTAMP(3),
@@ -155,7 +155,7 @@ CREATE TABLE "courier_schedules" (
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "courier_schedules_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "fleet_transports_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -543,16 +543,16 @@ ALTER TABLE "network_legs" ADD CONSTRAINT "network_legs_source_facility_id_fkey"
 ALTER TABLE "network_legs" ADD CONSTRAINT "network_legs_destination_facility_id_fkey" FOREIGN KEY ("destination_facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "courier_schedules" ADD CONSTRAINT "courier_schedules_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "fleet_transports" ADD CONSTRAINT "fleet_transports_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "courier_schedules" ADD CONSTRAINT "courier_schedules_courier_id_fkey" FOREIGN KEY ("courier_id") REFERENCES "couriers"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "fleet_transports" ADD CONSTRAINT "fleet_transports_courier_id_fkey" FOREIGN KEY ("courier_id") REFERENCES "couriers"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "courier_schedules" ADD CONSTRAINT "courier_schedules_vehicle_id_fkey" FOREIGN KEY ("vehicle_id") REFERENCES "physical_vehicles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "fleet_transports" ADD CONSTRAINT "fleet_transports_vehicle_id_fkey" FOREIGN KEY ("vehicle_id") REFERENCES "physical_vehicles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "courier_schedules" ADD CONSTRAINT "courier_schedules_network_leg_id_fkey" FOREIGN KEY ("network_leg_id") REFERENCES "network_legs"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "fleet_transports" ADD CONSTRAINT "fleet_transports_network_leg_id_fkey" FOREIGN KEY ("network_leg_id") REFERENCES "network_legs"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "sortation_batches" ADD CONSTRAINT "sortation_batches_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -561,7 +561,7 @@ ALTER TABLE "sortation_batches" ADD CONSTRAINT "sortation_batches_facility_id_fk
 ALTER TABLE "master_bags" ADD CONSTRAINT "master_bags_sorting_batch_id_fkey" FOREIGN KEY ("sorting_batch_id") REFERENCES "sortation_batches"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "master_bags" ADD CONSTRAINT "master_bags_courier_schedule_id_fkey" FOREIGN KEY ("courier_schedule_id") REFERENCES "courier_schedules"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "master_bags" ADD CONSTRAINT "master_bags_courier_schedule_id_fkey" FOREIGN KEY ("courier_schedule_id") REFERENCES "fleet_transports"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "master_bags" ADD CONSTRAINT "master_bags_current_facility_id_fkey" FOREIGN KEY ("current_facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -576,7 +576,7 @@ ALTER TABLE "master_bag_logs" ADD CONSTRAINT "master_bag_logs_master_bag_id_fkey
 ALTER TABLE "deliveries" ADD CONSTRAINT "deliveries_sector_id_fkey" FOREIGN KEY ("sector_id") REFERENCES "sectors"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "deliveries" ADD CONSTRAINT "deliveries_courier_schedule_id_fkey" FOREIGN KEY ("courier_schedule_id") REFERENCES "courier_schedules"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "deliveries" ADD CONSTRAINT "deliveries_courier_schedule_id_fkey" FOREIGN KEY ("courier_schedule_id") REFERENCES "fleet_transports"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "delivery_logs" ADD CONSTRAINT "delivery_logs_delivery_id_fkey" FOREIGN KEY ("delivery_id") REFERENCES "deliveries"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -660,7 +660,7 @@ ALTER TABLE "physical_vehicles" ADD CONSTRAINT "physical_vehicles_assigned_facil
 ALTER TABLE "manifests" ADD CONSTRAINT "manifests_sector_id_fkey" FOREIGN KEY ("sector_id") REFERENCES "sectors"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "manifests" ADD CONSTRAINT "manifests_courier_schedule_id_fkey" FOREIGN KEY ("courier_schedule_id") REFERENCES "courier_schedules"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "manifests" ADD CONSTRAINT "manifests_courier_schedule_id_fkey" FOREIGN KEY ("courier_schedule_id") REFERENCES "fleet_transports"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "manifest_logs" ADD CONSTRAINT "manifest_logs_manifest_id_fkey" FOREIGN KEY ("manifest_id") REFERENCES "manifests"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

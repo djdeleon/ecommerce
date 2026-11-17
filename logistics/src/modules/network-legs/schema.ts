@@ -43,13 +43,13 @@ export const CreateNetworkLegSchema = {
 export const UpdateNetworkLegSchema = {
   body: UpdateNetworkLegBodySchema,
   params: Type.Object({
-    networkLegId: Type.String(),
+    id: Type.String(),
   }),
 }
 
 export const DeleteNetworkLegSchema = {
   params: Type.Object({
-    networkLegId: Type.String(),
+    id: Type.String(),
   }),
 }
 

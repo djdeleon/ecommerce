@@ -13,8 +13,6 @@ describe('User HTTP Routes', () => {
   test('admin can register', async () => {
     const randomSuffix = Math.floor(Math.random() * 10000);
 
-    console.log(app.printRoutes())
-
     const response = await app.inject({
       method: 'POST',
       url: users.register,
@@ -100,5 +98,99 @@ describe('User HTTP Routes', () => {
     expect(loginResponse.statusCode).toBe(200)
     expect(response.json().user).not.toBeNull()
     expect(response.json().token).not.toBeNull()
+  })
+
+  test('can list all users and filter by role or search', async () => {
+    // Create a test user
+    const user = await app.prisma.user.create({
+      data: {
+        firstName: 'QueryTest',
+        lastName: 'User',
+        email: `query-${Math.floor(Math.random() * 10000)}@example.com`,
+        password: 'hashedPassword',
+        role: UserRole.Manager,
+      }
+    })
+
+    // Test list endpoint
+    const response = await app.inject({
+      method: 'GET',
+      url: users.list,
+      query: { role: 'Manager', search: 'QueryTest' }
+    })
+
+    expect(response.statusCode).toBe(200)
+    const json = response.json()
+    expect(json.data.length).toBeGreaterThan(0)
+    expect(json.data[0].email).toBe(user.email)
+  })
+
+  test('can get single user detail by id', async () => {
+    const user = await app.prisma.user.create({
+      data: {
+        firstName: 'Detail',
+        lastName: 'User',
+        email: `detail-${Math.floor(Math.random() * 10000)}@example.com`,
+        password: 'hashedPassword',
+        role: UserRole.Clerk,
+      }
+    })
+
+    const response = await app.inject({
+      method: 'GET',
+      url: users.detail(user.id),
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json().data.id).toBe(user.id)
+    expect(response.json().data.firstName).toBe('Detail')
+  })
+
+  test('can update an existing user', async () => {
+    const user = await app.prisma.user.create({
+      data: {
+        firstName: 'OldName',
+        lastName: 'User',
+        email: `update-${Math.floor(Math.random() * 10000)}@example.com`,
+        password: 'hashedPassword',
+        role: UserRole.Clerk,
+      }
+    })
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: users.update(user.id),
+      payload: {
+        firstName: 'NewName'
+      }
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json().data.firstName).toBe('NewName')
+
+    const dbUser = await app.prisma.user.findUnique({ where: { id: user.id } })
+    expect(dbUser?.firstName).toBe('NewName')
+  })
+
+  test('can delete an existing user', async () => {
+    const user = await app.prisma.user.create({
+      data: {
+        firstName: 'Delete',
+        lastName: 'User',
+        email: `delete-${Math.floor(Math.random() * 10000)}@example.com`,
+        password: 'hashedPassword',
+        role: UserRole.Courier,
+      }
+    })
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: users.delete(user.id),
+    })
+    
+    expect(response.statusCode).toBe(200)
+
+    const dbUser = await app.prisma.user.findUnique({ where: { id: user.id } })
+    expect(dbUser).toBeNull()
   })
 })

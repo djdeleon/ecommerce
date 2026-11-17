@@ -1,5 +1,5 @@
 import { FastifyInstance } from "fastify";
-import { ShipmentStatus, DeliveryStatus, CourierScheduleType } from "@prisma/client";
+import { ShipmentStatus, DeliveryStatus, FleetTransportType } from "@prisma/client";
 import { createParcel } from "./parcel.factory.js";
 import { generateDeliveryCode } from "../../src/modules/deliveries/service.js";
 
@@ -38,11 +38,12 @@ export async function createDelivery(fastify: FastifyInstance, overrides: any = 
   const code = await generateDeliveryCode(fastify);
 
   return await fastify.prisma.$transaction(async (tx) => {
-    const courierSchedule = await tx.courierSchedule.create({
+    const fleetTransport = await tx.fleetTransport.create({
       data: {
+        facilityId: facility.id,
         vehicleId: vehicle.id,
         courierId: courier?.id ?? null,
-        scheduledFor: CourierScheduleType.Accumulation,
+        scheduledFor: FleetTransportType.Accumulation,
         scheduledTime: new Date("2026-10-21T08:00:00.000Z"),
         ...overrides.courierScheduleOverrides,
       },
@@ -51,7 +52,7 @@ export async function createDelivery(fastify: FastifyInstance, overrides: any = 
     const delivery = await tx.delivery.create({
       data: {
         sectorId: sector.id,
-        courierScheduleId: courierSchedule.id,
+        courierScheduleId: fleetTransport.id,
         code,
         status: DeliveryStatus.Scheduled,
         currentWeightGrams: 21000,
@@ -67,7 +68,7 @@ export async function createDelivery(fastify: FastifyInstance, overrides: any = 
 
     return {
       delivery,
-      courierSchedule,
+      fleetTransport,
       parcelIds,
     };
   });

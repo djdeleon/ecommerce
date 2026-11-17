@@ -1,8 +1,8 @@
 import { FastifyInstance } from "fastify"
-import { LoginBody, RegisterBody } from "./schemas.js";
+import { GetUsersQuery, LoginBody, RegisterBody, UpdateUserBody } from "./schemas.js";
 import { UserRole } from "@prisma/client";
 
-export async function createUser(fastify: FastifyInstance, data: RegisterBody) {
+export async function storeUser(fastify: FastifyInstance, data: RegisterBody) {
   const existingUser = await fastify.prisma.user.findUnique({
     where: { email: data.email }
   })
@@ -31,7 +31,7 @@ export async function createUser(fastify: FastifyInstance, data: RegisterBody) {
 }
 
 export async function registerUser(fastify: FastifyInstance, data: RegisterBody) {
-  const { user: raw, token } = await createUser(fastify, data)
+  const { user: raw, token } = await storeUser(fastify, data)
 
   const { password: _, ...user } = raw
 
@@ -58,4 +58,75 @@ export async function loginUser(fastify: FastifyInstance, data: LoginBody) {
   const { password: _, ...user } = userRecord
 
   return { user, token }
+}
+
+export async function listUsers(fastify: FastifyInstance, query: GetUsersQuery) {
+  const where: any = {}
+
+  if (query.role) {
+    where.role = query.role
+  }
+
+  if (query.assignedFacilityId) {
+    where.assignedFacilityId = Number(query.assignedFacilityId)
+  }
+
+  if (query.search) {
+    where.OR = [
+      { firstName: { contains: query.search, mode: 'insensitive' } },
+      { lastName: { contains: query.search, mode: 'insensitive' } },
+      { email: { contains: query.search, mode: 'insensitive' } },
+    ]
+  }
+
+  return await fastify.prisma.user.findMany({
+    where,
+    include: {
+      assignedFacility: true,
+      courier: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+}
+
+export async function getUserById(fastify: FastifyInstance, id: number) {
+  const user = await fastify.prisma.user.findUnique({
+    where: { id },
+    include: {
+      assignedFacility: true,
+      courier: true,
+    },
+  })
+
+  if (!user) {
+    throw new Error('User not found.')
+  }
+
+  return user
+}
+
+export async function updateUser(
+  fastify: FastifyInstance, 
+  id: number, 
+  data: UpdateUserBody
+) {
+  await getUserById(fastify, id)
+
+  return await fastify.prisma.user.update({
+    where: { id },
+    data,
+    include: {
+      assignedFacility: true,
+      courier: true,
+    },
+  })
+}
+
+export async function deleteUser(fastify: FastifyInstance, id: number) {
+  // Ensure user exists
+  await getUserById(fastify, id)
+
+  return await fastify.prisma.user.delete({
+    where: { id },
+  })
 }
