@@ -1,8 +1,18 @@
-FROM node:24-alpine
+FROM node:24-bookworm-slim
+
+# Install system dependencies needed for Playwright & Headless Chromium
+RUN apt-get update && apt-get install -y \
+    chromium \
+    fonts-ipafont-gothic \
+    fonts-wqy-zenhei \
+    fonts-thai-tlwg \
+    fonts-kacst \
+    fonts-freefont-ttf \
+    libxss1 \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-
-RUN apk add --no-cache libc6-compat
 
 # Ensure the directory belongs to node before doing anything
 RUN chown -R node:node /app

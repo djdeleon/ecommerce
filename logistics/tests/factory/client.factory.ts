@@ -3,6 +3,7 @@ import crypto from "crypto"
 import { FastifyInstance } from "fastify";
 
 export async function createClient(fastify: FastifyInstance, overrides = {}) {
+  const randomSuffix = Math.floor(Math.random() * 10000)
   const webhookUrl = 'http://reverse-proxy/api/v1/logistics/webhook'
   const apiKey = 'apk_' + crypto.randomBytes(16).toString('hex')
   const apiTextSecret = crypto.randomBytes(32).toString('hex')
@@ -12,11 +13,12 @@ export async function createClient(fastify: FastifyInstance, overrides = {}) {
 
   return fastify.prisma.client.create({
     data: {
-      name: 'Laravel E-Commerce PH',
+      name: `Laravel E-Commerce PH ${randomSuffix}`,
       apiKey,
       apiSecret: encryptedApiSecret,
       webhookUrl: webhookUrl,
       webhookSecret: encryptedWebhookSecret,
+      isActive: true,
       ...overrides
     }
   })

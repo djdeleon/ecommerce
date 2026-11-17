@@ -9,7 +9,8 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "test": "vitest run"
   },
   "dependencies": {
     "@nuxt/ui": "^4.12.0",
@@ -37,7 +38,12 @@
     "vue-router": "^4.4.0"
   },
   "devDependencies": {
-    "@types/node": "^26.6.5",
-    "nuxi": "^4.0.1"
+    "@nuxt/test-utils": "^4.4.0",
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^26.6.6",
+    "@vue/test-utils": "^2.6.0",
+    "happy-dom": "^21.0.4",
+    "nuxi": "^4.0.1",
+    "vitest": "^5.1.0"
   }
 }

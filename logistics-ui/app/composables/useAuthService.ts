@@ -1,12 +1,14 @@
 export const useAuthService = () => {
   const config = useRuntimeConfig()
-  const apiBase = config.public.logisticsApi || 'http://localhost:8001'
+  const apiBase = `${config.public.logisticsApi}/api/v1` || 'http://localhost:8001'
 
   const registerUser = async (payload: {
     firstName: string;
     lastName: string;
     email: string;
     password: string;
+    role?: string;
+    assignedFacilityId?: number | null;
   }) => {
     return await $fetch(`${apiBase}/users/register`, {
       method: 'POST',

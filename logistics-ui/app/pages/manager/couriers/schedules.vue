@@ -1,5 +1,8 @@
 <script setup>
-import { CalendarDate, Time, DateFormatter, getLocalTimeZone } from '@internationalized/date'
+import { getLocalTimeZone } from '@internationalized/date'
+
+const { getFacilitySchedules, createFleetTransport, getCreateData, updateFleetTransport } = useFleetTransportService()
+const { getFacilityCouriers } = useFacilityService()
 
 const toast = useToast()
 
@@ -21,71 +24,80 @@ watch(isNewScheduleModalOpen, (isOpen) => {
   }
 })
 
-const df = new DateFormatter('en-US', {
-  dateStyle: 'medium'
-})
-
 const headerActions = useState('headerActions')
 
 headerActions.value = h(UButton, {
   icon: 'i-heroicons-plus',
   label: 'New schedule',
-  onClick: () => {
-    isNewScheduleModalOpen.value = true
-  }
+  onClick: handleOpenCreateModal
 })
 
 definePageMeta({
-  title: 'Courier Schedules Management'
+  title: 'Fleet Transports Management'
 })
 
 onUnmounted(() => {
   headerActions.value = null
 })
 
-const { user } = useAuthService()
-const { getCourierSchedules, createCourierSchedule, updateCourierSchedule } = useCourierScheduleService()
-const { getFacility } = useFacilityService()
+const { data: schedulesResponse, pending, error, refresh } = await useAsyncData('schedules-list', () =>
+  getFacilitySchedules()
+);
+const schedules = computed(() => (schedulesResponse.value?.data || schedulesResponse.value) || [])
 
-const { data: pageData, pending, error, refresh } = await useAsyncData('courier-dashboard', async () => {
-  const [schedulesRes, facilityRes] = await Promise.all([
-    getCourierSchedules(),
-    getFacility(user.value.assignedFacilityId)
-  ])
-  console.log({ schedulesRes, facilityRes })
+const {
+  data: formOptions,
+  execute: fetchFormOptions,
+  pending: isOptionsLoading
+} = await useAsyncData('schedule-setup-options', () => getCreateData(), {
+  immediate: false
+});
 
-  const facData = facilityRes.data || facilityRes
-
-  return {
-    schedules: schedulesRes.data || schedulesRes,
-    couriers: facData?.users?.filter(u => u.role === 'courier') || [],
-    vehicles: facData?.vehicles || [],
-    networkLegs: facData?.sourceLegs || [],
-    masterBags: facData?.masterBags || [],
-    scheduleTypes: facData?.courierScheduleTypes || ['Accumulation', 'LineHaul', 'Delivery'],
+async function handleOpenCreateModal() {
+  isNewScheduleModalOpen.value = true
+  if (!formOptions.value) {
+    await fetchFormOptions()
   }
-})
-console.log({ pageData })
+}
 
-const schedules = computed(() => pageData.value?.schedules || [])
-const vehicleOptions = computed(() => (pageData.value?.vehicles || []).map((v) => ({
+const vehicleOptions = computed(() => (formOptions.value?.data?.vehicles || []).map((v) => ({
   label: `${v.plateNumber} (${v.vehicleProfile?.modelName || 'Vehicle'})`,
   value: v.id
 })))
-const courierOptions = computed(() => (pageData.value?.couriers || []).map((c) => ({
+const courierOptions = computed(() => (formOptions.value?.data?.couriers || []).map((c) => ({
   label: `${c.firstName} ${c.lastName}`,
   value: c.courier?.id
 })))
-const networkLegOptions = computed(() => (pageData.value?.networkLegs || []).map((l) => ({
+const networkLegOptions = computed(() => (formOptions.value?.data?.legs || []).map((l) => ({
   label: `${l.laneCode} (${l.destinationFacility?.name || 'Hub'})`,
   value: l.id
 })))
-const masterBagOptions = computed(() => (pageData.value?.masterBags || []).map((b) => ({
+const masterBagOptions = computed(() => (formOptions.value?.data?.masterBags || []).map((b) => ({
   label: `${b.code} → ${b.nextFacility?.name || 'Hub'} (${b.totalParcels} parcels)`,
   value: b.id
 })))
-const availableScheduleTypes = computed(() => pageData.value?.scheduleTypes)
-const availableCouriers = computed(() => pageData.value?.couriers || [])
+const availableScheduleTypes = computed(() => formOptions.value?.data?.fleetTransportTypes)
+
+const {
+  data: inlineCouriers,
+  execute: fetchInlineCouriers,
+  pending: isCouriersLoading
+} = await useAsyncData('inline-couriers-list', () => getFacilityCouriers(), {
+  immediate: false
+})
+const inlineCourierOptions = computed(() => {
+  const raw = inlineCouriers.value?.data || inlineCouriers.value || []
+  return raw.map(c => ({
+    label: `${c.firstName} ${c.lastName}`,
+    value: c.courier?.id,
+    courier: c.courier
+  }))
+})
+async function handleCourierDropdownClick() {
+  if (!inlineCouriers.value) {
+    await fetchInlineCouriers()
+  }
+}
 
 const assigningId = ref(null) // Track which row is currently saving
 const editingScheduleId = ref({})
@@ -99,7 +111,7 @@ async function handleCourierAssignment(scheduleId, courier) {
   const courierId = courier.courier.id
   console.log({ scheduleId, courierId })
   try {
-    await updateCourierSchedule(scheduleId, { courierId })
+    await updateFleetTransport(scheduleId, { courierId })
     toast.add({ title: 'Courier Assigned', color: 'green', icon: 'i-lucide-check' })
     await refresh()
   } catch (e) {
@@ -127,7 +139,7 @@ async function handleScheduleTimeUpdate(scheduleId) {
   console.log(scheduleId, { scheduledTime: chosenDate.toISOString() })
 
   try {
-    await updateCourierSchedule(scheduleId, { scheduledTime: chosenDate.toISOString() })
+    await updateFleetTransport(scheduleId, { scheduledTime: chosenDate.toISOString() })
     toast.add({ title: 'Schedule Updated', color: 'green', icon: 'i-lucide-check' })
     editingScheduleId.value[scheduleId] = false
     await refresh()
@@ -160,7 +172,7 @@ const formatDateTime = (dateStr) => {
 async function handleCreateSchedule() {
   isCreating.value = true
   try {
-    await createCourierSchedule(newScheduleForm.value)
+    await createFleetTransport(newScheduleForm.value)
 
     toast.add({ title: 'Schedule Created Successfully! 🚀', color: 'success', icon: 'i-lucide-check-circle' })
     isNewScheduleModalOpen.value = false
@@ -178,7 +190,12 @@ async function handleCreateSchedule() {
   <div class="space-y-6">
     <UModal v-model:open="isNewScheduleModalOpen">
       <template #content>
-        <UCard class="p-6 space-y-4 bg-gray-900 border border-gray-700">
+        <div v-if="isOptionsLoading" class="p-20 text-center bg-gray-900 rounded-xl border border-gray-700">
+          <UIcon name="i-lucide-loader" class="animate-spin w-8 h-8 mx-auto text-primary" />
+          <p class="mt-2 text-gray-400">Fetching available assets...</p>
+        </div>
+
+        <UCard v-else class="p-6 space-y-4 bg-gray-900 border border-gray-700">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary">
               <UIcon name="i-lucide-calendar-plus" class="w-6 h-6" />
@@ -224,7 +241,7 @@ async function handleCreateSchedule() {
     </UModal>
 
     <div v-if="pending" class="text-gray-400 text-center py-8">
-      Retrieving Courier Schedules...
+      Retrieving Fleet Transports...
     </div>
 
     <div v-else-if="error" class="text-red-400 text-center py-8">
@@ -234,12 +251,10 @@ async function handleCreateSchedule() {
     <UTable v-else sticky :data="schedules || []" :columns="columns" class="flex-1 max-h-8xl">
       <template #courierName-cell="{ row }">
         <div class="min-w-[180px]">
-          <USelectMenu v-if="row.original.courierName === 'Unassigned'" :items="availableCouriers" label-key="firstName"
-            value-attribute="courier.id" placeholder="Assign Courier..." :loading="assigningId === row.original.id"
-            @update:model-value="(val) => handleCourierAssignment(row.original.id, val)" :ui="{
-              trigger: 'bg-transparent border-dashed border-gray-700 hover:border-indigo-500 transition-colors',
-              placeholder: 'text-gray-500 italic text-xs'
-            }">
+          <USelectMenu v-if="row.original.courierName === 'Unassigned'" :items="inlineCourierOptions"
+            placeholder="Assign Courier..." :loading="isCouriersLoading || assigningId === row.original.id"
+            @click="handleCourierDropdownClick"
+            @update:model-value="(val) => handleCourierAssignment(row.original.id, val)">
             <template #leading>
               <UIcon name="i-lucide-user-plus" class="w-3 h-3 text-gray-500" />
             </template>

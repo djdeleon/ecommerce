@@ -13,10 +13,15 @@ export default async function routes(fastify: FastifyInstance) {
 
     return rep.status(200).send({ message: 'Fleet Transports retrieved successfully.', data })
   })
-
-  fastify.get(fleetTransports.create, { preHandler: [userAuth] }, async (req, rep) => {
+  
+  fastify.get<{ Querystring: { facilityId?: string } }>(fleetTransports.create, { preHandler: [userAuth] }, async (req, rep) => {
     const user = (req as any).user;
-    const data = await getCreateData(fastify, user.assignedFacilityId);
+    const queryFacilityId = req.query.facilityId ? parseInt(req.query.facilityId, 10) : undefined;
+
+    // Use query facilityId if provided, otherwise fallback to user's assigned facility
+    const targetFacilityId = queryFacilityId || user.assignedFacilityId;
+
+    const data = await getCreateData(fastify, targetFacilityId);
 
     return rep.send({ message: 'Options for new fleet transport retrieved.', data });
   });
@@ -57,6 +62,42 @@ export default async function routes(fastify: FastifyInstance) {
     }
   )
 
+  fastify.get<{ Params: { id: string } }>(fleetTransports.show.url, {
+    preHandler: [userAuth]
+  }, async (req, rep) => {
+    const { id } = req.params;
+    const fleetTransport = await fastify.prisma.fleetTransport.findUnique({
+      where: { id: parseInt(id, 10) },
+      include: {
+        facility: true,
+        courier: {
+          include: { user: true }
+        },
+        vehicle: {
+          include: { vehicleProfile: true }
+        },
+        networkLeg: {
+          include: {
+            sourceFacility: true,
+            destinationFacility: true,
+          }
+        },
+        manifest: true,
+        delivery: true,
+        masterBags: true
+      }
+    });
+
+    if (!fleetTransport) {
+      return rep.status(404).send({ message: 'Fleet Transport not found.' });
+    }
+
+    return rep.status(200).send({
+      message: 'Fleet Transport retrieved successfully.',
+      data: fleetTransport
+    });
+  });
+
   fastify.put<{ Body: UpdateBody; Params: UpdateParams }>(fleetTransports.update.url, {
     schema: UpdateSchema,
     preHandler: [userAuth]
@@ -64,17 +105,18 @@ export default async function routes(fastify: FastifyInstance) {
     async (req, rep) => {
       const { id } = req.params
 
-      const updatedFleetTransport = await updateFleetTransport(fastify, id, req.body)
+      const data = await updateFleetTransport(fastify, id, req.body)
 
       return rep.code(200).send({
         message: 'Fleet Transport updated successfully.',
-        data: updatedFleetTransport,
+        data,
       })
     }
   )
 
   fastify.delete<{ Params: DeleteParams }>(fleetTransports.delete.url, {
-    schema: DeleteSchema
+    schema: DeleteSchema,
+    preHandler: [userAuth]
   },
     async (req, rep) => {
       const { id } = req.params

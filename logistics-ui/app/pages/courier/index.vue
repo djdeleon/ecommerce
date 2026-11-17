@@ -2,7 +2,7 @@
 import * as maplibregl from 'maplibre-gl'
 
 const { user, userToken, loadUser } = useAuthService()
-const { getCourierSchedules, departSchedule, storeTelemetry } = useCourierScheduleService()
+const { getFleetTransports, getCourierTasks, departSchedule, storeTelemetry } = useFleetTransportService()
 const { markAsPickedUp, markAsDelivered } = useParcelService()
 const { dispatchManifest, completeManifest, arriveManifest } = useManifestService()
 const { dispatchDelivery, completedDelivery, arrivedDelivery } = useDeliveryService()
@@ -67,9 +67,8 @@ function deg2rad(deg: number) {
   return deg * (Math.PI / 180)
 }
 
-// Use useAsyncData for clean reactive fetching and loading state management
 const { data: response, pending, error, refresh } = await useAsyncData('courier-dashboard-tasks', async () => {
-  const res = await getCourierSchedules()
+  const res = await getCourierTasks()
   return res
 }, {
   watch: [userToken]

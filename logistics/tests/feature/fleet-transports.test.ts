@@ -14,6 +14,28 @@ describe('Fleet Transport Management', () => {
     app = (globalThis as any).app as FastifyInstance
   })
 
+  test('a list of fleet transports can be retrieved', async () => {
+    const { token } = await createUser(app, UserRole.Manager)
+
+    await createFleetTransport(app)
+    await createFleetTransport(app)
+
+    const response = await app.inject({
+      method: 'GET',
+      url: fleetTransports.index,
+      headers: {
+        authorization: `Bearer ${token}`
+      }
+    })
+
+    const body = response.json()
+
+    expect(response.statusCode).toBe(200)
+    expect(body.message).toBe('Fleet Transports retrieved successfully.')
+    expect(Array.isArray(body.data)).toBe(true)
+    expect(body.data.length).toBeGreaterThanOrEqual(2)
+  })
+
   test('a fleet transport can be created', async () => {
     const { token } = await createUser(app, UserRole.Manager)
 
@@ -47,6 +69,29 @@ describe('Fleet Transport Management', () => {
       updatedAt: expect.any(String),
     })
   })
+
+  test('a fleet transport can be retrieved by id', async () => {
+    const { token } = await createUser(app, UserRole.Manager)
+    const createdSchedule = await createFleetTransport(app)
+
+    const response = await app.inject({
+      method: 'GET',
+      url: fleetTransports.show(createdSchedule.id),
+      headers: {
+        authorization: `Bearer ${token}`
+      }
+    })
+
+    const body = response.json()
+
+    expect(response.statusCode).toBe(200)
+    expect(body.message).toBe('Fleet Transport retrieved successfully.')
+    expect(body.data).toMatchObject({
+      id: createdSchedule.id,
+      vehicleId: createdSchedule.vehicleId,
+    })
+  })
+
 
   test('a fleet transport can be updated', async () => {
     const { token } = await createUser(app, UserRole.Manager)

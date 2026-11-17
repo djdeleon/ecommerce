@@ -125,6 +125,60 @@ describe('User HTTP Routes', () => {
     expect(json.data[0].email).toBe(user.email)
   })
 
+  test('can list all users and filter by role or search', async () => {
+    // Create a test user
+    const user = await app.prisma.user.create({
+      data: {
+        firstName: 'QueryTest',
+        lastName: 'User',
+        email: `query-${Math.floor(Math.random() * 10000)}@example.com`,
+        password: 'hashedPassword',
+        role: UserRole.Manager,
+      }
+    })
+
+    // Test list endpoint
+    const response = await app.inject({
+      method: 'GET',
+      url: users.list,
+      query: { role: 'Manager', search: 'QueryTest' }
+    })
+
+    expect(response.statusCode).toBe(200)
+    const json = response.json()
+    expect(json.data.length).toBeGreaterThan(0)
+    expect(json.data[0].email).toBe(user.email)
+  })
+
+  test('can filter users strictly by UserRole enum values (Admin, Manager, Clerk, Courier)', async () => {
+    // Create users with different roles
+    const managerEmail = `manager-${Math.floor(Math.random() * 10000)}@example.com`
+    const courierEmail = `courier-${Math.floor(Math.random() * 10000)}@example.com`
+
+    await app.prisma.user.createMany({
+      data: [
+        { firstName: 'Role', lastName: 'Manager', email: managerEmail, password: 'hashedPassword', role: UserRole.Manager },
+        { firstName: 'Role', lastName: 'Courier', email: courierEmail, password: 'hashedPassword', role: UserRole.Courier },
+      ]
+    })
+
+    // Filter by Manager role
+    const response = await app.inject({
+      method: 'GET',
+      url: users.list,
+      query: { role: UserRole.Manager }
+    })
+
+    expect(response.statusCode).toBe(200)
+    const json = response.json()
+
+    // Assert all returned users match the requested role
+    expect(json.data.length).toBeGreaterThan(0)
+    json.data.forEach((u: any) => {
+      expect(u.role).toBe(UserRole.Manager)
+    })
+  })
+
   test('can get single user detail by id', async () => {
     const user = await app.prisma.user.create({
       data: {
@@ -187,7 +241,7 @@ describe('User HTTP Routes', () => {
       method: 'DELETE',
       url: users.delete(user.id),
     })
-    
+
     expect(response.statusCode).toBe(200)
 
     const dbUser = await app.prisma.user.findUnique({ where: { id: user.id } })

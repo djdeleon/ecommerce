@@ -256,6 +256,9 @@ import { Facility, seedFacilities } from './seeders/facilities.seed.js';
 import { FacilityType, VehicleType, UserRole, TransitMode, ShipmentStatus } from '@prisma/client';
 import { createParcel } from '../tests/factory/parcel.factory.js';
 import { createTrackingLog } from '../tests/factory/tracking-logs.factory.js';
+import { createClient } from '../tests/factory/client.factory.js';
+import { seedClients } from './seeders/clients.seed.js';
+import { seedFleetTransports } from './seeders/fleet-transports.seed.js';
 
 let app: any
 
@@ -305,7 +308,12 @@ async function seed() {
 
   await seedVehicleProfiles(app);
 
+  const mainClient = await createClient(app, { 
+    name: 'Eco Logistics Main Client' 
+  });
+  console.log(`Main Client created: ${mainClient.name} (ID: ${mainClient.id})`);
 
+  await seedClients(app);
 
   const facilites: Facility[] = [
     {
@@ -9385,6 +9393,8 @@ async function seed() {
 
   await seedFacilities(app, facilites);
 
+  await seedFleetTransports(app);
+
   // Static
   const parFacility = await app.prisma.facility.findFirstOrThrow({ where: { code: "DC-PAR-01" }, include: { sectors: true } });
   const mnlFacility = await app.prisma.facility.findFirstOrThrow({ where: { code: "GW-MNL-01" } });
@@ -9426,6 +9436,7 @@ async function seed() {
     `
 
   const parcel = await createParcel(app, {
+    clientId: mainClient.id,
     originSectorId: sellerWarehouseNearbySector.id,
     destinationSectorId: customerNearbySector.id,
     originFacilityId: parFacility.id,      // Origin is Parañaque DC
@@ -9520,6 +9531,7 @@ async function seed() {
 
   // Malanday
   const parcelB = await createParcel(app, {
+    clientId: mainClient.id,
     originSectorId: sellerWarehouseNearbySectorB.id,
     destinationSectorId: customerNearbySectorB.id,
     originFacilityId: parFacility.id,      // Origin is Parañaque DC
@@ -9542,6 +9554,7 @@ async function seed() {
 
   // Concepcion Uno
   const parcelC = await createParcel(app, {
+    clientId: mainClient.id,
     originSectorId: sellerWarehouseNearbySectorB.id,
     destinationSectorId: customerNearbySectorB.id,
     originFacilityId: parFacility.id,      // Origin is Parañaque DC
@@ -9564,6 +9577,7 @@ async function seed() {
 
   // Parang
   const parcelD = await createParcel(app, {
+    clientId: mainClient.id,
     originSectorId: sellerWarehouseNearbySectorB.id,
     destinationSectorId: customerNearbySectorB.id,
     originFacilityId: parFacility.id,      // Origin is Parañaque DC
@@ -9586,6 +9600,7 @@ async function seed() {
 
   // Fortune
   const parcelE = await createParcel(app, {
+    clientId: mainClient.id,
     originSectorId: sellerWarehouseNearbySectorB.id,
     destinationSectorId: customerNearbySectorB.id,
     originFacilityId: parFacility.id,      // Origin is Parañaque DC
@@ -9608,6 +9623,7 @@ async function seed() {
 
   // Marikina Heights (Concepcion)
   const parcelF = await createParcel(app, {
+    clientId: mainClient.id,
     originSectorId: sellerWarehouseNearbySectorB.id,
     destinationSectorId: customerNearbySectorB.id,
     originFacilityId: parFacility.id,      // Origin is Parañaque DC
@@ -9630,6 +9646,7 @@ async function seed() {
 
   // Concepcion Dos
   const parcelG = await createParcel(app, {
+    clientId: mainClient.id,
     originSectorId: sellerWarehouseNearbySectorB.id,
     destinationSectorId: customerNearbySectorB.id,
     originFacilityId: parFacility.id,      // Origin is Parañaque DC
