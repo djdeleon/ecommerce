@@ -1,5 +1,8 @@
 export default defineNuxtConfig({
-  modules: ['@nuxt/ui'],
+  modules: [
+    '@nuxt/ui',
+    '@nuxt/test-utils/module',
+  ],
   css: [
     '~/assets/css/main.css',
     'maplibre-gl/dist/maplibre-gl.css'

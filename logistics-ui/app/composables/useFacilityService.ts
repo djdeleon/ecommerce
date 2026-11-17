@@ -23,5 +23,14 @@ export const useFacilityService = () => {
     })
   }
 
-  return { getFacilities, getFacility }
+  const getFacilityCouriers = async () => {
+    return await $fetch(`${apiBase}/facilities/couriers`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${userToken.value}`
+      }
+    })
+  }
+
+  return { getFacilities, getFacility, getFacilityCouriers }
 }

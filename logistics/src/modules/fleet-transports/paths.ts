@@ -9,15 +9,16 @@ const createPath = (path: string) => {
 }
 
 export const fleetTransports = {
-  index: '/fleet-transports',
-  tasks: '/fleet-transports/tasks',
-  schedules: '/fleet-transports/schedules',
-  create: '/fleet-transports/create',
-  store: '/fleet-transports',
-  update: createPath('/fleet-transports/:id'),
-  delete: createPath('/fleet-transports/:id'),
-  depart: createPath('/fleet-transports/:id/depart'),
-  telemetry: createPath('/fleet-transports/:id/telemetry'),
-  dispatch: createPath('/fleet-transports/:id/dispatch'),
-  arrive: createPath('/fleet-transports/:id/arrive'),
+  index: '/api/v1/fleet-transports',
+  tasks: '/api/v1/fleet-transports/tasks',
+  schedules: '/api/v1/fleet-transports/schedules',
+  create: '/api/v1/fleet-transports/create',
+  store: '/api/v1/fleet-transports',
+  show: createPath('/api/v1/fleet-transports/:id'),
+  update: createPath('/api/v1/fleet-transports/:id'),
+  delete: createPath('/api/v1/fleet-transports/:id'),
+  depart: createPath('/api/v1/fleet-transports/:id/depart'),
+  telemetry: createPath('/api/v1/fleet-transports/:id/telemetry'),
+  dispatch: createPath('/api/v1/fleet-transports/:id/dispatch'),
+  arrive: createPath('/api/v1/fleet-transports/:id/arrive'),
 } as const;

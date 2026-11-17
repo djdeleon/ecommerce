@@ -3,9 +3,10 @@ import { createCourier, createFacility, createTrackingLog } from "#factory";
 import { FastifyInstance } from "fastify";
 import { createSector } from "./sector.factory.js";
 
-export async function createParcel(fastify: FastifyInstance, overrides = {}) {
+export async function createParcel(fastify: FastifyInstance, overrides: any = {}) {
   const randomSuffix = Math.floor(Math.random() * 1000000);
 
+  // Setup default relations if not provided
   const origin = await createFacility(fastify, {
     name: `Origin Mega Hub ${randomSuffix}`
   })
@@ -39,27 +40,36 @@ export async function createParcel(fastify: FastifyInstance, overrides = {}) {
   const trackingNumber = `TRK-${Date.now()}-${randomSuffix}`;
   const externalOrderId = `EXT-${randomSuffix}`;
 
-  // Ensure a client and tracking pool entry exist to satisfy the foreign key constraint
-  const client = await fastify.prisma.client.upsert({
-    where: { name: `Default Client ${randomSuffix}` },
-    update: {},
-    create: {
-      name: `Default Client ${randomSuffix}`,
-      apiKey: `key-${randomSuffix}`,
-      apiSecret: `secret-${randomSuffix}`,
-      webhookUrl: "https://example.com/webhook",
-      webhookSecret: "wh-secret",
-    },
-  });
+  // Use provided clientId or fallback to creating a "Default Client"
+  let targetClientId = overrides.clientId;
 
+  if (!targetClientId) {
+    const client = await fastify.prisma.client.upsert({
+      where: { name: `Default Client ${randomSuffix}` },
+      update: {},
+      create: {
+        name: `Default Client ${randomSuffix}`,
+        apiKey: `key-${randomSuffix}`,
+        apiSecret: `secret-${randomSuffix}`,
+        webhookUrl: "https://example.com/webhook",
+        webhookSecret: "wh-secret",
+      },
+    });
+    targetClientId = client.id;
+  }
+
+  // Always create the tracking pool entry for this specific tracking number
   await fastify.prisma.trackingNumberPool.create({
     data: {
       trackingNumber,
-      clientId: client.id,
+      clientId: targetClientId,
       isAssigned: true,
       assignedAt: new Date(),
     },
   });
+
+  // emove clientId from overrides before creating Parcel (as Parcel doesn't have a clientId field)
+  const { clientId, ...parcelOverrides } = overrides;
 
   const parcel = await fastify.prisma.parcel.create({
     data: {
@@ -86,7 +96,7 @@ export async function createParcel(fastify: FastifyInstance, overrides = {}) {
       customerPhone: "09244562453",
       assignedCourierId: courier.id,
       status: ShipmentStatus.PendingPickup,
-      ...overrides,
+      ...parcelOverrides,
     },
   });
 

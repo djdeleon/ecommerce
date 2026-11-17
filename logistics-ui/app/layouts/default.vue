@@ -143,9 +143,19 @@ function getItems(state: 'collapsed' | 'expanded') {
       to: '/admin/dashboard',
     },
     {
+      label: 'Users',
+      icon: 'i-lucide-users',
+      to: '/admin/users',
+    },
+    {
       label: 'Clients',
       icon: 'i-lucide-shield-user',
       to: '/admin/clients',
+    },
+    {
+      label: 'Fleet Transports',
+      icon: 'i-lucide-route',
+      to: '/admin/fleet-transports'
     },
     {
       label: 'Managers',

@@ -63,6 +63,10 @@ export async function getFleetTransports(fastify: FastifyInstance) {
 
     return {
       id: ft.id,
+      facilityId: ft.facilityId,
+      vehicleId: ft.vehicleId,
+      courierId: ft.courierId,
+      networkLegId: ft.networkLegId,
       facilityName: ft.facility.name,
       email: ft.courier?.user.email || '-',
       courierName: ft.courier ? `${ft.courier.user.firstName} ${ft.courier.user.lastName}` : 'Unassigned',
@@ -230,24 +234,30 @@ export async function getFacilitySchedules(fastify: FastifyInstance, facilityId:
   return formattedData
 }
 
-export async function getCreateData(fastify: FastifyInstance, facilityId: number) {
+export async function getCreateData(fastify: FastifyInstance, facilityId?: number) {
+  console.log({facilityId})
   const fleetTransportTypes = Object.values(FleetTransportType)
+
+  const facilityFilter = facilityId ? { assignedFacilityId: facilityId } : {};
+  const vehicleFacilityFilter = facilityId ? { assignedFacilityId: facilityId } : {};
+  const legFacilityFilter = facilityId ? { sourceFacilityId: facilityId } : {};
+  const bagFacilityFilter = facilityId ? { currentFacilityId: facilityId } : {};
 
   const [couriers, vehicles, legs, masterBags] = await Promise.all([
     fastify.prisma.user.findMany({
-      where: { assignedFacilityId: facilityId, role: UserRole.Courier },
+      where: { ...facilityFilter, role: UserRole.Courier },
       include: { courier: true }
     }),
     fastify.prisma.physicalVehicle.findMany({
-      where: { assignedFacilityId: facilityId, status: CourierStatus.Available },
+      where: { ...vehicleFacilityFilter, status: CourierStatus.Available },
       include: { vehicleProfile: true }
     }),
     fastify.prisma.networkLeg.findMany({
-      where: { sourceFacilityId: facilityId },
+      where: { ...legFacilityFilter },
       include: { destinationFacility: true }
     }),
     fastify.prisma.masterBag.findMany({
-      where: { currentFacilityId: facilityId, status: MasterBagStatus.Sealed },
+      where: { ...bagFacilityFilter, status: MasterBagStatus.Sealed },
       include: { nextFacility: true }
     })
   ]);
@@ -280,14 +290,15 @@ export async function updateFleetTransport(
   data: UpdateBody
 ) {
   const id = parseId(idParam)
-  const { courierId, vehicleId, networkLegId, scheduledTime } = data
+  const { courierId, vehicleId, networkLegId, scheduledTime, scheduledFor } = data
 
   return await fastify.prisma.fleetTransport.update({
     where: { id },
     data: {
+      ...(scheduledFor && { scheduledFor }),
       ...(courierId !== undefined && { courierId: courierId ?? null }),
       ...(vehicleId && { vehicleId }),
-      ...(networkLegId && { networkLegId }),
+      ...(networkLegId !== undefined && { networkLegId: networkLegId ?? null }),
       ...(scheduledTime && { scheduledTime }),
     },
   })
