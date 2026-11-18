@@ -497,14 +497,14 @@ model Client {
   createdAt              DateTime             @default(now()) @map("created_at")
   updatedAt              DateTime             @updatedAt @map("updated_at")
 
-  trackingNumberPools    TrackingNumberPool[]
+  trackingNumbers        TrackingNumber[]
 
   @@map("clients")
 }
 
-model TrackingNumberPool {
+model TrackingNumber {
   id                    Int                   @id @default(autoincrement())
-  trackingNumber        String                @unique @db.VarChar(50) @map("tracking_number")
+  number                String                @unique @db.VarChar(50)
 
   clientId              Int                   @map("client_id")
   client                Client                @relation(fields: [clientId], references: [id], onDelete: Restrict)
@@ -517,14 +517,14 @@ model TrackingNumberPool {
 
   parcel                Parcel?  
 
-  @@map("tracking_number_pools")
+  @@map("tracking_numbers")
 }
 
 model Parcel {
   id                    Int                   @id @default(autoincrement())
 
   trackingNumber        String                @db.VarChar(50) @unique @map("tracking_number")
-  trackingNumberRel     TrackingNumberPool    @relation(fields: [trackingNumber], references: [trackingNumber], onDelete: Restrict)
+  trackingNumberRel     TrackingNumber        @relation(fields: [trackingNumber], references: [number], onDelete: Restrict)
 
   externalOrderId       String                @unique @map("external_order_id")
 
@@ -594,6 +594,27 @@ model Parcel {
   @@map("parcels")
 }
 
+model TrackingLog {
+  id                    Int                   @id @default(autoincrement())
+
+  parcelId              Int                   @map("parcel_id")
+  parcel                Parcel                @relation(fields: [parcelId], references: [id], onDelete: Cascade)
+
+  status                ShipmentStatus
+  description           String
+
+  facilityId            Int?                  @map("facility_id")
+  facility              Facility?             @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  
+  courierId             Int?                  @map("courier_id")
+  courier               Courier?              @relation(fields: [courierId], references: [id], onDelete: SetNull)
+  
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime              @updatedAt @map("updated_at")
+
+  @@map("tracking_logs")
+}
+
 model ParcelAuditLog {
   id                    Int                   @id @default(autoincrement())
 
@@ -647,27 +668,6 @@ model Store {
   parcels               Parcel[]
 
   @@map("stores")
-}
-
-model TrackingLog {
-  id                    Int                   @id @default(autoincrement())
-
-  parcelId              Int                   @map("parcel_id")
-  parcel                Parcel                @relation(fields: [parcelId], references: [id], onDelete: Cascade)
-
-  status                ShipmentStatus
-  description           String
-
-  facilityId            Int?                  @map("facility_id")
-  facility              Facility?             @relation(fields: [facilityId], references: [id], onDelete: Restrict)
-  
-  courierId             Int?                  @map("courier_id")
-  courier               Courier?              @relation(fields: [courierId], references: [id], onDelete: SetNull)
-  
-  createdAt             DateTime              @default(now()) @map("created_at")
-  updatedAt             DateTime              @updatedAt @map("updated_at")
-
-  @@map("tracking_logs")
 }
 
 model VehicleProfile {

@@ -59,9 +59,9 @@ export async function createParcel(fastify: FastifyInstance, overrides: any = {}
   }
 
   // Always create the tracking pool entry for this specific tracking number
-  await fastify.prisma.trackingNumberPool.create({
+  await fastify.prisma.trackingNumber.create({
     data: {
-      trackingNumber,
+      number: trackingNumber,
       clientId: targetClientId,
       isAssigned: true,
       assignedAt: new Date(),

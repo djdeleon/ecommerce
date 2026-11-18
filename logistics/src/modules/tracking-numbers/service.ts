@@ -1,6 +1,7 @@
 import { prisma } from "#commons/database/prisma.js";
 import { PrismaClient } from "@prisma/client/extension";
 import crypto from "crypto"
+import { FastifyInstance } from "fastify";
 
 interface GenerateTrackingNumberData {
   apiKey: string;
@@ -23,11 +24,11 @@ export async function generateTrackingNumbers(data: GenerateTrackingNumberData) 
 
     trackingNumbers.push({
       clientId,
-      trackingNumber
+      number: trackingNumber
     })
 
     if (trackingNumbers.length > CHUNK_SIZE) {
-      await prisma.trackingNumberPool.createMany({
+      await prisma.trackingNumber.createMany({
         data: trackingNumbers,
         skipDuplicates: true
       })
@@ -37,21 +38,21 @@ export async function generateTrackingNumbers(data: GenerateTrackingNumberData) 
   }
 
   if (trackingNumbers.length > 0) {
-    await prisma.trackingNumberPool.createMany({
+    await prisma.trackingNumber.createMany({
       data: trackingNumbers,
       skipDuplicates: true
     })
   }
 
-  return await prisma.trackingNumberPool.findMany({
+  return await prisma.trackingNumber.findMany({
     where: { clientId },
-    select: { trackingNumber: true }
+    select: { number: true }
   })
 }
 
-export async function activateTrackingNumber(clientId: number, trackingNumber: string, prisma: PrismaClient) {
-  const existingTrackingNumber = await prisma.trackingNumberPool.findUnique({
-    where: { trackingNumber }
+export async function activateTrackingNumber(fastify: FastifyInstance, clientId: number, trackingNumber: string) {
+  const existingTrackingNumber = await fastify.prisma.trackingNumber.findUnique({
+    where: { number: trackingNumber }
   })
 
   if (!existingTrackingNumber) {
@@ -66,7 +67,7 @@ export async function activateTrackingNumber(clientId: number, trackingNumber: s
     throw new Error("TrackingNumberIsAlreadyUsed")
   }
 
-  await prisma.trackingNumberPool.update({
+  await fastify.prisma.trackingNumber.update({
     where: { id: existingTrackingNumber.id },
     data: {
       isAssigned: true,

@@ -33,7 +33,7 @@ beforeEach(async () => {
       sectors,
       couriers,
       vehicle_profiles,
-      tracking_number_pools,
+      tracking_numbers,
       stores,
       clients,
       users,
