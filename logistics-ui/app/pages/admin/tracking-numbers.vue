@@ -37,12 +37,8 @@ const assignmentOptions = ['Assigned', 'Unassigned']
 const loadData = async () => {
   loading.value = true
   try {
-    const [tnRes, clientRes]: any = await Promise.all([
-      getTrackingNumbers(),
-      getClients()
-    ])
+    const tnRes: any = await getTrackingNumbers()
     trackingNumbers.value = tnRes.data || tnRes || []
-    clients.value = clientRes.data || clientRes || []
   } catch (err: any) {
     toast.add({ title: 'Loading Lists Failed', description: err?.data?.message, color: 'error' })
   } finally {
@@ -129,10 +125,16 @@ const columns = [
   { accessorKey: 'actions', header: 'Actions' }
 ]
 
-const openGenerateModal = () => {
-  generationForm.apiKey = clients.value[0]?.apiKey || ''
-  generationForm.size = 10
-  isGenerateModalOpen.value = true
+const openGenerateModal = async () => {
+  try {
+    const clientRes: any = await getClients()
+    clients.value = clientRes.data || clientRes || []
+    generationForm.apiKey = clients.value[0]?.apiKey || ''
+    generationForm.size = 10
+    isGenerateModalOpen.value = true
+  } catch (err: any) {
+    toast.add({ title: 'Failed to load clients', description: err?.data?.message, color: 'error' })
+  }
 }
 
 const handleGenerate = async () => {

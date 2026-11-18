@@ -7,9 +7,11 @@ const createPath = (path: string) => {
 }
 
 export const facilities = {
-  index: '/facilities',
-  couriers: '/facilities/couriers',
-  show: createPath('/facilities/:id'),
-  store: '/facilities',
-  assignCourier: createPath('/facilities/:id/assign-courier'),
+  index: '/api/v1/facilities',
+  show: createPath('/api/v1/facilities/:id'),
+  store: '/api/v1/facilities',
+  update: createPath('/api/v1/facilities/:id'),
+  delete: createPath('/api/v1/facilities/:id'),
+  assignCourier: createPath('/api/v1/facilities/:id/assign-courier'),
+  couriers: '/api/v1/facilities/couriers',
 } as const;

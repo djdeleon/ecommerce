@@ -39,7 +39,6 @@ describe('Tracking Numbers Management Page (UI Component)', () => {
     const searchInput = component.find('input[placeholder="Search tracking number or client..."]')
     expect(searchInput.exists()).toBe(true)
     expect(mockGetTrackingNumbers).toHaveBeenCalled()
-    expect(mockGetClients).toHaveBeenCalled()
 
     expect(component.text()).toContain('FSTFY12345PH')
     expect(component.text()).toContain('Acme Corp')
