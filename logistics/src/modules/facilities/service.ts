@@ -1,12 +1,7 @@
-import { FleetTransportType, CourierStatus, FacilityType, UserRole, VehicleStatus, MasterBagStatus } from "@prisma/client";
+import { FleetTransportType, CourierStatus, FacilityType, UserRole, VehicleStatus } from "@prisma/client";
 import { FastifyInstance } from "fastify";
 import { facilityTypeMap } from "./facilityTypeMap.js";
-import { CreateFacilityData } from "./schema.js";
-
-interface AssignCourierData {
-  id: number;
-  userId: number;
-}
+import { AssignCourierData, CreateFacilityData, UpdateFacilityBody } from "./schema.js";
 
 export function generateSortingCode(): string {
   const randomSuffix = Math.floor(Math.random() * 10000);
@@ -47,7 +42,80 @@ export async function createFacility(fastify: FastifyInstance, data: CreateFacil
   return facility
 }
 
-export async function updateFacility(
+export async function updateFacility(fastify: FastifyInstance, id: number, data: UpdateFacilityBody) {
+  const facilityType = data.type ? facilityTypeMap[data.type as FacilityType] : undefined;
+
+  if (data.latitude !== undefined && data.longitude !== undefined) {
+    const [updated] = await fastify.prisma.$queryRaw<any[]>`
+      UPDATE "facilities"
+      SET 
+        "name" = COALESCE(${data.name}, "name"),
+        "address" = COALESCE(${data.address}, "address"),
+        "type" = COALESCE(${facilityType}::facility_type, "type"),
+        "parent_id" = COALESCE(${data.parentId}, "parent_id"),
+        "location" = ST_SetSRID(ST_MakePoint(${data.longitude}, ${data.latitude}), 4326),
+        "updated_at" = NOW()
+      WHERE "id" = ${id}
+      RETURNING *;
+    `;
+    if (!updated) throw new Error('FacilityNotFound');
+    return updated;
+  }
+
+  return await fastify.prisma.facility.update({
+    where: { id },
+    data: {
+      name: data.name,
+      address: data.address,
+      type: data.type,
+      parentId: data.parentId,
+    }
+  });
+}
+
+export async function deleteFacility(fastify: FastifyInstance, id: number) {
+  return await fastify.prisma.$transaction(async (tx) => {
+    // Unassign users (managers, clerks, couriers) assigned to this facility
+    await tx.user.updateMany({
+      where: { assignedFacilityId: id },
+      data: { assignedFacilityId: null }
+    });
+
+    // Unassign physical vehicles assigned to this facility
+    await tx.physicalVehicle.updateMany({
+      where: { assignedFacilityId: id },
+      data: { assignedFacilityId: null }
+    });
+
+    // Unassign or clear child facility parent references
+    await tx.facility.updateMany({
+      where: { parentId: id },
+      data: { parentId: null }
+    });
+
+    // Delete associated sectors (which blocks deletion due to 'sectors_local_branch_id_fkey')
+    await tx.sector.deleteMany({
+      where: { localBranchId: id }
+    });
+
+    // Delete network legs connected to this facility
+    await tx.networkLeg.deleteMany({
+      where: {
+        OR: [
+          { sourceFacilityId: id },
+          { destinationFacilityId: id }
+        ]
+      }
+    });
+
+    // Finally, delete the facility itself
+    return await tx.facility.delete({
+      where: { id }
+    });
+  });
+}
+
+export async function assignCourierToFacility(
   fastify: FastifyInstance,
   data: AssignCourierData
 ) {
@@ -64,8 +132,13 @@ export async function updateFacility(
   })
 }
 
+export async function getFacilityById(fastify: FastifyInstance, id: number) {
+  return await fastify.prisma.facility.findUniqueOrThrow({
+    where: { id }
+  });
+}
+
 export async function getFacility(fastify: FastifyInstance, id: number) {
-  console.log({id})
   const facilityRaw: any[] = await fastify.prisma.$queryRaw`
     SELECT 
       id, 
@@ -253,15 +326,11 @@ export async function getFacility(fastify: FastifyInstance, id: number) {
 }
 
 export async function dashboardData(fastify: FastifyInstance) {
-  const [facilities, couriers] = await Promise.all([
-    fastify.prisma.facility.findMany(),
-    availableCouriers(fastify),
-  ])
+  const facilities = await fastify.prisma.facility.findMany()
 
   return {
     facilities,
     facilityTypes: Object.values(FacilityType),
-    availableCouriers: couriers
   }
 }
 

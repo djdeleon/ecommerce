@@ -31,10 +31,13 @@ export const StoreSchema = {
       description: "Geographic latitude coordinate",
       examples: [14.5995]
     }),
-    parentId: Type.Optional(Type.Integer({
-      minimum: 1,
-      description: "ID of the parent facility in the logistics network hierarchy"
-    }))
+    parentId: Type.Optional(Type.Union([
+      Type.Integer({
+        minimum: 1,
+        description: "ID of the parent facility in the logistics network hierarchy"
+      }),
+      Type.Null()
+    ]))
   }),
   response: {
     201: Type.Object({
@@ -56,6 +59,11 @@ export const StoreSchema = {
 
 export const IndexSchema = {
 }
+
+export const UpdateSchema = {
+  body: Type.Partial(StoreSchema.body)
+}
+
 
 export const AssignSchema = {
   body: Type.Object({
@@ -88,7 +96,13 @@ const CreateFacilityDataSchema = Type.Omit(StoreSchema.body, [
   'parentId',
 ])
 
+export interface AssignCourierData {
+  id: number;
+  userId: number;
+}
+
 export type StoreBody = Static<typeof StoreSchema.body>
+export type UpdateFacilityBody = Static<typeof UpdateSchema.body>
 export type AssignBody = Static<typeof AssignSchema.body>
 export type AssignParams = Static<typeof AssignSchema.params>
 export type CreateFacilityData = Static<typeof CreateFacilityDataSchema>

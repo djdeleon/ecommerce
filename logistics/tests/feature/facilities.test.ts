@@ -16,7 +16,6 @@ describe('Facilities Domain', async () => {
   test('an admin can view facility dashboard', async () => {
     const admin = await createUser(app, UserRole.Admin)
     const facility = await createFacility(app);
-    const availableCourier = await createCourier(app);
     await createCourier(app, { status: CourierStatus.Offline });
 
     const response = await app.inject({
@@ -28,7 +27,7 @@ describe('Facilities Domain', async () => {
     })
 
     const body = response.json()
-    const { facilities: facilityList, facilityTypes, availableCouriers } = body.data
+    const { facilities: facilityList, facilityTypes } = body.data
 
     expect(response.statusCode).toBe(200)
     expect(body.message).toBe('Facilities retrieved.')
@@ -47,12 +46,6 @@ describe('Facilities Domain', async () => {
     expect(facilityTypes).toEqual(
       expect.arrayContaining(['MegaGateway', 'DistributionCenter', 'LocalBranch'])
     )
-
-    expect(availableCouriers.length).toBeGreaterThan(0)
-    expect(availableCouriers[0]).toMatchObject({
-      id: availableCourier.courier.id,
-      status: CourierStatus.Available,
-    })
   })
 
   test('an admin can create a facility', async () => {
@@ -109,11 +102,96 @@ describe('Facilities Domain', async () => {
 
     expect(response.statusCode).toBe(200)
     expect(body.message).toBe('Courier assigned.')
-    
+
     expect(body.data).toMatchObject({
       id: facility.id,
       name: facility.name,
       code: facility.code,
     })
+  })
+
+  test('an admin can view a single facility details', async () => {
+    const admin = await createUser(app, UserRole.Admin)
+    const facility = await createFacility(app)
+
+    const response = await app.inject({
+      method: 'GET',
+      url: facilities.show(facility.id),
+      headers: {
+        authorization: `Bearer ${admin.token}`
+      }
+    })
+
+    const body = response.json()
+
+    expect(response.statusCode).toBe(200)
+    expect(body.message).toBe('Facility Data retrieved successfully.')
+    expect(body.data).toMatchObject({
+      id: facility.id,
+      name: facility.name,
+      code: facility.code,
+      address: facility.address
+    })
+  })
+
+  test('an admin can update a facility', async () => {
+    const admin = await createUser(app, UserRole.Admin)
+    const facility = await createFacility(app)
+
+    const updatePayload = {
+      name: "Updated Mega Gateway",
+      address: "New Address Line, City",
+      type: FacilityType.DistributionCenter,
+      longitude: 121.0000,
+      latitude: 14.0000
+    }
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: facilities.update(facility.id),
+      headers: {
+        authorization: `Bearer ${admin.token}`
+      },
+      body: updatePayload
+    })
+
+    const body = response.json()
+
+    expect(response.statusCode).toBe(200)
+    expect(body.message).toBe('Facility updated successfully.')
+    expect(body.data).toMatchObject({
+      id: facility.id,
+      name: updatePayload.name,
+      address: updatePayload.address,
+      type: facilityTypeMap[updatePayload.type]
+    })
+  })
+
+  test('an admin can delete a facility', async () => {
+    const admin = await createUser(app, UserRole.Admin)
+    const facility = await createFacility(app)
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: facilities.delete(facility.id),
+      headers: {
+        authorization: `Bearer ${admin.token}`
+      }
+    })
+
+    const body = response.json()
+
+    expect(response.statusCode).toBe(200)
+    expect(body.message).toBe('Facility deleted successfully.')
+
+    // Verify it no longer exists
+    const checkResponse = await app.inject({
+      method: 'GET',
+      url: facilities.show(facility.id),
+      headers: {
+        authorization: `Bearer ${admin.token}`
+      }
+    })
+    expect(checkResponse.statusCode).toBe(500)
   })
 })

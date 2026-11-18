@@ -17,6 +17,7 @@ const pagination = ref({
   pageIndex: 0,
   pageSize: 10
 })
+const sorting = ref([{ id: 'id', desc: true }])
 
 // Modal State
 const isModalOpen = ref(false)
@@ -244,7 +245,7 @@ headerActions.value = h(UButton, {
     <!-- Users Table -->
     <UCard :ui="{ body: 'p-0 sm:p-0' }">
       <div class="overflow-x-auto">
-        <UTable ref="table" v-model:pagination="pagination" :data="users" :columns="columns" :loading="loading"
+        <UTable ref="table" v-model:pagination="pagination" v-model:sorting="sorting" :data="users" :columns="columns" :loading="loading"
           :pagination-options="{
             getPaginationRowModel: getPaginationRowModel()
           }" class="w-full min-w-[600px]">
