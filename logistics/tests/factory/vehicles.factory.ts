@@ -1,7 +1,6 @@
 import { VehicleType } from "@prisma/client";
 import { FastifyInstance } from "fastify";
 import { createFacility } from "./facility.factory.js";
-import { createNetworkLeg } from "./network-leg.factory.js";
 import { createVehicleProfile as createVehicleProfileService } from "../../src/modules/vehicles/services/vehicle-profile.service.js";
 import { createPhysicalVehicle as createPhysicalVehicleService } from "../../src/modules/vehicles/services/physical-vehicle.service.js";
 

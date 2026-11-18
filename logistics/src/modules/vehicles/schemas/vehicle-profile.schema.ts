@@ -42,7 +42,13 @@ export const UpdateVehicleBodySchema = Type.Partial(CreateVehicleBodySchema)
 export const UpdateVehicleSchema = {
   body: UpdateVehicleBodySchema,
   params: Type.Object({
-    vehicleProfileId: Type.String(),
+    id: Type.String(),
+  }),
+}
+
+export const GetVehicleSchema = {
+  params: Type.Object({
+    id: Type.String(),
   }),
 }
 
@@ -52,7 +58,7 @@ export const CreateVehicleSchema = {
 
 export const DeleteVehicleSchema = {
   params: Type.Object({
-    vehicleProfileId: Type.String(),
+    id: Type.String(),
   }),
 }
 
@@ -60,4 +66,5 @@ export type VehicleProfile = Static<typeof VehicleProfileSchema>
 export type CreateVehicleProfile = Static<typeof CreateVehicleBodySchema>
 export type UpdateVehicleBody = Static<typeof UpdateVehicleSchema.body>
 export type UpdateVehicleParams = Static<typeof UpdateVehicleSchema.params>
+export type GetVehicleParams = Static<typeof GetVehicleSchema.params>
 export type DeleteVehicleParams = Static<typeof DeleteVehicleSchema.params>

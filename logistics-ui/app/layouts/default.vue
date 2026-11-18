@@ -175,7 +175,22 @@ function getItems(state: 'collapsed' | 'expanded') {
     {
       label: 'Vehicles',
       icon: 'i-lucide-truck',
-      to: '/admin/vehicles'
+      defaultOpen: true,
+      children:
+        state === 'expanded'
+          ? [
+            {
+              label: 'Vehicle Profiles',
+              icon: 'i-lucide-file-cog',
+              to: '/admin/vehicles/vehicle-profiles'
+            },
+            {
+              label: 'Physical Vehicles',
+              icon: 'i-lucide-car',
+              to: '/admin/vehicles/physical-vehicles'
+            }
+          ]
+          : []
     },
     {
       label: 'Settings',

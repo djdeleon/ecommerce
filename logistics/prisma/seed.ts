@@ -250,7 +250,6 @@
 import { disconnectDb, prisma } from '#commons/database/prisma.js';
 import { seedGeographicAreas, seedGeoJSONData } from '#commons/utils/spatial-seeder.js';
 import fastify from 'fastify';
-import { seedVehicleProfiles } from './seeders/vehicle-profiles.seed.js';
 import main from "../src/app.js";
 import { Facility, seedFacilities } from './seeders/facilities.seed.js';
 import { FacilityType, VehicleType, UserRole, TransitMode, ShipmentStatus } from '@prisma/client';
@@ -259,6 +258,7 @@ import { createTrackingLog } from '../tests/factory/tracking-logs.factory.js';
 import { createClient } from '../tests/factory/client.factory.js';
 import { seedClients } from './seeders/clients.seed.js';
 import { seedFleetTransports } from './seeders/fleet-transports.seed.js';
+import { seedVehicleProfiles } from './seeders/vehicles/vehicle-profiles.seed.js';
 
 let app: any
 
@@ -306,7 +306,7 @@ async function seed() {
 
   // await seedGeography(app);
 
-  await seedVehicleProfiles(app);
+  await seedVehicleProfiles(app)
 
   const mainClient = await createClient(app, { 
     name: 'Eco Logistics Main Client' 

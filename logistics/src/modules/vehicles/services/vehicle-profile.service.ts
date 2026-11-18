@@ -3,6 +3,20 @@ import { FastifyInstance } from "fastify";
 import { CreateVehicleProfile, UpdateVehicleBody } from "../schemas/vehicle-profile.schema.js";
 import parseId from "#commons/utils/id-parser.js";
 
+export async function getVehicleProfiles(fastify: FastifyInstance) {
+  return await fastify.prisma.vehicleProfile.findMany({
+    orderBy: { createdAt: 'desc' },
+  })
+}
+
+export async function getVehicleProfileById(fastify: FastifyInstance, idParam: string) {
+  const id = parseId(idParam)
+
+  return await fastify.prisma.vehicleProfile.findUniqueOrThrow({
+    where: { id },
+  })
+}
+
 export async function createVehicleProfile(fastify: FastifyInstance, data: CreateVehicleProfile) {
   return await fastify.prisma.vehicleProfile.create({
     data: {

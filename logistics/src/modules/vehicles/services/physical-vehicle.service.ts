@@ -2,27 +2,38 @@ import { FastifyInstance } from "fastify";
 import { CreatePhysicalVehicleBody, UpdatePhysicalVehicleBody } from "../schemas/physical-vehicle.schema.js";
 import parseId from "#commons/utils/id-parser.js";
 
+export async function getPhysicalVehicles(fastify: FastifyInstance) {
+  return await fastify.prisma.physicalVehicle.findMany({
+    include: { vehicleProfile: true }
+  })
+}
+
 export async function createPhysicalVehicle(
   fastify: FastifyInstance,
   data: CreatePhysicalVehicleBody
 ) {
-  const [physicalVehicle] = await fastify.prisma.$queryRaw<any[]>`
-    INSERT INTO physical_vehicles (vehicle_profile_id, assigned_facility_id, plate_number, created_at, updated_at)
-    VALUES (
-      ${data.vehicleProfileId}, 
-      ${data.assignedFacilityId}, 
-      ${data.plateNumber}, 
-      NOW(),
-      NOW()
-    )
-    RETURNING 
-      id, 
-      vehicle_profile_id AS "vehicleProfileId", 
-      assigned_facility_id AS "assignedFacilityId", 
-      plate_number AS "plateNumber", 
-      created_at AS "createdAt", 
-      updated_at AS "updatedAt"
-  `
+  return await fastify.prisma.physicalVehicle.create({
+    data: {
+      vehicleProfileId: data.vehicleProfileId,
+      assignedFacilityId: data.assignedFacilityId,
+      plateNumber: data.plateNumber,
+      status: data.status,
+    },
+    include: { vehicleProfile: true }
+  })
+}
+
+export async function getPhysicalVehicleById(fastify: FastifyInstance, idParam: string) {
+  const id = parseId(idParam)
+
+  const physicalVehicle = await fastify.prisma.physicalVehicle.findUnique({
+    where: { id },
+    include: { vehicleProfile: true }
+  })
+
+  if (!physicalVehicle) {
+    throw new Error('Physical vehicle not found')
+  }
 
   return physicalVehicle
 }
@@ -34,24 +45,11 @@ export async function updatePhysicalVehicle(
 ) {
   const id = parseId(idParam)
 
-  await fastify.prisma.physicalVehicle.update({
+  return await fastify.prisma.physicalVehicle.update({
     where: { id },
-    data
+    data,
+    include: { vehicleProfile: true }
   })
-
-  const [updatedVehicle] = await fastify.prisma.$queryRaw<any[]>`
-    SELECT 
-      id, 
-      vehicle_profile_id AS "vehicleProfileId", 
-      assigned_facility_id AS "assignedFacilityId", 
-      plate_number AS "plateNumber", 
-      created_at AS "createdAt", 
-      updated_at AS "updatedAt"
-    FROM physical_vehicles
-    WHERE id = ${id}
-  `
-
-  return updatedVehicle
 }
 
 export async function deletePhysicalVehicle(
