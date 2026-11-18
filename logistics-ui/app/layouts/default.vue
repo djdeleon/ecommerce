@@ -168,6 +168,11 @@ function getItems(state: 'collapsed' | 'expanded') {
       to: '/admin/facilities',
     },
     {
+      label: 'Tracking Numbers',
+      icon: 'i-lucide-barcode',
+      to: '/admin/tracking-numbers',
+    },
+    {
       label: 'Parcels',
       icon: 'i-lucide-package',
       to: '/admin/parcels'

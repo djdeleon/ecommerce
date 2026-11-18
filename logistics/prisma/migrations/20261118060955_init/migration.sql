@@ -284,16 +284,16 @@ CREATE TABLE "clients" (
 );
 
 -- CreateTable
-CREATE TABLE "tracking_number_pools" (
+CREATE TABLE "tracking_numbers" (
     "id" SERIAL NOT NULL,
-    "tracking_number" VARCHAR(50) NOT NULL,
+    "number" VARCHAR(50) NOT NULL,
     "client_id" INTEGER NOT NULL,
     "is_assigned" BOOLEAN NOT NULL DEFAULT false,
     "assigned_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "tracking_number_pools_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "tracking_numbers_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -331,6 +331,20 @@ CREATE TABLE "parcels" (
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "parcels_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "tracking_logs" (
+    "id" SERIAL NOT NULL,
+    "parcel_id" INTEGER NOT NULL,
+    "status" "shipment_status" NOT NULL,
+    "description" TEXT NOT NULL,
+    "facility_id" INTEGER,
+    "courier_id" INTEGER,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "tracking_logs_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -374,20 +388,6 @@ CREATE TABLE "stores" (
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "stores_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "tracking_logs" (
-    "id" SERIAL NOT NULL,
-    "parcel_id" INTEGER NOT NULL,
-    "status" "shipment_status" NOT NULL,
-    "description" TEXT NOT NULL,
-    "facility_id" INTEGER,
-    "courier_id" INTEGER,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "tracking_logs_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -489,7 +489,7 @@ CREATE UNIQUE INDEX "clients_name_key" ON "clients"("name");
 CREATE UNIQUE INDEX "clients_api_key_key" ON "clients"("api_key");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "tracking_number_pools_tracking_number_key" ON "tracking_number_pools"("tracking_number");
+CREATE UNIQUE INDEX "tracking_numbers_number_key" ON "tracking_numbers"("number");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "parcels_tracking_number_key" ON "parcels"("tracking_number");
@@ -591,10 +591,10 @@ ALTER TABLE "couriers" ADD CONSTRAINT "couriers_user_id_fkey" FOREIGN KEY ("user
 ALTER TABLE "courier_logs" ADD CONSTRAINT "courier_logs_courier_id_fkey" FOREIGN KEY ("courier_id") REFERENCES "couriers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "tracking_number_pools" ADD CONSTRAINT "tracking_number_pools_client_id_fkey" FOREIGN KEY ("client_id") REFERENCES "clients"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "tracking_numbers" ADD CONSTRAINT "tracking_numbers_client_id_fkey" FOREIGN KEY ("client_id") REFERENCES "clients"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "parcels" ADD CONSTRAINT "parcels_tracking_number_fkey" FOREIGN KEY ("tracking_number") REFERENCES "tracking_number_pools"("tracking_number") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "parcels" ADD CONSTRAINT "parcels_tracking_number_fkey" FOREIGN KEY ("tracking_number") REFERENCES "tracking_numbers"("number") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "parcels" ADD CONSTRAINT "parcels_origin_sector_id_fkey" FOREIGN KEY ("origin_sector_id") REFERENCES "sectors"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -633,15 +633,6 @@ ALTER TABLE "parcels" ADD CONSTRAINT "parcels_sortation_batch_id_fkey" FOREIGN K
 ALTER TABLE "parcels" ADD CONSTRAINT "parcels_delivery_id_fkey" FOREIGN KEY ("delivery_id") REFERENCES "deliveries"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "parcel_audit_logs" ADD CONSTRAINT "parcel_audit_logs_parcel_id_fkey" FOREIGN KEY ("parcel_id") REFERENCES "parcels"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "parcel_facility_pipelines" ADD CONSTRAINT "parcel_facility_pipelines_parcel_id_fkey" FOREIGN KEY ("parcel_id") REFERENCES "parcels"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "parcel_facility_pipelines" ADD CONSTRAINT "parcel_facility_pipelines_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "tracking_logs" ADD CONSTRAINT "tracking_logs_parcel_id_fkey" FOREIGN KEY ("parcel_id") REFERENCES "parcels"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -649,6 +640,15 @@ ALTER TABLE "tracking_logs" ADD CONSTRAINT "tracking_logs_facility_id_fkey" FORE
 
 -- AddForeignKey
 ALTER TABLE "tracking_logs" ADD CONSTRAINT "tracking_logs_courier_id_fkey" FOREIGN KEY ("courier_id") REFERENCES "couriers"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "parcel_audit_logs" ADD CONSTRAINT "parcel_audit_logs_parcel_id_fkey" FOREIGN KEY ("parcel_id") REFERENCES "parcels"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "parcel_facility_pipelines" ADD CONSTRAINT "parcel_facility_pipelines_parcel_id_fkey" FOREIGN KEY ("parcel_id") REFERENCES "parcels"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "parcel_facility_pipelines" ADD CONSTRAINT "parcel_facility_pipelines_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "physical_vehicles" ADD CONSTRAINT "physical_vehicles_vehicle_profile_id_fkey" FOREIGN KEY ("vehicle_profile_id") REFERENCES "vehicle_profiles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

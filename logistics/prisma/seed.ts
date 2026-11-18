@@ -39,7 +39,7 @@
 //     })
 
 //     if (trackingNumbers.length > CHUNK_SIZE) {
-//       await prisma.trackingNumberPool.createMany({
+//       await prisma.trackingNumber.createMany({
 //         data: trackingNumbers,
 //         skipDuplicates: true
 //       })
@@ -49,13 +49,13 @@
 //   }
 
 //   if (trackingNumbers.length > 0) {
-//     await prisma.trackingNumberPool.createMany({
+//     await prisma.trackingNumber.createMany({
 //       data: trackingNumbers,
 //       skipDuplicates: true
 //     })
 //   }
 
-//   const trackingNumberPools = await prisma.trackingNumberPool.count()
+//   const trackingNumberPools = await prisma.trackingNumber.count()
 //   const clientTrackingNumbers = await prisma.client.findFirstOrThrow({
 //     include: {
 //       trackingNumberPools: true
@@ -290,7 +290,7 @@ async function seed() {
   await app.prisma.sector.deleteMany();
   await app.prisma.courier.deleteMany();
   await app.prisma.vehicleProfile.deleteMany();
-  await app.prisma.trackingNumberPool.deleteMany();
+  await app.prisma.trackingNumber.deleteMany();
   await app.prisma.store.deleteMany();
 
   // 6. Base parent tables (referenced by almost everything else)
