@@ -30,6 +30,7 @@ test.describe('Admin Client Management Workflow', () => {
       await pageTwo.click();
       await expect(page.getByText(/Showing page 2 of/)).toBeVisible();
       await page.getByRole('button', { name: 'Page 1' }).click();
+      await expect(page.getByText(/Showing page 1 of/)).toBeVisible();
     }
 
     // Test Status Filter Dropdown & Clear Filter

@@ -36,15 +36,14 @@ const openViewModal = async (id: number) => {
   try {
     const res: any = await getClientById(id)
     viewingClient.value = res.data || res
-  } catch (error) {
-    toast.add({ title: 'Error', description: 'Failed to load client details.', color: 'error' })
+  } catch (err: any) {
+    toast.add({ title: 'Viewing Failed', description: err?.data?.message, color: 'error' })
     isViewModalOpen.value = false
   } finally {
     loadingDetails.value = false
   }
 }
 
-// New Client Form State (aligned with backend store schema requiring just 'name')
 const newClient = reactive({
   name: ''
 })
@@ -59,12 +58,8 @@ const loadClients = async () => {
       isActive: selectedStatus.value ? selectedStatus.value === 'Active' : undefined,
     })
     clients.value = res.data || res || []
-  } catch (error) {
-    toast.add({
-      title: 'Error',
-      description: 'Failed to fetch clients list.',
-      color: 'error'
-    })
+  } catch (err: any) {
+    toast.add({ title: 'Loading Lists Failed', description: err?.data?.message, color: 'error' })
   } finally {
     loading.value = false
   }
@@ -144,7 +139,7 @@ const handleCreateClient = async () => {
 
     await loadClients()
   } catch (err: any) {
-    toast.add({ title: 'Registration Failed', description: err?.data?.message || 'Failed to register client.', color: 'error' })
+    toast.add({ title: 'Creation Failed', description: err?.data?.message, color: 'error' })
   } finally {
     saving.value = false
   }
@@ -163,7 +158,7 @@ const handleSaveClient = async () => {
     toast.add({ title: 'Updated', description: res.message, color: 'success' })
     await loadClients()
   } catch (err: any) {
-    toast.add({ title: 'Update Failed', description: err?.data?.message || 'Failed to update client.', color: 'error' })
+    toast.add({ title: 'Update Failed', description: err?.data?.message, color: 'error' })
   } finally {
     saving.value = false
   }
@@ -178,7 +173,7 @@ const handleConfirmDelete = async () => {
     toast.add({ title: 'Deleted', description: res.message, color: 'success' })
     await loadClients()
   } catch (err: any) {
-    toast.add({ title: 'Delete Failed', description: err?.data?.message || 'Failed to delete client.', color: 'error' })
+    toast.add({ title: 'Deletion Failed', description: err?.data?.message, color: 'error' })
     isDeleteModalOpen.value = false
   } finally {
     saving.value = false
@@ -217,17 +212,15 @@ headerActions.value = h(UButton, {
     <div
       class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between bg-gray-800/40 p-4 rounded-xl border border-gray-800">
       <div class="flex flex-col sm:flex-row gap-3 items-stretch flex-1 w-full max-w-xl">
-        <UInput :model-value="searchQuery"
-          placeholder="Search client name..." icon="i-lucide-search" class="w-full"
+        <UInput :model-value="searchQuery" placeholder="Search client name..." icon="i-lucide-search" class="w-full"
           @update:model-value="handleSearchInput" />
 
         <div class="flex gap-2 items-center w-full sm:w-auto">
-          <USelect :model-value="selectedStatus" :items="statusOptions" placeholder="Filter by Status" icon="i-lucide-filter" clearable
-            class="w-full sm:w-48" @update:model-value="handleStatusFilterChange" />
+          <USelect :model-value="selectedStatus" :items="statusOptions" placeholder="Filter by Status"
+            icon="i-lucide-filter" clearable class="w-full sm:w-48" @update:model-value="handleStatusFilterChange" />
 
-          <UButton v-if="searchQuery || selectedStatus" label="Clear Filter"
-            color="neutral" variant="subtle" size="sm" icon="i-lucide-x"
-            @click="clearAllFilters" />
+          <UButton v-if="searchQuery || selectedStatus" label="Clear Filter" color="neutral" variant="subtle" size="sm"
+            icon="i-lucide-x" @click="clearAllFilters" />
         </div>
       </div>
     </div>
@@ -259,7 +252,7 @@ headerActions.value = h(UButton, {
       </div>
 
       <!-- Pagination Footer -->
-      <div
+      <div v-if="clients.length > 0"
         class="flex flex-col sm:flex-row justify-between items-center gap-3 p-4 border-t border-gray-800 text-center sm:text-left">
         <span class="text-xs text-gray-400">
           Showing page {{ (table?.tableApi?.getState().pagination.pageIndex || 0) + 1 }} of {{

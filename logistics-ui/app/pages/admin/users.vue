@@ -46,7 +46,6 @@ const loadRoles = async () => {
     const res: any = await fetchRoles()
     roleOptions.value = res.data || res || []
   } catch (error) {
-    // fallback if fetching fails
     roleOptions.value = ['Admin', 'Manager', 'Clerk', 'Courier']
   }
 }
@@ -59,12 +58,9 @@ const loadUsers = async () => {
       role: selectedRole.value as any,
     })
     users.value = res.data || []
-  } catch (error) {
-    toast.add({
-      title: 'Error',
-      description: 'Failed to fetch users list.',
-      color: 'error'
-    })
+  } catch (err: any) {
+    toast.add({ title: 'Loading Lists Failed', description: err?.data?.message, color: 'error' })
+
   } finally {
     loading.value = false
   }
@@ -129,8 +125,8 @@ const openViewModal = async (id: number) => {
   try {
     const res: any = await fetchUserById(id)
     viewingUser.value = res.data || res
-  } catch (error) {
-    toast.add({ title: 'Error', description: 'Failed to load user details.', color: 'error' })
+  } catch (err: any) {
+    toast.add({ title: 'Viewing Failed', description: err?.data?.message, color: 'error' })
     isViewModalOpen.value = false
   } finally {
     loadingDetails.value = false
@@ -161,7 +157,7 @@ const handleCreateUser = async () => {
 
     await loadUsers()
   } catch (error: any) {
-    toast.add({ title: 'Creation Failed', description: error?.data?.message || 'Failed to create user.', color: 'error' })
+    toast.add({ title: 'Creation Failed', description: error?.data?.message, color: 'error' })
   } finally {
     saving.value = false
   }
@@ -181,8 +177,8 @@ const handleSaveUser = async () => {
     isModalOpen.value = false
     toast.add({ title: 'Updated', description: res.message, color: 'success' })
     await loadUsers()
-  } catch (error: any) {
-    toast.add({ title: 'Update Failed', description: error?.data?.message || 'Failed to update user account.', color: 'error' })
+  } catch (err: any) {
+    toast.add({ title: 'Update Failed', description: err?.data?.message, color: 'error' })
   } finally {
     saving.value = false
   }
@@ -197,7 +193,7 @@ const handleConfirmDelete = async () => {
     toast.add({ title: 'Deleted', description: res.message, color: 'success' })
     await loadUsers()
   } catch (error: any) {
-    toast.add({ title: 'Delete Failed', description: error?.data?.message || 'Failed to delete user.', color: 'error' })
+    toast.add({ title: 'Deletion Failed', description: error?.data?.message, color: 'error' })
   } finally {
     saving.value = false
     deletingUser.value = null
@@ -232,19 +228,15 @@ headerActions.value = h(UButton, {
     <div
       class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between bg-gray-800/40 p-4 rounded-xl border border-gray-800">
       <div class="flex flex-col sm:flex-row gap-3 items-stretch flex-1 w-full max-w-2xl">
-        <UInput id="user-search-input"
-          :model-value="searchQuery"
-          placeholder="Search name or email..." icon="i-lucide-search" class="w-full"
-          @update:model-value="handleSearchInput" />
+        <UInput id="user-search-input" :model-value="searchQuery" placeholder="Search name or email..."
+          icon="i-lucide-search" class="w-full" @update:model-value="handleSearchInput" />
 
         <div class="flex gap-2 items-center w-full sm:w-auto">
-          <USelect :model-value="selectedRole" :items="roleOptions"
-            placeholder="Filter by Role" icon="i-lucide-filter" clearable class="w-full sm:w-48"
-            @update:model-value="handleRoleFilterChange" />
+          <USelect :model-value="selectedRole" :items="roleOptions" placeholder="Filter by Role" icon="i-lucide-filter"
+            clearable class="w-full sm:w-48" @update:model-value="handleRoleFilterChange" />
 
-          <UButton v-if="searchQuery || selectedRole" label="Clear Filter" color="neutral"
-            variant="subtle" size="sm" icon="i-lucide-x"
-            @click="clearAllFilters" />
+          <UButton v-if="searchQuery || selectedRole" label="Clear Filter" color="neutral" variant="subtle" size="sm"
+            icon="i-lucide-x" @click="clearAllFilters" />
         </div>
       </div>
     </div>
@@ -277,8 +269,8 @@ headerActions.value = h(UButton, {
         </UTable>
       </div>
 
-      <!-- Pagination Footer using TanStack tableApi -->
-      <div
+      <!-- Pagination Footer -->
+      <div v-if="users.length > 0"
         class="flex flex-col sm:flex-row justify-between items-center gap-3 p-4 border-t border-gray-800 text-center sm:text-left">
         <span class="text-xs text-gray-400">
           Showing page {{ (table?.tableApi?.getState().pagination.pageIndex || 0) + 1 }} of {{

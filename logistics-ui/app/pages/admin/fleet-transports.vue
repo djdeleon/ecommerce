@@ -50,8 +50,8 @@ const loadTransports = async () => {
   try {
     const res: any = await getFleetTransports()
     transports.value = res.data || []
-  } catch (error) {
-    toast.add({ title: 'Error', description: 'Failed to fetch transports.', color: 'error' })
+  } catch (err: any) {
+    toast.add({ title: 'Loading Lists Failed', description: err?.data?.message, color: 'error' })
   } finally {
     loading.value = false
   }
@@ -62,8 +62,8 @@ const loadFormOptions = async (facilityId?: number) => {
     const query = facilityId ? `?facilityId=${facilityId}` : ''
     const res: any = await getCreateData(query)
     formOptions.value = res.data
-  } catch (error) {
-    console.error('Failed to load form options')
+  } catch (err: any) {
+    toast.add({ title: 'Loading Options Failed', description: err?.data?.message, color: 'error' })
   }
 }
 
@@ -173,8 +173,8 @@ const openViewModal = async (id: number) => {
   try {
     const res: any = await getFleetTransportById(id)
     viewingTransport.value = res.data
-  } catch (err) {
-    toast.add({ title: 'Error', description: 'Failed to load details.', color: 'error' })
+  } catch (err: any) {
+    toast.add({ title: 'Viewing Failed', description: err?.data?.message, color: 'error' })
   } finally {
     loadingDetails.value = false
   }
@@ -188,7 +188,7 @@ const handleCreate = async () => {
     isCreateModalOpen.value = false
     await loadTransports()
   } catch (err: any) {
-    toast.add({ title: 'Error', description: err?.data?.message || 'Creation failed', color: 'error' })
+    toast.add({ title: 'Creation Failed', description: err?.data?.message, color: 'error' })
   } finally {
     saving.value = false
   }
@@ -208,7 +208,7 @@ const handleUpdate = async () => {
     toast.add({ title: 'Updated', description: res.message, color: 'success' })
     await loadTransports()
   } catch (err: any) {
-    toast.add({ title: 'Error', description: err?.data?.message || 'Update failed', color: 'error' })
+    toast.add({ title: 'Update Failed', description: err?.data?.message, color: 'error' })
   } finally {
     saving.value = false
   }
@@ -222,7 +222,7 @@ const handleDelete = async () => {
     isDeleteModalOpen.value = false
     await loadTransports()
   } catch (err: any) {
-    toast.add({ title: 'Error', description: err?.data?.message || 'Delete failed', color: 'error' })
+    toast.add({ title: 'Deletion Failed', description: err?.data?.message, color: 'error' })
   } finally {
     saving.value = false
   }
@@ -275,7 +275,7 @@ headerActions.value = h(UButton, {
         </template>
       </UTable>
 
-      <div class="flex justify-between items-center p-4 border-t border-gray-800">
+      <div v-if="transports.length > 0" class="flex justify-between items-center p-4 border-t border-gray-800">
         <span class="text-xs text-gray-400">
           Showing page {{ (table?.tableApi?.getState().pagination.pageIndex || 0) + 1 }} of {{
             table?.tableApi?.getPageCount() || 1
