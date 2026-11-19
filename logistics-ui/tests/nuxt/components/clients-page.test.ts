@@ -1,6 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { mountSuspended, mockNuxtImport } from '@nuxt/test-utils/runtime'
-import { flushPromises } from '@vue/test-utils'
 import ClientsPage from '../../../app/pages/admin/clients.vue'
 
 const { mockGetClients, mockCreateClient, mockUpdateClient, mockDeleteClient, mockGetClientById } = vi.hoisted(() => ({

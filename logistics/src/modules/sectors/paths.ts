@@ -7,7 +7,9 @@ const createPath = (path: string) => {
 }
 
 export const sectors = {
-  store: '/sectors',
-  update: createPath('/sectors/:id'),
-  delete: createPath('/sectors/:id'),
+  index: '/api/v1/sectors',
+  store: '/api/v1/sectors',
+  show: createPath('/api/v1/sectors/:id'),
+  update: createPath('/api/v1/sectors/:id'),
+  delete: createPath('/api/v1/sectors/:id'),
 } as const;

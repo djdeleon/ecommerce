@@ -7,7 +7,9 @@ const createPath = (path: string) => {
 }
 
 export const networkLegs = {
-  store: '/network-legs',
-  update: createPath('/network-legs/:id'),
-  delete: createPath('/network-legs/:id'),
+  index: '/api/v1/network-legs',
+  store: '/api/v1/network-legs',
+  show: createPath('/api/v1/network-legs/:id'),
+  update: createPath('/api/v1/network-legs/:id'),
+  delete: createPath('/api/v1/network-legs/:id'),
 } as const;

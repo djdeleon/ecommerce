@@ -2,6 +2,17 @@ import { FastifyInstance } from "fastify";
 import { CreateSectorBody, UpdateSectorBody } from "./schema.js";
 import parseId from "#commons/utils/id-parser.js";
 
+
+export async function getSectors(fastify: FastifyInstance) {
+  return await fastify.prisma.sector.findMany({
+    include: {
+      barangays: true,
+      localBranch: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
 export async function createSector(
   fastify: FastifyInstance,
   data: CreateSectorBody
@@ -33,6 +44,22 @@ export async function createSector(
   }
 
   return sector
+}
+
+export async function getSectorById(fastify: FastifyInstance, id: number) {
+  const sector = await fastify.prisma.sector.findUnique({
+    where: { id },
+    include: {
+      barangays: true,
+      localBranch: true,
+    },
+  });
+
+  if (!sector) {
+    throw new Error('SectorNotFound');
+  }
+
+  return sector;
 }
 
 export async function updateSector(

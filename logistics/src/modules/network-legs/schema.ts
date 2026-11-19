@@ -40,6 +40,12 @@ export const CreateNetworkLegSchema = {
   body: CreateNetworkLegBodySchema,
 }
 
+export const GetNetworkLegSchema = {
+  params: Type.Object({
+    id: Type.String(),
+  }),
+}
+
 export const UpdateNetworkLegSchema = {
   body: UpdateNetworkLegBodySchema,
   params: Type.Object({
@@ -54,6 +60,7 @@ export const DeleteNetworkLegSchema = {
 }
 
 export type CreateNetworkLegBody = Static<typeof CreateNetworkLegBodySchema>
+export type GetNetworkLegParams = Static<typeof GetNetworkLegSchema.params>
 export type UpdateNetworkLegBody = Static<typeof UpdateNetworkLegSchema.body>
 export type UpdateNetworkLegParams = Static<typeof UpdateNetworkLegSchema.params>
 export type DeleteNetworkLegParams = Static<typeof DeleteNetworkLegSchema.params>

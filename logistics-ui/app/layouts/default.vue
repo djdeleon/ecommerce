@@ -163,9 +163,29 @@ function getItems(state: 'collapsed' | 'expanded') {
       to: '/admin/managers',
     },
     {
-      label: 'Facilities',
-      icon: 'i-lucide-warehouse',
-      to: '/admin/facilities',
+      label: 'Network Infrastructures',
+      icon: 'i-lucide-network',
+      defaultOpen: true,
+      children:
+        state === 'expanded'
+          ? [
+            {
+              label: 'Facilities',
+              icon: 'i-lucide-warehouse',
+              to: '/admin/network-infrastructures/facilities'
+            },
+            {
+              label: 'Sectors',
+              icon: 'i-lucide-orbit',
+              to: '/admin/network-infrastructures/sectors'
+            },
+            {
+              label: 'Network Legs',
+              icon: 'i-lucide-git-commit-horizontal',
+              to: '/admin/network-infrastructures/network-legs'
+            }
+          ]
+          : []
     },
     {
       label: 'Tracking Numbers',
