@@ -21,8 +21,8 @@ test.describe('Admin Facility Management Workflow', () => {
     await page.getByRole('button', { name: 'Continue' }).click();
 
     // Navigate to Facilities
-    await page.locator('a[href="/admin/facilities"]').click();
-    await expect(page).toHaveURL('/admin/facilities');
+    await page.locator('a[href="/admin/network-infrastructures/facilities"]').click();
+    await expect(page).toHaveURL('/admin/network-infrastructures/facilities');
 
     // Test Pagination
     await expect(page.getByText(/Showing page 1 of/)).toBeVisible();

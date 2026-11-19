@@ -16,6 +16,10 @@ export const SectorSchema = Type.Object({
   updatedAt: Type.String({ format: 'date-time' }),
 })
 
+export const GetSectorParamsSchema = Type.Object({
+  id: Type.String(),
+})
+
 export const CreateSectorBodySchema = Type.Omit(SectorSchema, [
   'id',
   'createdAt',
@@ -41,6 +45,7 @@ export const DeleteSectorSchema = {
   }),
 }
 
+export type GetSectorParams = Static<typeof GetSectorParamsSchema>
 export type CreateSectorBody = Static<typeof CreateSectorBodySchema>
 export type UpdateSectorBody = Static<typeof UpdateSectorSchema.body>
 export type UpdateSectorParams = Static<typeof UpdateSectorSchema.params>

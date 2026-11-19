@@ -5,17 +5,51 @@ import { createSector } from "../factory/sector.factory.js";
 import { seedGeographicAreas } from "#commons/utils/spatial-seeder.js";
 import { } from "node:test";
 import { sectors } from "../../src/modules/sectors/paths.js";
+import { createUser } from "../factory/user.factory.js";
+import { UserRole } from "@prisma/client";
 
 describe('Sector Domain', () => {
   let app: FastifyInstance
+  let adminToken: string
 
   beforeAll(async () => {
     app = (globalThis as any).app as FastifyInstance
   })
 
   beforeEach(async () => {
+    const admin = await createUser(app, UserRole.Admin)
+    adminToken = admin.token
     await seedGeographicAreas(app.prisma);
   }, 60000)
+
+  const authHeaders = () => ({ authorization: `Bearer ${adminToken}` })
+
+  test('all sectors can be listed', async () => {
+    await createSector(app)
+    await createSector(app)
+
+    const response = await app.inject({
+      method: 'GET',
+      url: sectors.index,
+      headers: authHeaders(),
+    })
+
+    const body = response.json()
+
+    expect(response.statusCode).toBe(200)
+    expect(body.message).toBe('Sectors retrieved successfully.')
+    expect(Array.isArray(body.data)).toBe(true)
+    expect(body.data.length).toBeGreaterThanOrEqual(2)
+    expect(body.data[0]).toMatchObject({
+      id: expect.any(Number),
+      code: expect.any(String),
+      localBranchId: expect.any(Number),
+      barangays: expect.any(Array),
+      localBranch: expect.any(Object),
+      createdAt: expect.any(String),
+      updatedAt: expect.any(String),
+    })
+  })
 
   test('a sector can be created', async () => {
     const facility = await createFacility(app)
@@ -40,6 +74,7 @@ describe('Sector Domain', () => {
     const response = await app.inject({
       method: 'POST',
       url: sectors.store,
+      headers: authHeaders(),
       body: payload
     })
 
@@ -53,6 +88,26 @@ describe('Sector Domain', () => {
       localBranchId: payload.localBranchId,
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
+    })
+  })
+
+  test('a single sector can be retrieved by id', async () => {
+    const createdSector = await createSector(app)
+
+    const response = await app.inject({
+      method: 'GET',
+      url: sectors.show(createdSector.id),
+      headers: authHeaders(),
+    })
+
+    const body = response.json()
+
+    expect(response.statusCode).toBe(200)
+    expect(body.message).toBe('Sector retrieved successfully.')
+    expect(body.data).toMatchObject({
+      id: createdSector.id,
+      code: createdSector.code,
+      localBranchId: createdSector.localBranchId,
     })
   })
 
@@ -97,6 +152,7 @@ describe('Sector Domain', () => {
     const response = await app.inject({
       method: 'POST',
       url: sectors.store,
+      headers: authHeaders(),
       body: payload
     })
 
@@ -128,6 +184,7 @@ describe('Sector Domain', () => {
     const response = await app.inject({
       method: 'PUT',
       url: sectors.update(createdSector.id),
+      headers: authHeaders(),
       body: updatePayload
     })
 
@@ -148,6 +205,7 @@ describe('Sector Domain', () => {
     const response = await app.inject({
       method: 'DELETE',
       url: sectors.delete(createdSector.id),
+      headers: authHeaders(),
     })
 
     const body = response.json()
