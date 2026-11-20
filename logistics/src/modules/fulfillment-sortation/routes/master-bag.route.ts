@@ -1,110 +1,28 @@
-import { FastifyInstance } from "fastify";
-import {
-  CreateSortationBatchBody,
-  CreateSortationBatchSchema,
-  DeleteSortationBatchParams,
-  DeleteSortationBatchSchema,
-  UpdateSortationBatchBody,
-  UpdateSortationBatchParams,
-  UpdateSortationBatchSchema,
-} from "./schemas/sorting-batch.schema.js";
-
-import { createSortingBatch, deleteSortingBatch, simulateScannerTunnelPass, updateSortingBatch } from "./services/sorting-batch.service.js";
-import { CreateMasterBagBody, CreateMasterBagSchema, UpdateMasterBagBody, UpdateMasterBagParams, UpdateMasterBagSchema, DeleteMasterBagParams, DeleteMasterBagSchema } from "./schemas/master-bag.schema.js";
-import { createMasterBag, updateMasterBag, deleteMasterBag } from "./services/master-bag.service.js";
-import { MasterBagStatus, ShipmentStatus } from "@prisma/client";
-import JsBarcode from "jsbarcode";
-import { DOMImplementation, XMLSerializer } from "@xmldom/xmldom";
-import { sortations } from "./paths.js";
 import { userAuth } from "#commons/middlewares/user-auth.js";
-import { generateEventDescription } from "../tracking-logs/logisticsEventDictionary.js";
-
-export async function sortingBatchRoutes(fastify: FastifyInstance) {
-  fastify.post<{ Body: CreateSortationBatchBody }>(
-    sortations.sortingBatches.store,
-    { schema: CreateSortationBatchSchema, preHandler: [userAuth] },
-    async (req, rep) => {
-      const batch = await createSortingBatch(fastify, req.body)
-
-      return rep.code(201).send({
-        message: 'Sortation batch created successfully.',
-        data: batch,
-      })
-    }
-  )
-
-  fastify.post(sortations.sortingBatches.tunnelScan.url, { preHandler: [userAuth] }, async (req, rep) => {
-    const { trackingNumber } = req.params as { trackingNumber: string };
-
-    const result = await simulateScannerTunnelPass(fastify, trackingNumber);
-
-    return rep.code(200).send({
-      message: 'Parcel scanned successfully.',
-      data: result
-    });
-  });
-
-  fastify.put<{ Body: UpdateSortationBatchBody; Params: UpdateSortationBatchParams }>(
-    sortations.sortingBatches.update.url,
-    {
-      schema: UpdateSortationBatchSchema,
-      preHandler: [userAuth],
-    },
-    async (req, rep) => {
-      const { sortingBatchId } = req.params
-
-      const updatedBatch = await updateSortingBatch(fastify, sortingBatchId, req.body)
-
-      return rep.code(200).send({
-        message: 'Sortation batch updated successfully.',
-        data: updatedBatch,
-      })
-    }
-  )
-
-  fastify.delete<{ Params: DeleteSortationBatchParams }>(
-    sortations.sortingBatches.delete.url,
-    {
-      schema: DeleteSortationBatchSchema,
-      preHandler: [userAuth],
-    },
-    async (req, rep) => {
-      const { sortingBatchId } = req.params
-
-      await deleteSortingBatch(fastify, sortingBatchId)
-
-      return rep.code(200).send({
-        message: 'Sortation batch deleted successfully.',
-      })
-    }
-  )
-}
+import { MasterBagStatus, ShipmentStatus } from "@prisma/client";
+import { FastifyInstance } from "fastify";
+import JsBarcode from "jsbarcode";
+import { generateEventDescription } from "../../tracking-logs/logisticsEventDictionary.js";
+import { CreateMasterBagBody, CreateMasterBagSchema, UpdateMasterBagBody, UpdateMasterBagParams, UpdateMasterBagSchema, DeleteMasterBagParams, DeleteMasterBagSchema, ShowMasterBagParams, ShowMasterBagSchema } from "../schemas/master-bag.schema.js";
+import { createMasterBag, updateMasterBag, deleteMasterBag, getMasterBagById, getDashboardData } from "../services/master-bag.service.js";
+import { masterBags } from "../paths/master-bag.path.js";
+import { DOMImplementation, XMLSerializer } from "@xmldom/xmldom";
 
 export async function masterBagRoutes(fastify: FastifyInstance) {
-  fastify.get(sortations.masterBags.index, { preHandler: [userAuth] }, async (req, rep) => {
-    const masterBags = await fastify.prisma.masterBag.findMany({
-      include: {
-        currentFacility: true,
-        nextFacility: true,
-        sortingBatch: true,
-        parcels: true
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+  fastify.get(masterBags.index, { preHandler: [userAuth] }, async (req, rep) => {
+    const data = await getDashboardData(fastify);
 
     return rep.code(200).send({
       message: 'Master bags retrieved successfully.',
-      data: masterBags
+      data
     })
   })
 
-  fastify.post<{ Body: CreateMasterBagBody }>(
-    sortations.masterBags.store,
-    {
-      schema: CreateMasterBagSchema,
-      preHandler: [userAuth],
+  fastify.post<{ Body: CreateMasterBagBody }>(masterBags.store, {
+    schema: CreateMasterBagSchema,
+    preHandler: [userAuth],
 
-    },
+  },
     async (req, rep) => {
       const masterBag = await createMasterBag(fastify, req.body)
 
@@ -115,11 +33,23 @@ export async function masterBagRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.get(sortations.masterBags.label.url, { preHandler: [userAuth] }, async (req, rep) => {
-    const { masterBagCode } = req.params as { masterBagCode: string };
+  fastify.get<{ Params: ShowMasterBagParams }>(masterBags.show.url, {
+    schema: ShowMasterBagSchema,
+    preHandler: [userAuth],
+  }, async (req, rep) => {
+    const masterBag = await getMasterBagById(fastify, req.params.id);
+
+    return rep.code(200).send({
+      message: 'Master bag retrieved successfully.',
+      data: masterBag,
+    });
+  });
+
+  fastify.get(masterBags.label.url, async (req, rep) => {
+    const { code } = req.params as { code: string };
 
     const masterBag = await fastify.prisma.masterBag.findUniqueOrThrow({
-      where: { code: masterBagCode },
+      where: { code: code },
       include: {
         currentFacility: true,
         nextFacility: true,
@@ -188,16 +118,14 @@ export async function masterBagRoutes(fastify: FastifyInstance) {
     `);
   });
 
-  fastify.put<{ Body: UpdateMasterBagBody; Params: UpdateMasterBagParams }>(
-    sortations.masterBags.update.url,
-    {
-      schema: UpdateMasterBagSchema,
-      preHandler: [userAuth],
-    },
+  fastify.put<{ Body: UpdateMasterBagBody; Params: UpdateMasterBagParams }>(masterBags.update.url, {
+    schema: UpdateMasterBagSchema,
+    preHandler: [userAuth],
+  },
     async (req, rep) => {
-      const { masterBagId } = req.params
+      const { id } = req.params
 
-      const updatedBag = await updateMasterBag(fastify, masterBagId, req.body)
+      const updatedBag = await updateMasterBag(fastify, id, req.body)
 
       return rep.code(200).send({
         message: 'Master bag updated successfully.',
@@ -206,16 +134,14 @@ export async function masterBagRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.delete<{ Params: DeleteMasterBagParams }>(
-    sortations.masterBags.delete.url,
-    {
-      schema: DeleteMasterBagSchema,
-      preHandler: [userAuth],
-    },
+  fastify.delete<{ Params: DeleteMasterBagParams }>(masterBags.delete.url, {
+    schema: DeleteMasterBagSchema,
+    preHandler: [userAuth],
+  },
     async (req, rep) => {
-      const { masterBagId } = req.params
+      const { id } = req.params
 
-      await deleteMasterBag(fastify, masterBagId)
+      await deleteMasterBag(fastify, id)
 
       return rep.code(200).send({
         message: 'Master bag deleted successfully.',
@@ -223,11 +149,11 @@ export async function masterBagRoutes(fastify: FastifyInstance) {
     }
   )
 
-  fastify.patch(sortations.masterBags.seal.url, { preHandler: [userAuth] }, async (req, rep) => {
-    const { masterBagCode } = req.params as { masterBagCode: string }
+  fastify.patch(masterBags.seal.url, { preHandler: [userAuth] }, async (req, rep) => {
+    const { code } = req.params as { code: string }
 
     const masterBag = await fastify.prisma.masterBag.findUniqueOrThrow({
-      where: { code: masterBagCode },
+      where: { code: code },
       include: { parcels: true }
     })
     if (masterBag.status !== MasterBagStatus.Open) {
@@ -277,12 +203,12 @@ export async function masterBagRoutes(fastify: FastifyInstance) {
     })
   })
 
-  fastify.patch(sortations.masterBags.dispatched.url, async (req, rep) => {
-    const { masterBagCode } = req.params as { masterBagCode: string }
+  fastify.patch(masterBags.dispatched.url, async (req, rep) => {
+    const { code } = req.params as { code: string }
 
     const updatedMasterBag = await fastify.prisma.$transaction(async (tx) => {
       const masterBag = await tx.masterBag.findUniqueOrThrow({
-        where: { code: masterBagCode },
+        where: { code: code },
         include: { parcels: true }
       })
 
@@ -292,7 +218,10 @@ export async function masterBagRoutes(fastify: FastifyInstance) {
       })
 
       await tx.masterBagLog.create({
-        data: { masterBagId: masterBag.id, status: MasterBagStatus.Dispatched }
+        data: {
+          masterBagId: masterBag.id,
+          status: MasterBagStatus.Dispatched
+        }
       })
 
       const parcelIds = masterBag.parcels.map(p => p.id)
@@ -322,12 +251,12 @@ export async function masterBagRoutes(fastify: FastifyInstance) {
     })
   })
 
-  fastify.patch(sortations.masterBags.delivered.url, async (req, rep) => {
-    const { masterBagCode } = req.params as { masterBagCode: string }
+  fastify.patch(masterBags.delivered.url, async (req, rep) => {
+    const { code } = req.params as { code: string }
 
     const updatedMasterBag = await fastify.prisma.$transaction(async (tx) => {
       const masterBag = await tx.masterBag.findUniqueOrThrow({
-        where: { code: masterBagCode },
+        where: { code: code },
         include: { parcels: true, nextFacility: true }
       })
 
@@ -340,7 +269,10 @@ export async function masterBagRoutes(fastify: FastifyInstance) {
       })
 
       await tx.masterBagLog.create({
-        data: { masterBagId: masterBag.id, status: MasterBagStatus.Delivered }
+        data: {
+          masterBagId: masterBag.id,
+          status: MasterBagStatus.Delivered
+        }
       })
 
       const parcelIds = masterBag.parcels.map(p => p.id)
@@ -379,12 +311,12 @@ export async function masterBagRoutes(fastify: FastifyInstance) {
     })
   })
 
-  fastify.patch(sortations.masterBags.unbag.url, async (req, rep) => {
-    const { masterBagCode } = req.params as { masterBagCode: string }
+  fastify.patch(masterBags.unbag.url, async (req, rep) => {
+    const { code } = req.params as { code: string }
 
     const updatedMasterBag = await fastify.prisma.$transaction(async (tx) => {
       const masterBag = await tx.masterBag.findUniqueOrThrow({
-        where: { code: masterBagCode },
+        where: { code: code },
         include: { parcels: true }
       })
 
@@ -406,7 +338,10 @@ export async function masterBagRoutes(fastify: FastifyInstance) {
       })
 
       await tx.masterBagLog.create({
-        data: { masterBagId: masterBag.id, status: MasterBagStatus.Unbagged }
+        data: {
+          masterBagId: masterBag.id,
+          status: MasterBagStatus.Unbagged
+        }
       })
 
       return updated

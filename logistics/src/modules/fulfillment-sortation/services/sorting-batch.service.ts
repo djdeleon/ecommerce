@@ -1,7 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { CreateSortationBatchBody, UpdateSortationBatchBody } from "../schemas/sorting-batch.schema.js";
 import parseId from "#commons/utils/id-parser.js";
-import { MasterBag, MasterBagStatus, ShipmentStatus, SortationBatchStatus } from "@prisma/client";
+import { MasterBag, MasterBagStatus, ShipmentStatus, SortingBatchStatus } from "@prisma/client";
 import { generateMasterBagCode, getOrCreateActiveMasterBag } from "./master-bag.service.js";
 import { generateEventDescription } from "../../tracking-logs/logisticsEventDictionary.js";
 
@@ -24,7 +24,7 @@ export async function generateBatchCode(
 
   const prefix = `${facility.code}-${dateStr}-${shift}`;
 
-  const countToday = await fastify.prisma.sortationBatch.count({
+  const countToday = await fastify.prisma.sortingBatch.count({
     where: {
       code: {
         startsWith: prefix,
@@ -35,6 +35,37 @@ export async function generateBatchCode(
   const sequence = String(countToday + 1).padStart(3, '0');
 
   return `${prefix}-${sequence}`;
+}
+
+export async function getDashboardData(fastify: FastifyInstance) {
+  const sortingBatches = await fastify.prisma.sortingBatch.findMany({
+    include: {
+      facility: true,
+      _count: {
+        select: { masterBags: true, looseParcels: true }
+      }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  const sortingBatchTypes = Object.values(SortingBatchStatus)
+
+  return {
+    sortingBatches,
+    sortingBatchTypes
+  }
+}
+
+export async function getSortingBatches(fastify: FastifyInstance) {
+  return await fastify.prisma.sortingBatch.findMany({
+    include: {
+      facility: true,
+      _count: {
+        select: { masterBags: true, looseParcels: true }
+      }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
 }
 
 export async function createSortingBatch(
@@ -48,16 +79,28 @@ export async function createSortingBatch(
     code = await generateBatchCode(fastify, facilityId, 'NIGHT')
   }
 
-  return await fastify.prisma.sortationBatch.create({
+  return await fastify.prisma.sortingBatch.create({
     data: {
       code,
       startTime: startTime ?? undefined,
       endTime: endTime ?? undefined,
       cutOffTime,
       facilityId,
-      status: status ? (status as SortationBatchStatus) : undefined,
+      status: status ? (status as SortingBatchStatus) : undefined,
     },
   })
+}
+
+export async function getSortingBatchById(fastify: FastifyInstance, idParam: string) {
+  const id = parseId(idParam)
+  return await fastify.prisma.sortingBatch.findUniqueOrThrow({
+    where: { id },
+    include: {
+      facility: true,
+      masterBags: true,
+      looseParcels: true
+    }
+  });
 }
 
 export async function simulateScannerTunnelPass(fastify: FastifyInstance, trackingNumber: string) {
@@ -65,8 +108,8 @@ export async function simulateScannerTunnelPass(fastify: FastifyInstance, tracki
   const MAX_BAG_VOLUME_CBM = 0.03; // 30ltr limit
   const MAX_BAG_PARCELS = 50;
 
-  const activeSortingBatch = await fastify.prisma.sortationBatch.findFirst({
-    where: { status: SortationBatchStatus.Active }
+  const activeSortingBatch = await fastify.prisma.sortingBatch.findFirst({
+    where: { status: SortingBatchStatus.Active }
   })
   if (!activeSortingBatch) {
     throw new Error("No active Sorting Batch is created.")
@@ -238,16 +281,15 @@ export async function updateSortingBatch(
   data: UpdateSortationBatchBody
 ) {
   const id = parseId(idParam)
-  const { code, startTime, endTime, facilityId, status, completedAt } = data
+  const { startTime, endTime, facilityId, status, completedAt } = data
 
-  return await fastify.prisma.sortationBatch.update({
+  return await fastify.prisma.sortingBatch.update({
     where: { id },
     data: {
-      ...(code && { code }),
       ...(startTime !== undefined && { startTime: startTime ? new Date(startTime) : null }),
       ...(endTime !== undefined && { endTime: endTime ? new Date(endTime) : null }),
       ...(facilityId && { facilityId }),
-      ...(status && { status: status as SortationBatchStatus }),
+      ...(status && { status: status as SortingBatchStatus }),
       ...(completedAt !== undefined && { completedAt: completedAt ? new Date(completedAt) : null }),
     },
   })
@@ -259,7 +301,7 @@ export async function deleteSortingBatch(
 ) {
   const id = parseId(idParam)
 
-  return await fastify.prisma.sortationBatch.delete({
+  return await fastify.prisma.sortingBatch.delete({
     where: { id },
   })
 }

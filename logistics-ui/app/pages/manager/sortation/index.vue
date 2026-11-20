@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const { user, userToken, loadUser } = useAuthService()
-const { tunnelScanParcel, createSortationBatch, completeSortationBatch } = useSortationService()
+const { tunnelScan, createSortingBatch, completeSortingBatch } = useSortingBatchService()
 const { getLooseParcels } = useParcelService()
 const toast = useToast()
 
@@ -34,7 +34,7 @@ const parcelsList = computed(() => {
   return res?.data || res || []
 })
 
-async function startSortationSimulation() {
+async function startSortingSimulation() {
   if (parcelsList.value.length === 0) {
     toast.add({ title: 'No Parcels', description: 'There are no loose parcels available for sortation.', color: 'warning' })
     return
@@ -45,7 +45,7 @@ async function startSortationSimulation() {
 
   try {
     // WHOLE_DAY
-    const batchRes: any = await createSortationBatch({
+    const batchRes: any = await createSortingBatch({
       startTime: new Date("1970-01-01T00:00:00Z").toISOString(),
       endTime: new Date("1970-01-01T23:59:59Z").toISOString(),
       cutOffTime: new Date("1970-01-01T23:59:59Z").toISOString(),
@@ -74,7 +74,7 @@ async function startSortationSimulation() {
 
       // Step 3: Tunnel Scan & Routing Comms (API Call)
       currentStep.value = 3
-      await tunnelScanParcel(parcel.trackingNumber)
+      await tunnelScan(parcel.trackingNumber)
       await new Promise(r => setTimeout(r, 500))
 
       // Step 4: Master Bagging Chute Drop
@@ -86,11 +86,11 @@ async function startSortationSimulation() {
     }
 
     if (sortingBatchId) {
-      await completeSortationBatch(sortingBatchId)
+      await completeSortingBatch(sortingBatchId)
     }
 
     toast.add({
-      title: 'Sortation Completed! 🚀',
+      title: 'Sorting Completed! 🚀',
       description: `Successfully sorted ${total} parcels into Master Bags.`,
       color: 'success',
       icon: 'i-lucide-check-circle'
@@ -98,7 +98,7 @@ async function startSortationSimulation() {
 
     await refresh()
   } catch (err: any) {
-    toast.add({ title: 'Sortation Error', description: err?.data?.message || 'Failed during conveyor scan.', color: 'error' })
+    toast.add({ title: 'Sorting Error', description: err?.data?.message || 'Failed during conveyor scan.', color: 'error' })
   } finally {
     isSorting.value = false
     activeParcelCode.value = ''
@@ -144,7 +144,7 @@ async function handleHandheldReceive(parcel: any) {
     <header class="flex justify-between items-center">
       <div>
         <h1 class="text-3xl font-bold text-primary">
-          {{ isLocalBranch ? 'Local Branch Receiving & Staging' : 'Mid-Mile Sortation Hub' }}
+          {{ isLocalBranch ? 'Local Branch Receiving & Staging' : 'Mid-Mile Sorting Hub' }}
         </h1>
         <p class="text-gray-400 font-medium">
           {{ isLocalBranch ? 'Handheld terminal scanning for incoming line-haul cargo.' : 'Manage conveyor belts, tunnel scanners, and master bagging operations.' }}
@@ -159,9 +159,9 @@ async function handleHandheldReceive(parcel: any) {
         icon="i-lucide-play-circle" 
         :loading="isSorting"
         :disabled="parcelsList.length === 0" 
-        @click="startSortationSimulation"
+        @click="startSortingSimulation"
       >
-        Simulate Sortation Conveyor
+        Simulate Sorting Conveyor
       </UButton>
       <UBadge v-else color="success" variant="subtle" size="lg" icon="i-lucide-smartphone">
         Handheld Scanner Mode Active
@@ -201,7 +201,7 @@ async function handleHandheldReceive(parcel: any) {
     <UCard class="p-6 space-y-4">
       <div class="flex justify-between items-center mb-6">
         <h2 class="text-xl font-bold text-white">
-          {{ isLocalBranch ? 'Incoming Line-Haul Parcels Awaiting Branch Receipt' : 'Arrived Loose Parcels Awaiting Sortation' }}
+          {{ isLocalBranch ? 'Incoming Line-Haul Parcels Awaiting Branch Receipt' : 'Arrived Loose Parcels Awaiting Sorting' }}
         </h2>
         <UBadge color="neutral" variant="subtle">{{ parcelsList.length }} parcels ready</UBadge>
       </div>

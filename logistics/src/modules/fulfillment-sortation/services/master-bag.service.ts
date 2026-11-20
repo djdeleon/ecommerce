@@ -34,6 +34,37 @@ export async function generateMasterBagCode(
   return `${prefix}-${sequence}`;
 }
 
+export async function getDashboardData(fastify: FastifyInstance) {
+  const masterBags = await fastify.prisma.masterBag.findMany({
+    include: {
+      currentFacility: true,
+      nextFacility: true,
+      sortingBatch: true,
+      parcels: true
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  const masterBagStatuses = Object.values(MasterBagStatus)
+
+  return {
+    masterBags,
+    masterBagStatuses
+  }
+}
+
+export async function getMasterBags(fastify: FastifyInstance) {
+  return await fastify.prisma.masterBag.findMany({
+    include: {
+      currentFacility: true,
+      nextFacility: true,
+      sortingBatch: true,
+      parcels: true
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+}
+
 export async function createMasterBag(
   fastify: FastifyInstance,
   data: CreateMasterBagBody
@@ -64,6 +95,20 @@ export async function createMasterBag(
       status: status ? (status as MasterBagStatus) : undefined,
     },
   })
+}
+
+export async function getMasterBagById(fastify: FastifyInstance, idParam: string) {
+  const id = parseId(idParam);
+  return await fastify.prisma.masterBag.findUniqueOrThrow({
+    where: { id },
+    include: {
+      currentFacility: true,
+      nextFacility: true,
+      sortingBatch: true,
+      parcels: true,
+      logs: true
+    }
+  });
 }
 
 export async function getOrCreateActiveMasterBag(
@@ -105,7 +150,6 @@ export async function updateMasterBag(
 ) {
   const id = parseId(idParam)
   const {
-    code,
     courierScheduleId,
     sortingBatchId,
     currentFacilityId,
@@ -119,7 +163,6 @@ export async function updateMasterBag(
   return await fastify.prisma.masterBag.update({
     where: { id },
     data: {
-      ...(code && { code }),
       ...(courierScheduleId && { courierScheduleId }),
       ...(sortingBatchId && { sortingBatchId }),
       ...(currentFacilityId && { currentFacilityId }),

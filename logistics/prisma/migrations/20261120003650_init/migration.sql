@@ -28,7 +28,7 @@ CREATE TYPE "VehicleStatus" AS ENUM ('available', 'transit', 'maintenance');
 CREATE TYPE "MasterBagStatus" AS ENUM ('open', 'full', 'sealed', 'dispatched', 'delivered', 'unbagged');
 
 -- CreateEnum
-CREATE TYPE "SortationBatchStatus" AS ENUM ('scheduled', 'active', 'completed', 'cancelled');
+CREATE TYPE "SortingBatchStatus" AS ENUM ('scheduled', 'active', 'completed', 'cancelled');
 
 -- CreateEnum
 CREATE TYPE "ManifestStatus" AS ENUM ('scheduled', 'accumulating', 'dispatched', 'completed', 'arrived');
@@ -159,19 +159,19 @@ CREATE TABLE "fleet_transports" (
 );
 
 -- CreateTable
-CREATE TABLE "sortation_batches" (
+CREATE TABLE "sorting_batches" (
     "id" SERIAL NOT NULL,
     "code" TEXT NOT NULL,
     "start_time" TIMESTAMP(3),
     "end_time" TIMESTAMP(3),
     "cut_off_time" TIME NOT NULL,
     "facility_id" INTEGER NOT NULL,
-    "status" "SortationBatchStatus" NOT NULL DEFAULT 'scheduled',
+    "status" "SortingBatchStatus" NOT NULL DEFAULT 'scheduled',
     "completed_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "sortation_batches_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "sorting_batches_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -325,7 +325,7 @@ CREATE TABLE "parcels" (
     "status" "shipment_status" NOT NULL DEFAULT 'pending_pickup',
     "manifest_id" INTEGER,
     "master_bag_id" INTEGER,
-    "sortation_batch_id" INTEGER,
+    "sorting_batch_id" INTEGER,
     "delivery_id" INTEGER,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -555,10 +555,10 @@ ALTER TABLE "fleet_transports" ADD CONSTRAINT "fleet_transports_vehicle_id_fkey"
 ALTER TABLE "fleet_transports" ADD CONSTRAINT "fleet_transports_network_leg_id_fkey" FOREIGN KEY ("network_leg_id") REFERENCES "network_legs"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "sortation_batches" ADD CONSTRAINT "sortation_batches_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "sorting_batches" ADD CONSTRAINT "sorting_batches_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "master_bags" ADD CONSTRAINT "master_bags_sorting_batch_id_fkey" FOREIGN KEY ("sorting_batch_id") REFERENCES "sortation_batches"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "master_bags" ADD CONSTRAINT "master_bags_sorting_batch_id_fkey" FOREIGN KEY ("sorting_batch_id") REFERENCES "sorting_batches"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "master_bags" ADD CONSTRAINT "master_bags_courier_schedule_id_fkey" FOREIGN KEY ("courier_schedule_id") REFERENCES "fleet_transports"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -627,7 +627,7 @@ ALTER TABLE "parcels" ADD CONSTRAINT "parcels_manifest_id_fkey" FOREIGN KEY ("ma
 ALTER TABLE "parcels" ADD CONSTRAINT "parcels_master_bag_id_fkey" FOREIGN KEY ("master_bag_id") REFERENCES "master_bags"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "parcels" ADD CONSTRAINT "parcels_sortation_batch_id_fkey" FOREIGN KEY ("sortation_batch_id") REFERENCES "sortation_batches"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "parcels" ADD CONSTRAINT "parcels_sorting_batch_id_fkey" FOREIGN KEY ("sorting_batch_id") REFERENCES "sorting_batches"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "parcels" ADD CONSTRAINT "parcels_delivery_id_fkey" FOREIGN KEY ("delivery_id") REFERENCES "deliveries"("id") ON DELETE SET NULL ON UPDATE CASCADE;

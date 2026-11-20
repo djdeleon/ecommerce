@@ -259,6 +259,8 @@ import { createClient } from '../tests/factory/client.factory.js';
 import { seedClients } from './seeders/clients.seed.js';
 import { seedFleetTransports } from './seeders/fleet-transports.seed.js';
 import { seedVehicleProfiles } from './seeders/vehicles/vehicle-profiles.seed.js';
+import { seedMasterBags } from './seeders/master-bags.seed.js';
+import { seedSortingBatches } from './seeders/sorting-batches.seed.js';
 
 let app: any
 
@@ -278,7 +280,7 @@ async function seed() {
   await app.prisma.masterBag.deleteMany();
 
   // 3. Operational batching and schedules (depend on courier, vehicles, network legs, facilities)
-  await app.prisma.sortationBatch.deleteMany();
+  await app.prisma.sortingBatch.deleteMany();
   await app.prisma.fleetTransport.deleteMany();
 
   // 4. Vehicles & Network Legs (depend on vehicle profiles and facilities)
@@ -9392,6 +9394,10 @@ async function seed() {
   ]
 
   await seedFacilities(app, facilites);
+
+  await seedSortingBatches(app, 15);
+
+  await seedMasterBags(app, 20);
 
   await seedFleetTransports(app);
 

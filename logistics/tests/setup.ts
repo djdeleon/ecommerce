@@ -22,7 +22,7 @@ beforeEach(async () => {
       master_bags,
       manifests,
       deliveries,
-      sortation_batches,
+      sorting_batches,
       fleet_transports,
       physical_vehicles,
       network_legs,

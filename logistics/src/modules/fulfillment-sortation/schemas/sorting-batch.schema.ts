@@ -34,20 +34,25 @@ export const CreateSortationBatchSchema = {
   body: CreateSortationBatchBodySchema,
 }
 
+export const ParamsSchema = Type.Object({
+  id: Type.String(),
+})
+
 export const UpdateSortationBatchSchema = {
   body: UpdateSortationBatchBodySchema,
-  params: Type.Object({
-    sortingBatchId: Type.String(),
-  }),
+  params: ParamsSchema,
 }
 
 export const DeleteSortationBatchSchema = {
-  params: Type.Object({
-    sortingBatchId: Type.String(),
-  }),
+  params: ParamsSchema,
+}
+
+export const ShowSortationBatchSchema = {
+  params: ParamsSchema,
 }
 
 export type CreateSortationBatchBody = Static<typeof CreateSortationBatchBodySchema>
 export type UpdateSortationBatchBody = Static<typeof UpdateSortationBatchSchema.body>
 export type UpdateSortationBatchParams = Static<typeof UpdateSortationBatchSchema.params>
 export type DeleteSortationBatchParams = Static<typeof DeleteSortationBatchSchema.params>
+export type ShowSortationBatchParams = Static<typeof ParamsSchema>
