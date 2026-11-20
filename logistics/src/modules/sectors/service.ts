@@ -64,11 +64,10 @@ export async function getSectorById(fastify: FastifyInstance, id: number) {
 
 export async function updateSector(
   fastify: FastifyInstance,
-  idParam: string,
+  id: number,
   data: UpdateSectorBody
 ) {
   const { code, localBranchId, zone, barangayIds } = data
-  const id = parseId(idParam)
 
   if (zone) {
     await fastify.prisma.$executeRaw`
@@ -113,9 +112,8 @@ export async function updateSector(
 
 export async function deleteSector(
   fastify: FastifyInstance,
-  idParam: string
+  id: number
 ) {
-  const id = parseId(idParam)
 
   return await fastify.prisma.sector.delete({
     where: { id },

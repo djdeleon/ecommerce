@@ -1,4 +1,3 @@
-// ... existing code ...
 import { Static, Type } from "@sinclair/typebox";
 
 export const StoreSchema = {

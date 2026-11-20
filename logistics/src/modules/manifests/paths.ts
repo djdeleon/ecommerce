@@ -7,9 +7,9 @@ const createPath = (path: string) => {
 }
 
 export const manifests = {
-  index: '/manifests',
-  store: '/manifests',
-  dispatch: createPath('/manifests/:code/dispatch'),
-  complete: createPath('/manifests/:code/complete'),
-  arrive: createPath('/manifests/:code/arrive'),
+  index: '/api/v1/manifests',
+  store: '/api/v1/manifests',
+  dispatch: createPath('/api/v1/manifests/:code/dispatch'),
+  complete: createPath('/api/v1/manifests/:code/complete'),
+  arrive: createPath('/api/v1/manifests/:code/arrive'),
 } as const;

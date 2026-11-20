@@ -10,8 +10,11 @@ describe('Physical Vehicle Management', () => {
   let adminToken: string
   let defaultFacilityId: number
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = (globalThis as any).app as FastifyInstance
+  })
+
+  beforeEach(async () => {
     const admin = await createUser(app, UserRole.Admin)
     if (!admin.user.assignedFacilityId) {
       throw new Error("User doesn't have a facility.")

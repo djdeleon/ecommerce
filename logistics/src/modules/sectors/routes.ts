@@ -58,13 +58,12 @@ export default async function routes(fastify: FastifyInstance) {
     sectors.update.url,
     { schema: UpdateSectorSchema, preHandler: [userAuth] },
     async (req, rep) => {
-      const { id } = req.params
-
-      const updatedSector = await updateSector(fastify, id, req.body)
+      const id = parseId(req.params.id)
+      const data = await updateSector(fastify, id, req.body)
 
       return rep.code(200).send({
         message: 'Sector updated successfully.',
-        data: updatedSector,
+        data,
       })
     }
   )
@@ -73,8 +72,7 @@ export default async function routes(fastify: FastifyInstance) {
     sectors.delete.url,
     { schema: DeleteSectorSchema, preHandler: [userAuth] },
     async (req, rep) => {
-      const { id } = req.params
-
+      const id = parseId(req.params.id)
       await deleteSector(fastify, id)
 
       return rep.code(200).send({

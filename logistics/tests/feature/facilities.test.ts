@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, test } from "vitest";
+import { beforeAll, beforeEach, describe, expect, test } from "vitest";
 import { CourierStatus, FacilityType, UserRole } from "@prisma/client";
 import { createCourier, createFacility } from "#factory";
 import { FastifyInstance } from "fastify";
@@ -6,24 +6,29 @@ import { createUser } from "../factory/user.factory.js";
 import { facilityTypeMap } from "../../src/modules/facilities/facilityTypeMap.js";
 import { facilities } from "../../src/modules/facilities/paths.js";
 
-describe('Facilities Domain', async () => {
+describe('Facilities Domain', () => {
   let app: FastifyInstance
+  let adminToken: string
 
   beforeAll(async () => {
     app = (globalThis as any).app as FastifyInstance
   })
 
-  test('an admin can view facility dashboard', async () => {
+  beforeEach(async () => {
     const admin = await createUser(app, UserRole.Admin)
+    adminToken = admin.token
+  })
+
+  const authHeaders = () => ({ authorization: `Bearer ${adminToken}` })
+
+  test('an admin can view facility dashboard', async () => {
     const facility = await createFacility(app);
     await createCourier(app, { status: CourierStatus.Offline });
 
     const response = await app.inject({
       method: 'GET',
       url: facilities.index,
-      headers: {
-        authorization: `Bearer ${admin.token}`
-      }
+      headers: authHeaders()
     })
 
     const body = response.json()
@@ -49,7 +54,6 @@ describe('Facilities Domain', async () => {
   })
 
   test('an admin can create a facility', async () => {
-    const admin = await createUser(app, UserRole.Admin)
     const payload = {
       name: "Marilao Mega Gateway",
       type: FacilityType.MegaGateway,
@@ -61,9 +65,7 @@ describe('Facilities Domain', async () => {
     const response = await app.inject({
       method: 'POST',
       url: facilities.store,
-      headers: {
-        authorization: `Bearer ${admin.token}`
-      },
+      headers: authHeaders(),
       body: payload
     })
 
@@ -81,8 +83,6 @@ describe('Facilities Domain', async () => {
   })
 
   test('a facility can have couriers', async () => {
-    const admin = await createUser(app, UserRole.Admin)
-
     const facility = await createFacility(app);
     const facilityId = facility.id
     const { courier } = await createCourier(app);
@@ -90,9 +90,7 @@ describe('Facilities Domain', async () => {
     const response = await app.inject({
       method: 'PATCH',
       url: facilities.assignCourier(facilityId),
-      headers: {
-        authorization: `Bearer ${admin.token}`
-      },
+      headers: authHeaders(),
       body: {
         userId: courier.userId
       }
@@ -111,15 +109,12 @@ describe('Facilities Domain', async () => {
   })
 
   test('an admin can view a single facility details', async () => {
-    const admin = await createUser(app, UserRole.Admin)
     const facility = await createFacility(app)
 
     const response = await app.inject({
       method: 'GET',
       url: facilities.show(facility.id),
-      headers: {
-        authorization: `Bearer ${admin.token}`
-      }
+      headers: authHeaders()
     })
 
     const body = response.json()
@@ -135,7 +130,6 @@ describe('Facilities Domain', async () => {
   })
 
   test('an admin can update a facility', async () => {
-    const admin = await createUser(app, UserRole.Admin)
     const facility = await createFacility(app)
 
     const updatePayload = {
@@ -149,9 +143,7 @@ describe('Facilities Domain', async () => {
     const response = await app.inject({
       method: 'PUT',
       url: facilities.update(facility.id),
-      headers: {
-        authorization: `Bearer ${admin.token}`
-      },
+      headers: authHeaders(),
       body: updatePayload
     })
 
@@ -168,15 +160,12 @@ describe('Facilities Domain', async () => {
   })
 
   test('an admin can delete a facility', async () => {
-    const admin = await createUser(app, UserRole.Admin)
     const facility = await createFacility(app)
 
     const response = await app.inject({
       method: 'DELETE',
       url: facilities.delete(facility.id),
-      headers: {
-        authorization: `Bearer ${admin.token}`
-      }
+      headers: authHeaders()
     })
 
     const body = response.json()
@@ -184,13 +173,10 @@ describe('Facilities Domain', async () => {
     expect(response.statusCode).toBe(200)
     expect(body.message).toBe('Facility deleted successfully.')
 
-    // Verify it no longer exists
     const checkResponse = await app.inject({
       method: 'GET',
       url: facilities.show(facility.id),
-      headers: {
-        authorization: `Bearer ${admin.token}`
-      }
+      headers: authHeaders()
     })
     expect(checkResponse.statusCode).toBe(500)
   })

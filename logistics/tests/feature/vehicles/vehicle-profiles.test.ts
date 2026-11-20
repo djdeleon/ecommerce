@@ -1,6 +1,6 @@
 import { VehicleType, UserRole } from "@prisma/client"
 import { FastifyInstance } from "fastify"
-import { describe, beforeEach, test, expect } from "vitest"
+import { describe, beforeEach, test, expect, beforeAll } from "vitest"
 import { vehicleProfiles } from "../../../src/modules/vehicles/paths/vehicle-profile.path.js"
 import { createVehicleProfile } from "../../factory/vehicles.factory.js"
 import { createUser } from "../../factory/user.factory.js"
@@ -9,8 +9,11 @@ describe('Vehicle Profile Management', () => {
   let app: FastifyInstance
   let adminToken: string
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = (globalThis as any).app as FastifyInstance
+  })
+
+  beforeEach(async () => {
     const admin = await createUser(app, UserRole.Admin)
     adminToken = admin.token
   })
