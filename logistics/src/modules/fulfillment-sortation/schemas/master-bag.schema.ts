@@ -2,14 +2,17 @@ import { Type, Static } from "@sinclair/typebox";
 
 export const MasterBagStatusEnum = Type.Union([
   Type.Literal('Open'),
+  Type.Literal('Full'),
   Type.Literal('Sealed'),
   Type.Literal('Dispatched'),
   Type.Literal('Delivered'),
+  Type.Literal('Unbagged'),
 ])
 
 export const MasterBagSchema = Type.Object({
   id: Type.Integer({ minimum: 1 }),
-  courierScheduleId: Type.Integer({ minimum: 1 }),
+  code: Type.String(),
+  courierScheduleId: Type.Optional(Type.Integer({ minimum: 1 })),
   sortingBatchId: Type.Integer({ minimum: 1 }),
   currentFacilityId: Type.Integer({ minimum: 1 }),
   nextFacilityId: Type.Integer({ minimum: 1 }),
@@ -24,14 +27,23 @@ export const MasterBagSchema = Type.Object({
 
 export const CreateMasterBagBodySchema = Type.Omit(MasterBagSchema, [
   'id',
+  'code',
   'sealedAt',
   'createdAt',
   'updatedAt',
 ])
 
 export const UpdateMasterBagBodySchema = Type.Partial(
-  Type.Omit(MasterBagSchema, ['id', 'createdAt', 'updatedAt'])
+  Type.Omit(MasterBagSchema, ['id', 'code', 'createdAt', 'updatedAt'])
 )
+
+export const IdParamsSchema = Type.Object({
+  id: Type.String(),
+})
+
+export const CodeParamsSchema = Type.Object({
+  code: Type.String(),
+})
 
 export const CreateMasterBagSchema = {
   body: CreateMasterBagBodySchema,
@@ -39,18 +51,19 @@ export const CreateMasterBagSchema = {
 
 export const UpdateMasterBagSchema = {
   body: UpdateMasterBagBodySchema,
-  params: Type.Object({
-    masterBagId: Type.String(),
-  }),
+  params: IdParamsSchema,
 }
 
 export const DeleteMasterBagSchema = {
-  params: Type.Object({
-    masterBagId: Type.String(),
-  }),
+  params: IdParamsSchema,
+}
+
+export const ShowMasterBagSchema = {
+  params: IdParamsSchema,
 }
 
 export type CreateMasterBagBody = Static<typeof CreateMasterBagBodySchema>
 export type UpdateMasterBagBody = Static<typeof UpdateMasterBagSchema.body>
 export type UpdateMasterBagParams = Static<typeof UpdateMasterBagSchema.params>
 export type DeleteMasterBagParams = Static<typeof DeleteMasterBagSchema.params>
+export type ShowMasterBagParams = Static<typeof IdParamsSchema>

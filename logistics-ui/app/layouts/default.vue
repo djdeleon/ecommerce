@@ -188,6 +188,26 @@ function getItems(state: 'collapsed' | 'expanded') {
           : []
     },
     {
+      label: 'Fulfillment & Sortation',
+      icon: 'i-lucide-boxes',
+      defaultOpen: true,
+      children:
+        state === 'expanded'
+          ? [
+            {
+              label: 'Sortation Batches',
+              icon: 'i-lucide-layers',
+              to: '/admin/fulfillment-sortation/sorting-batches'
+            },
+            {
+              label: 'Master Bags',
+              icon: 'i-lucide-package-open',
+              to: '/admin/fulfillment-sortation/master-bags'
+            }
+          ]
+          : []
+    },
+    {
       label: 'Tracking Numbers',
       icon: 'i-lucide-barcode',
       to: '/admin/tracking-numbers',

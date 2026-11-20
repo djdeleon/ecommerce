@@ -1,85 +1,108 @@
+export interface MasterBag {
+  id: number
+  code: string
+  sortingBatchId: number
+  courierScheduleId?: number
+  currentFacilityId: number
+  nextFacilityId: number
+  totalWeight: number
+  totalCbm: number
+  totalParcels: number
+  status: 'Open' | 'Full' | 'Sealed' | 'Dispatched' | 'Delivered' | 'Unbagged'
+  sealedAt?: string
+  currentFacility?: any
+  nextFacility?: any
+  sortingBatch?: any
+  parcels?: any[]
+  logs?: any[]
+  createdAt: string
+  updatedAt: string
+}
+
 export const useMasterBagService = () => {
   const config = useRuntimeConfig()
-  const apiBase = config.public.logisticsApi || 'http://localhost:8001'
-  const { userToken, loadUser } = useAuthService()
+  const baseUrl = config.public.logisticsApi ?? 'http://localhost:8001'
+  const apiBase = `${baseUrl}/api/v1`
+  const { userToken } = useAuthService()
 
-  loadUser()
+  const getHeaders = () => ({
+    ...(userToken?.value ? { Authorization: `Bearer ${userToken.value}` } : {})
+  })
 
   const getMasterBags = async () => {
-    return await $fetch(`${apiBase}/master-bags`, {
+    return await $fetch<{ message: string; data: MasterBag[] }>(`${apiBase}/master-bags`, {
       method: 'GET',
-      headers: {
-        Authorization: `Bearer ${userToken.value}`
-      }
+      headers: getHeaders()
     })
   }
 
-  const createMasterBag = async (payload: any) => {
-    return await $fetch(`${apiBase}/master-bags`, {
+  const createMasterBag = async (payload: Partial<MasterBag>) => {
+    return await $fetch<{ message: string; data: MasterBag }>(`${apiBase}/master-bags`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${userToken.value}`
-      },
-      body: payload
+      body: payload,
+      headers: getHeaders()
     })
   }
 
-  const updateMasterBag = async (masterBagId: number | string, payload: any) => {
-    return await $fetch(`${apiBase}/master-bags/${masterBagId}`, {
+  const getMasterBagById = async (id: number | string) => {
+    return await $fetch<{ message: string; data: MasterBag }>(`${apiBase}/master-bags/${id}`, {
+      method: 'GET',
+      headers: getHeaders()
+    })
+  }
+
+  const updateMasterBag = async (id: number | string, payload: Partial<MasterBag>) => {
+    return await $fetch<{ message: string; data: MasterBag }>(`${apiBase}/master-bags/${id}`, {
       method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${userToken.value}`
-      },
-      body: payload
+      body: payload,
+      headers: getHeaders()
     })
   }
 
-  const deleteMasterBag = async (masterBagId: number | string) => {
-    return await $fetch(`${apiBase}/master-bags/${masterBagId}`, {
+  const deleteMasterBag = async (id: number | string) => {
+    return await $fetch<{ message: string }>(`${apiBase}/master-bags/${id}`, {
       method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${userToken.value}`
-      }
+      headers: getHeaders()
     })
   }
 
-  const sealMasterBag = async (masterBagCode: string) => {
-    return await $fetch(`${apiBase}/master-bags/${masterBagCode}/seal`, {
+  const sealMasterBag = async (code: string) => {
+    return await $fetch<{ message: string; data: MasterBag }>(`${apiBase}/master-bags/${code}/seal`, {
       method: 'PATCH',
-      headers: {
-        Authorization: `Bearer ${userToken.value}`
-      }
+      headers: getHeaders()
     })
   }
 
-  const dispatchMasterBag = async (masterBagCode: string) => {
-    return await $fetch(`${apiBase}/master-bags/${masterBagCode}/dispatched`, {
+
+  const dispatchMasterBag = async (code: string) => {
+    return await $fetch<{ message: string; data: MasterBag }>(`${apiBase}/master-bags/${code}/dispatched`, {
       method: 'PATCH',
-      headers: { Authorization: `Bearer ${userToken.value}` }
+      headers: getHeaders()
     })
   }
 
-  const deliverMasterBag = async (masterBagCode: string) => {
-    return await $fetch(`${apiBase}/master-bags/${masterBagCode}/delivered`, {
+  const deliverMasterBag = async (code: string) => {
+    return await $fetch<{ message: string; data: MasterBag }>(`${apiBase}/master-bags/${code}/delivered`, {
       method: 'PATCH',
-      headers: { Authorization: `Bearer ${userToken.value}` }
+      headers: getHeaders()
     })
   }
 
-  const unbagMasterBag = async (masterBagCode: string) => {
-    return await $fetch(`${apiBase}/master-bags/${masterBagCode}/unbag`, {
+  const unbagMasterBag = async (code: string) => {
+    return await $fetch<{ message: string; data: MasterBag }>(`${apiBase}/master-bags/${code}/unbag`, {
       method: 'PATCH',
-      headers: { Authorization: `Bearer ${userToken.value}` }
+      headers: getHeaders()
     })
   }
 
-  const getLabelUrl = (masterBagCode: string) => {
-    return `${apiBase}/master-bags/${masterBagCode}/label`
+  const getLabelUrl = (code: string) => {
+    return `${apiBase}/master-bags/${code}/label`
   }
 
   return {
     getMasterBags,
     createMasterBag,
+    getMasterBagById,
     updateMasterBag,
     deleteMasterBag,
     sealMasterBag,

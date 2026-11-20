@@ -95,7 +95,7 @@ enum MasterBagStatus {
   Unbagged   @map("unbagged")
 }
 
-enum SortationBatchStatus {
+enum SortingBatchStatus {
   Scheduled @map("scheduled")
   Active    @map("active")
   Completed @map("completed")
@@ -224,7 +224,7 @@ model Facility {
   destinationLegs        NetworkLeg[]         @relation("DestinationLegs")
   vehicles               PhysicalVehicle[]
   users                  User[]
-  sortationBatches       SortationBatch[]
+  sortingBatches       SortingBatch[]
   schedule               FacilitySchedule?
   currentMasterBags      MasterBag[]          @relation("CurrentMasterBag")
   nextMasterBags         MasterBag[]          @relation("NextMasterBag")
@@ -296,7 +296,7 @@ model FleetTransport {
   networkLegId           Int?                 @map("network_leg_id")
   networkLeg             NetworkLeg?          @relation(fields: [networkLegId], references: [id], onDelete: Cascade)
 
-  scheduledFor           FleetTransportType  @default(Accumulation)
+  scheduledFor           FleetTransportType   @default(Accumulation)
   scheduledTime          DateTime             @map("scheduled_time")
 
   route                  Json?
@@ -314,7 +314,7 @@ model FleetTransport {
   @@map("fleet_transports")
 }
 
-model SortationBatch {
+model SortingBatch {
   id                     Int                  @id @default(autoincrement())
   code                   String
 
@@ -326,7 +326,7 @@ model SortationBatch {
   facilityId             Int                  @map("facility_id")
   facility               Facility             @relation(fields: [facilityId], references: [id], onDelete: Restrict)
 
-  status                 SortationBatchStatus @default(Scheduled)
+  status                 SortingBatchStatus   @default(Scheduled)
 
   completedAt            DateTime?            @map("completed_at")
 
@@ -336,7 +336,7 @@ model SortationBatch {
   looseParcels           Parcel[]
   masterBags             MasterBag[]
   
-  @@map("sortation_batches")
+  @@map("sorting_batches")
 }
 
 model MasterBag {
@@ -344,10 +344,10 @@ model MasterBag {
   code                   String               @unique @db.VarChar(50)
 
   sortingBatchId         Int                  @map("sorting_batch_id")
-  sortingBatch           SortationBatch       @relation(fields: [sortingBatchId], references: [id], onDelete: Restrict)
+  sortingBatch           SortingBatch         @relation(fields: [sortingBatchId], references: [id], onDelete: Restrict)
 
   courierScheduleId      Int?                 @map("courier_schedule_id")
-  courierSchedule        FleetTransport?     @relation(fields: [courierScheduleId], references: [id], onDelete: Restrict)
+  courierSchedule        FleetTransport?      @relation(fields: [courierScheduleId], references: [id], onDelete: Restrict)
 
   currentFacilityId      Int                  @map("current_facility_id")
   currentFacility        Facility             @relation("CurrentMasterBag", fields: [currentFacilityId], references: [id], onDelete: Restrict)
@@ -391,7 +391,7 @@ model Delivery {
   sector                 Sector               @relation(fields: [sectorId], references: [id], onDelete: Restrict)
 
   courierScheduleId      Int                  @unique @map("courier_schedule_id")
-  courierSchedule        FleetTransport      @relation(fields: [courierScheduleId], references: [id], onDelete: Restrict)
+  courierSchedule        FleetTransport       @relation(fields: [courierScheduleId], references: [id], onDelete: Restrict)
 
   code                   String               @unique
   status                 DeliveryStatus       @default(Scheduled)
@@ -470,8 +470,8 @@ model Courier {
 model CourierLog {
   id                     BigInt               @id @default(autoincrement())
 
-  courierId              Int                   @map("courier_id")
-  courier                Courier               @relation(fields: [courierId], references: [id], onDelete: Restrict)
+  courierId              Int                  @map("courier_id")
+  courier                Courier              @relation(fields: [courierId], references: [id], onDelete: Restrict)
 
   status                 CourierStatus        @default(Available)
 
@@ -576,8 +576,8 @@ model Parcel {
   masterBag             MasterBag?            @relation(fields: [masterBagId], references: [id], onDelete: SetNull)
 
   // Tracks loose unbagged parcels for bulky cargo
-  sortationBatchId      Int?                  @map("sortation_batch_id")
-  sortationBatch        SortationBatch?       @relation(fields: [sortationBatchId], references: [id], onDelete: Restrict)
+  sortingBatchId        Int?                  @map("sorting_batch_id")
+  sortingBatch          SortingBatch?         @relation(fields: [sortingBatchId], references: [id], onDelete: Restrict)
 
   auditLog              ParcelAuditLog?
 
