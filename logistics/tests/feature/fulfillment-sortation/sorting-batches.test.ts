@@ -494,9 +494,10 @@ describe('Sorting Batch Management', () => {
 
     expect(response.statusCode).toBe(200)
     expect(body.message).toBe('Sortation batches retrieved successfully.')
-    expect(Array.isArray(body.data)).toBe(true)
-    expect(body.data.length).toBeGreaterThan(0)
-    expect(body.data[0]).toMatchObject({
+    expect(body.data).toHaveProperty('sortingBatches')
+    expect(Array.isArray(body.data.sortingBatches)).toBe(true)
+    expect(body.data.sortingBatches.length).toBeGreaterThan(0)
+    expect(body.data.sortingBatches[0]).toMatchObject({
       id: expect.any(Number),
       code: expect.any(String),
       facilityId: expect.any(Number),

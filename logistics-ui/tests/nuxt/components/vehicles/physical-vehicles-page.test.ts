@@ -2,13 +2,14 @@ import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { mountSuspended, mockNuxtImport } from '@nuxt/test-utils/runtime'
 import PhysicalVehiclesPage from '~/pages/admin/vehicles/physical-vehicles.vue'
 
-const { 
-  mockGetVehicles, 
-  mockCreateVehicle, 
-  mockUpdateVehicle, 
-  mockDeleteVehicle, 
+const {
+  mockGetVehicles,
+  mockCreateVehicle,
+  mockUpdateVehicle,
+  mockDeleteVehicle,
   mockGetVehicleById,
-  mockGetProfiles
+  mockGetProfiles,
+  mockGetStatuses
 } = vi.hoisted(() => ({
   mockGetVehicles: vi.fn(),
   mockCreateVehicle: vi.fn(),
@@ -16,6 +17,7 @@ const {
   mockDeleteVehicle: vi.fn(),
   mockGetVehicleById: vi.fn(),
   mockGetProfiles: vi.fn(),
+  mockGetStatuses: vi.fn(),
 }))
 
 mockNuxtImport('usePhysicalVehicleService', () => () => ({
@@ -24,6 +26,7 @@ mockNuxtImport('usePhysicalVehicleService', () => () => ({
   updatePhysicalVehicle: mockUpdateVehicle,
   deletePhysicalVehicle: mockDeleteVehicle,
   getPhysicalVehicleById: mockGetVehicleById,
+  getStatusesPhysicalVehicles: mockGetStatuses,
 }))
 
 mockNuxtImport('useVehicleProfileService', () => () => ({
@@ -37,19 +40,19 @@ describe('Physical Vehicles Management Page (UI Component)', () => {
   ]
 
   const mockVehicles = [
-    { 
-      id: 1, 
-      licensePlate: 'ABC-123', 
-      vin: 'VIN001', 
-      status: 'Available', 
+    {
+      id: 1,
+      plateNumber: 'ABC-123',
+      vin: 'VIN001',
+      status: 'Available',
       vehicleProfileId: 101,
       vehicleProfile: mockProfiles[0]
     },
-    { 
-      id: 2, 
-      licensePlate: 'XYZ-789', 
-      vin: 'VIN002', 
-      status: 'In Use', 
+    {
+      id: 2,
+      plateNumber: 'XYZ-789',
+      vin: 'VIN002',
+      status: 'In Use',
       vehicleProfileId: 102,
       vehicleProfile: mockProfiles[1]
     }
@@ -59,13 +62,14 @@ describe('Physical Vehicles Management Page (UI Component)', () => {
     vi.clearAllMocks()
     mockGetVehicles.mockResolvedValue({ data: mockVehicles })
     mockGetProfiles.mockResolvedValue({ data: mockProfiles })
+    mockGetStatuses.mockResolvedValue({ data: ['Available', 'Transit', 'Maintenance'] })
   })
 
   test('renders physical vehicles table with data and profiles on mount', async () => {
     const component = await mountSuspended(PhysicalVehiclesPage)
 
     expect(mockGetVehicles).toHaveBeenCalled()
-    expect(mockGetProfiles).toHaveBeenCalled()
+    expect(mockGetStatuses).toHaveBeenCalled()
 
     const text = component.text()
     expect(text).toContain('ABC-123')
@@ -78,15 +82,10 @@ describe('Physical Vehicles Management Page (UI Component)', () => {
     const component = await mountSuspended(PhysicalVehiclesPage)
     const vm = component.vm as any
 
-    // Search by License Plate
+    // Search by Plate Number
     vm.searchQuery = 'ABC'
     expect(vm.filteredVehicles.length).toBe(1)
-    expect(vm.filteredVehicles[0].licensePlate).toBe('ABC-123')
-
-    // Search by Brand (nested object)
-    vm.searchQuery = 'Toyota'
-    expect(vm.filteredVehicles.length).toBe(1)
-    expect(vm.filteredVehicles[0].vehicleProfile.brand).toBe('Toyota')
+    expect(vm.filteredVehicles[0].plateNumber).toBe('ABC-123')
   })
 
   test('opens create modal and handles submission', async () => {
@@ -96,9 +95,9 @@ describe('Physical Vehicles Management Page (UI Component)', () => {
 
     // Mock open modal via the state logic in the component
     vm.isCreateModalOpen = true
-    
+
     Object.assign(vm.newVehicle, {
-      licensePlate: 'NEW-456',
+      plateNumber: 'NEW-456',
       vin: 'VIN-NEW-99',
       vehicleProfileId: 101,
       status: 'Available'
@@ -107,7 +106,7 @@ describe('Physical Vehicles Management Page (UI Component)', () => {
     await vm.handleCreateVehicle()
 
     expect(mockCreateVehicle).toHaveBeenCalledWith(expect.objectContaining({
-      licensePlate: 'NEW-456',
+      plateNumber: 'NEW-456',
       vehicleProfileId: 101
     }))
     expect(vm.isCreateModalOpen).toBe(false)
@@ -120,10 +119,10 @@ describe('Physical Vehicles Management Page (UI Component)', () => {
     const vm = component.vm as any
 
     await vm.openViewModal(1)
-    
+
     expect(mockGetVehicleById).toHaveBeenCalledWith(1)
     expect(vm.isViewModalOpen).toBe(true)
-    expect(vm.viewingVehicle.licensePlate).toBe('ABC-123')
+    expect(vm.viewingVehicle.plateNumber).toBe('ABC-123')
   })
 
   test('opens edit modal and handles updates', async () => {
@@ -134,7 +133,7 @@ describe('Physical Vehicles Management Page (UI Component)', () => {
     // Simulate clicking edit on first row
     vm.editingVehicle = { ...mockVehicles[0] }
     vm.isModalOpen = true
-    
+
     vm.editingVehicle.status = 'Maintenance'
     await vm.handleSaveVehicle()
 

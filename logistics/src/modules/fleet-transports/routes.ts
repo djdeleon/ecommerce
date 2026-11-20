@@ -1,5 +1,5 @@
 import { FastifyInstance } from "fastify";
-import { createFleetTransport, deleteFleetTransport, getCourierTasks, getCreateData, getFacilitySchedules, getFleetTransports, updateFleetTransport } from "./service.js";
+import { arriveFleetTransport, createFleetTransport, deleteFleetTransport, dispatchFleetTransport, getCourierTasks, getCreateData, getFacilitySchedules, getFleetTransportById, getFleetTransports, recordTelemetry, updateFleetTransport } from "./service.js";
 import { CreateBody, CreateSchema, DeleteParams, DeleteSchema, UpdateBody, UpdateParams, UpdateSchema } from "./schema.js";
 import { fleetTransports } from "./paths.js";
 import { userAuth } from "#commons/middlewares/user-auth.js";
@@ -13,12 +13,11 @@ export default async function routes(fastify: FastifyInstance) {
 
     return rep.status(200).send({ message: 'Fleet Transports retrieved successfully.', data })
   })
-  
+
   fastify.get<{ Querystring: { facilityId?: string } }>(fleetTransports.create, { preHandler: [userAuth] }, async (req, rep) => {
     const user = (req as any).user;
     const queryFacilityId = req.query.facilityId ? parseInt(req.query.facilityId, 10) : undefined;
 
-    // Use query facilityId if provided, otherwise fallback to user's assigned facility
     const targetFacilityId = queryFacilityId || user.assignedFacilityId;
 
     const data = await getCreateData(fastify, targetFacilityId);
@@ -66,35 +65,11 @@ export default async function routes(fastify: FastifyInstance) {
     preHandler: [userAuth]
   }, async (req, rep) => {
     const { id } = req.params;
-    const fleetTransport = await fastify.prisma.fleetTransport.findUnique({
-      where: { id: parseInt(id, 10) },
-      include: {
-        facility: true,
-        courier: {
-          include: { user: true }
-        },
-        vehicle: {
-          include: { vehicleProfile: true }
-        },
-        networkLeg: {
-          include: {
-            sourceFacility: true,
-            destinationFacility: true,
-          }
-        },
-        manifest: true,
-        delivery: true,
-        masterBags: true
-      }
-    });
-
-    if (!fleetTransport) {
-      return rep.status(404).send({ message: 'Fleet Transport not found.' });
-    }
+    const data = await getFleetTransportById(fastify, id);
 
     return rep.status(200).send({
       message: 'Fleet Transport retrieved successfully.',
-      data: fleetTransport
+      data
     });
   });
 
@@ -104,7 +79,6 @@ export default async function routes(fastify: FastifyInstance) {
   },
     async (req, rep) => {
       const { id } = req.params
-
       const data = await updateFleetTransport(fastify, id, req.body)
 
       return rep.code(200).send({
@@ -120,7 +94,6 @@ export default async function routes(fastify: FastifyInstance) {
   },
     async (req, rep) => {
       const { id } = req.params
-
       await deleteFleetTransport(fastify, id)
 
       return rep.code(200).send({
@@ -368,86 +341,32 @@ export default async function routes(fastify: FastifyInstance) {
   },
     async (req, rep) => {
       const { id } = req.params;
-      const { longitude, latitude, speed = 35, heading = 0 } = req.body;
-
-      const schedule = await fastify.prisma.fleetTransport.findUnique({
-        where: { id: parseInt(id) },
-        select: { vehicleId: true }
-      });
-
-      if (!schedule) {
-        return rep.code(404).send({ message: 'Schedule not found,' });
-      }
-
-      const vehicleLog = await fastify.prisma.vehicleLocationLog.create({
-        data: {
-          physicalVehicleId: schedule.vehicleId,
-          longitude,
-          latitude,
-          speed,
-          heading
-        }
-      });
+      const vehicleLog = await recordTelemetry(fastify, id, req.body);
 
       return rep.code(201).send({
         message: 'Telemetry recorded successfully.',
-        data: {
-          ...vehicleLog,
-          id: Number(vehicleLog.id)
-        }
+        data: vehicleLog
       });
     }
   );
 
   fastify.patch(fleetTransports.dispatch.url, { preHandler: [userAuth] }, async (req, rep) => {
     const { id } = req.params as { id: string };
+    const data = await dispatchFleetTransport(fastify, id);
 
-    const run = await fastify.prisma.fleetTransport.update({
-      where: { id: parseInt(id) },
-      data: {
-        dispatchedAt: new Date(),
-        // update related statuses here
-      },
-      include: { vehicle: true, courier: true }
+    return rep.status(200).send({
+      message: 'Transport run dispatched',
+      data
     });
-
-    // Cascade: Update physical vehicle status
-    await fastify.prisma.physicalVehicle.update({
-      where: { id: run.vehicleId },
-      data: { status: 'Transit' }
-    });
-
-    return rep.send({ message: 'Transport run dispatched', data: run });
   });
 
   fastify.patch(fleetTransports.arrive.url, { preHandler: [userAuth] }, async (req, rep) => {
     const { id } = req.params as { id: string };
+    const data = await arriveFleetTransport(fastify, id);
 
-    // Basic Validation: Can't arrive if not dispatched
-    const check = await fastify.prisma.fleetTransport.findUnique({ where: { id: parseInt(id) } });
-    if (!check?.dispatchedAt) {
-      return rep.code(400).send({ message: "Cannot arrive a run that hasn't been dispatched." });
-    }
-
-    const run = await fastify.prisma.fleetTransport.update({
-      where: { id: parseInt(id) },
-      data: { arrivedAt: new Date() },
-      include: { vehicle: true, courier: true }
+    return rep.send({
+      message: 'Transport run arrived back at facility',
+      data
     });
-
-    // Cascade: Free up the vehicle and courier
-    await fastify.prisma.physicalVehicle.update({
-      where: { id: run.vehicleId },
-      data: { status: 'Available' }
-    });
-
-    if (run.courierId) {
-      await fastify.prisma.courier.update({
-        where: { id: run.courierId },
-        data: { status: 'Available' }
-      });
-    }
-
-    return rep.send({ message: 'Transport run arrived back at facility', data: run });
   });
 }

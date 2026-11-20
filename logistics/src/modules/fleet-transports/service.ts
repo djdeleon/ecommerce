@@ -235,7 +235,7 @@ export async function getFacilitySchedules(fastify: FastifyInstance, facilityId:
 }
 
 export async function getCreateData(fastify: FastifyInstance, facilityId?: number) {
-  console.log({facilityId})
+  console.log({ facilityId })
   const fleetTransportTypes = Object.values(FleetTransportType)
 
   const facilityFilter = facilityId ? { assignedFacilityId: facilityId } : {};
@@ -284,6 +284,37 @@ export async function createFleetTransport(fastify: FastifyInstance, data: any) 
   })
 }
 
+export async function getFleetTransportById(fastify: FastifyInstance, idParam: string) {
+  const id = parseId(idParam)
+  const fleetTransport = await fastify.prisma.fleetTransport.findUnique({
+    where: { id },
+    include: {
+      facility: true,
+      courier: {
+        include: { user: true }
+      },
+      vehicle: {
+        include: { vehicleProfile: true }
+      },
+      networkLeg: {
+        include: {
+          sourceFacility: true,
+          destinationFacility: true,
+        }
+      },
+      manifest: true,
+      delivery: true,
+      masterBags: true
+    }
+  });
+
+  if (!fleetTransport) {
+    throw { statusCode: 404, message: 'Fleet Transport not found.' };
+  }
+
+  return fleetTransport;
+}
+
 export async function updateFleetTransport(
   fastify: FastifyInstance,
   idParam: string,
@@ -313,4 +344,85 @@ export async function deleteFleetTransport(
   return await fastify.prisma.fleetTransport.delete({
     where: { id },
   })
+}
+
+export async function dispatchFleetTransport(fastify: FastifyInstance, idParam: string) {
+  const id = parseId(idParam)
+
+  const run = await fastify.prisma.fleetTransport.update({
+    where: { id },
+    data: {
+      dispatchedAt: new Date(),
+    },
+    include: { vehicle: true, courier: true }
+  });
+
+  await fastify.prisma.physicalVehicle.update({
+    where: { id: run.vehicleId },
+    data: { status: 'Transit' }
+  });
+
+  return run;
+}
+
+export async function arriveFleetTransport(fastify: FastifyInstance, idParam: string) {
+  const id = parseId(idParam)
+
+  const check = await fastify.prisma.fleetTransport.findUnique({ where: { id } });
+  if (!check?.dispatchedAt) {
+    throw { statusCode: 400, message: "Cannot arrive a run that hasn't been dispatched." };
+  }
+
+  const run = await fastify.prisma.fleetTransport.update({
+    where: { id },
+    data: { arrivedAt: new Date() },
+    include: { vehicle: true, courier: true }
+  });
+
+  await fastify.prisma.physicalVehicle.update({
+    where: { id: run.vehicleId },
+    data: { status: 'Available' }
+  });
+
+  if (run.courierId) {
+    await fastify.prisma.courier.update({
+      where: { id: run.courierId },
+      data: { status: 'Available' }
+    });
+  }
+
+  return run;
+}
+
+export async function recordTelemetry(
+  fastify: FastifyInstance,
+  idParam: string,
+  data: { longitude: number; latitude: number; speed?: number; heading?: number }
+) {
+  const id = parseId(idParam)
+  const { longitude, latitude, speed = 35, heading = 0 } = data;
+
+  const schedule = await fastify.prisma.fleetTransport.findUnique({
+    where: { id },
+    select: { vehicleId: true }
+  });
+
+  if (!schedule) {
+    throw { statusCode: 404, message: 'Schedule not found.' };
+  }
+
+  const vehicleLog = await fastify.prisma.vehicleLocationLog.create({
+    data: {
+      physicalVehicleId: schedule.vehicleId,
+      longitude,
+      latitude,
+      speed,
+      heading
+    }
+  });
+
+  return {
+    ...vehicleLog,
+    id: Number(vehicleLog.id)
+  };
 }

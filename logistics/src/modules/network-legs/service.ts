@@ -94,7 +94,7 @@ export async function getNetworkLegById(fastify: FastifyInstance, id: number) {
 
 export async function updateNetworkLeg(
   fastify: FastifyInstance,
-  idParam: string,
+  id: number,
   data: UpdateNetworkLegBody
 ) {
   const {
@@ -108,7 +108,6 @@ export async function updateNetworkLeg(
     mode,
     cutOffTime
   } = data
-  const id = parseId(idParam)
   const transitMode = mode ? transitModeMap[mode as TransitMode] : undefined
 
   // Clean cutOffTime if it's coming in as an invalid Date string or empty
@@ -177,10 +176,8 @@ export async function updateNetworkLeg(
 
 export async function deleteNetworkLeg(
   fastify: FastifyInstance,
-  idParam: string
+  id: number
 ) {
-  const id = parseId(idParam)
-
   return await fastify.prisma.networkLeg.delete({
     where: { id },
   })

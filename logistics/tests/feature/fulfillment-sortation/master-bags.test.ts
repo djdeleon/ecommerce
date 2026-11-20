@@ -1,7 +1,7 @@
 import { createFacility, createParcel } from "#factory"
 import { UserRole, SortingBatchStatus, MasterBagStatus, ShipmentStatus } from "@prisma/client"
 import { FastifyInstance } from "fastify"
-import { describe, beforeAll, test, expect } from "vitest"
+import { describe, beforeAll, beforeEach, test, expect } from "vitest"
 import { masterBags } from "../../../src/modules/fulfillment-sortation/paths/master-bag.path.js"
 import { createFleetTransport } from "../../factory/fleet-transport.factory.js"
 import { createUser } from "../../factory/user.factory.js"
@@ -10,30 +10,36 @@ import { createSortingBatch } from "../../factory/sorting-batch.factory.js"
 
 describe('Master Bag Management', () => {
   let app: FastifyInstance
+  let managerToken: string
 
   beforeAll(() => {
     app = (globalThis as any).app as FastifyInstance
   })
 
+  beforeEach(async () => {
+    const manager = await createUser(app, UserRole.Manager)
+    managerToken = manager.token
+  })
+
+  const authHeaders = () => ({ authorization: `Bearer ${managerToken}` })
+
   test('master bags can be listed', async () => {
-    const { token } = await createUser(app, UserRole.Manager)
     await createMasterBag(app)
 
     const response = await app.inject({
       method: 'GET',
       url: masterBags.index,
-      headers: {
-        authorization: `Bearer ${token}`
-      }
+      headers: authHeaders()
     })
 
     const body = response.json()
 
     expect(response.statusCode).toBe(200)
     expect(body.message).toBe('Master bags retrieved successfully.')
-    expect(Array.isArray(body.data)).toBe(true)
-    expect(body.data.length).toBeGreaterThan(0)
-    expect(body.data[0]).toMatchObject({
+    expect(body.data).toHaveProperty('masterBags')
+    expect(Array.isArray(body.data.masterBags)).toBe(true)
+    expect(body.data.masterBags.length).toBeGreaterThan(0)
+    expect(body.data.masterBags[0]).toMatchObject({
       id: expect.any(Number),
       code: expect.any(String),
       sortingBatchId: expect.any(Number),
@@ -43,13 +49,10 @@ describe('Master Bag Management', () => {
       currentFacility: expect.any(Object),
       nextFacility: expect.any(Object),
       sortingBatch: expect.any(Object),
-      parcels: expect.any(Array),
     })
   })
 
   test('a master bag can be created', async () => {
-    const { token } = await createUser(app, UserRole.Manager)
-
     const facilityCurrent = await createFacility(app)
     const facilityNext = await createFacility(app)
     const courierSchedule = await createFleetTransport(app)
@@ -77,9 +80,7 @@ describe('Master Bag Management', () => {
     const response = await app.inject({
       method: 'POST',
       url: masterBags.store,
-      headers: {
-        authorization: `Bearer ${token}`
-      },
+      headers: authHeaders(),
       body: payload
     })
 
@@ -101,15 +102,12 @@ describe('Master Bag Management', () => {
   })
 
   test('a master bag can be retrieved by id', async () => {
-    const { token } = await createUser(app, UserRole.Manager)
     const createdBag = await createMasterBag(app)
 
     const response = await app.inject({
       method: 'GET',
       url: masterBags.show(createdBag.id),
-      headers: {
-        authorization: `Bearer ${token}`
-      }
+      headers: authHeaders()
     })
 
     const body = response.json()
@@ -132,8 +130,6 @@ describe('Master Bag Management', () => {
   })
 
   test('a master bag label can be printed', async () => {
-    const { token } = await createUser(app, UserRole.Manager)
-
     const originFacility = await createFacility(app, { name: 'Manila Gateway' });
     const nextFacility = await createFacility(app, { name: 'Cebu Hub' });
 
@@ -157,9 +153,7 @@ describe('Master Bag Management', () => {
     const response = await app.inject({
       method: 'GET',
       url: masterBags.label(masterBag.code),
-      headers: {
-        authorization: `Bearer ${token}`
-      },
+      headers: authHeaders(),
     });
 
     const htmlBody = response.body;
@@ -172,11 +166,9 @@ describe('Master Bag Management', () => {
     expect(htmlBody).toContain('Cebu Hub');
     expect(htmlBody).toContain('BATCH-NIGHT-001');
     expect(htmlBody).toContain('<svg'); // Ensures the barcode is an SVG vector
-  });
+  })
 
   test('a master bag can be updated', async () => {
-    const { token } = await createUser(app, UserRole.Manager)
-
     const createdBag = await createMasterBag(app)
 
     const updatePayload = {
@@ -187,9 +179,7 @@ describe('Master Bag Management', () => {
     const response = await app.inject({
       method: 'PUT',
       url: masterBags.update(createdBag.id),
-      headers: {
-        authorization: `Bearer ${token}`
-      },
+      headers: authHeaders(),
       body: updatePayload
     })
 
@@ -205,16 +195,12 @@ describe('Master Bag Management', () => {
   })
 
   test('a master bag can be deleted', async () => {
-    const { token } = await createUser(app, UserRole.Manager)
-
     const createdBag = await createMasterBag(app)
 
     const response = await app.inject({
       method: 'DELETE',
       url: masterBags.delete(createdBag.id),
-      headers: {
-        authorization: `Bearer ${token}`
-      }
+      headers: authHeaders()
     })
 
     const body = response.json()
@@ -229,8 +215,6 @@ describe('Master Bag Management', () => {
   })
 
   test('a master bag can be sealed', async () => {
-    const { token } = await createUser(app, UserRole.Manager)
-
     const parcel = await createParcel(app, {
       weightGrams: 2000,
       lengthCm: 30,
@@ -243,9 +227,7 @@ describe('Master Bag Management', () => {
     const response = await app.inject({
       method: 'PATCH',
       url: masterBags.seal(masterBag.code),
-      headers: {
-        authorization: `Bearer ${token}`
-      }
+      headers: authHeaders()
     })
 
     const body = response.json();

@@ -1,6 +1,6 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { mountSuspended, mockNuxtImport } from '@nuxt/test-utils/runtime'
-import SectorsPage from '~/pages/admin/infrastructures/sectors.vue'
+import SectorsPage from '~/pages/admin/network-infrastructures/sectors.vue'
 
 const { mockGetSectors, mockCreateSector, mockUpdateSector, mockDeleteSector, mockGetSectorById, mockGetFacilities } = vi.hoisted(() => ({
   mockGetSectors: vi.fn(),

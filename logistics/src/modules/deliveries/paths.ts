@@ -7,9 +7,9 @@ const createPath = (path: string) => {
 }
 
 export const deliveries = {
-  index: '/deliveries',
-  store: '/deliveries',
-  dispatch: createPath('/deliveries/:code/dispatch'),
-  completed: createPath('/deliveries/:code/completed'),
-  arrived: createPath('/deliveries/:code/arrived'),
+  index: '/api/v1/deliveries',
+  store: '/api/v1/deliveries',
+  dispatch: createPath('/api/v1/deliveries/:code/dispatch'),
+  completed: createPath('/api/v1/deliveries/:code/completed'),
+  arrived: createPath('/api/v1/deliveries/:code/arrived'),
 } as const;

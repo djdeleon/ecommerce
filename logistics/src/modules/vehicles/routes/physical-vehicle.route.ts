@@ -24,7 +24,6 @@ export async function physicalVehicleRoutes(fastify: FastifyInstance) {
         ...req.body,
         assignedFacilityId: user.assignedFacilityId,
       }
-      console.log({ user, payload })
       const physicalVehicle = await createPhysicalVehicle(fastify, payload)
 
       return rep.code(201).send({

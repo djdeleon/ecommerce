@@ -1,4 +1,4 @@
 export const couriers = {
-  index: '/couriers',
-  store: '/couriers',
+  index: '/api/v1/couriers',
+  store: '/api/v1/couriers',
 } as const;

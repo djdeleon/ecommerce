@@ -1,5 +1,5 @@
 import { FastifyInstance } from "fastify";
-import { beforeAll, describe, expect, test } from "vitest";
+import { beforeAll, beforeEach, describe, expect, test } from "vitest";
 import { clients } from "../../src/modules/clients/paths.js";
 import { createClient } from "../factory/client.factory.js";
 import { createUser } from "../factory/user.factory.js";
@@ -7,20 +7,24 @@ import { UserRole } from "@prisma/client";
 
 describe('Clients Domain', () => {
   let app: FastifyInstance
+  let adminToken: string
 
   beforeAll(async () => {
     app = (globalThis as any).app as FastifyInstance
   })
 
-  test('an admin can view the client dashboard', async () => {
-    const { token: adminToken } = await createUser(app, UserRole.Admin)
+  beforeEach(async () => {
+    const admin = await createUser(app, UserRole.Admin)
+    adminToken = admin.token
+  })
 
+  const authHeaders = () => ({ authorization: `Bearer ${adminToken}` })
+
+  test('an admin can view the client dashboard', async () => {
     const response = await app.inject({
       method: 'GET',
       url: clients.index,
-      headers: {
-        authorization: `Bearer ${adminToken}`
-      }
+      headers: authHeaders()
     })
 
     const clientList = response.json().data
@@ -30,8 +34,6 @@ describe('Clients Domain', () => {
   })
 
   test('an admin can view the client dashboard with multiple clients', async () => {
-    const { token: adminToken } = await createUser(app, UserRole.Admin)
-
     const createdClients = []
     for (let i = 1; i <= 10; i++) {
       const client = await createClient(app, { name: `Dashboard Client ${i}` })
@@ -41,9 +43,7 @@ describe('Clients Domain', () => {
     const response = await app.inject({
       method: 'GET',
       url: clients.index,
-      headers: {
-        authorization: `Bearer ${adminToken}`
-      }
+      headers: authHeaders()
     })
 
     const clientList = response.json().data
@@ -61,14 +61,10 @@ describe('Clients Domain', () => {
   })
 
   test('a client can register', async () => {
-    const { token: adminToken } = await createUser(app, UserRole.Admin)
-
     const response = await app.inject({
       method: 'POST',
       url: clients.store,
-      headers: {
-        authorization: `Bearer ${adminToken}`
-      },
+      headers: authHeaders(),
       body: {
         name: 'Laravel E-Commerce PH',
       }
@@ -87,16 +83,12 @@ describe('Clients Domain', () => {
   })
 
   test('an admin can view a client', async () => {
-    const { token: adminToken } = await createUser(app, UserRole.Admin)
-
     const client = await createClient(app, { name: 'Viewable Client' })
 
     const response = await app.inject({
       method: 'GET',
       url: clients.show(client.id),
-      headers: {
-        authorization: `Bearer ${adminToken}`
-      }
+      headers: authHeaders()
     })
 
     expect(response.statusCode).toBe(200)
@@ -105,16 +97,12 @@ describe('Clients Domain', () => {
   })
 
   test('an admin can update a client', async () => {
-    const { token: adminToken } = await createUser(app, UserRole.Admin)
-
     const client = await createClient(app)
 
     const response = await app.inject({
       method: 'PUT',
       url: clients.update(client.id),
-      headers: {
-        authorization: `Bearer ${adminToken}`
-      },
+      headers: authHeaders(),
       body: {
         name: 'Updated Store Name'
       }
@@ -125,18 +113,19 @@ describe('Clients Domain', () => {
   })
 
   test('an admin can delete a client', async () => {
-    const { token: adminToken } = await createUser(app, UserRole.Admin)
-
     const client = await createClient(app)
 
     const response = await app.inject({
       method: 'DELETE',
       url: clients.destroy(client.id),
-      headers: {
-        authorization: `Bearer ${adminToken}`
-      }
+      headers: authHeaders()
     })
 
     expect(response.statusCode).toBe(200)
+
+    const deletedRecord = await app.prisma.client.findUnique({
+      where: { id: client.id },
+    })
+    expect(deletedRecord).toBeNull()
   })
 })
