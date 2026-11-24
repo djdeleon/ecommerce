@@ -1,5 +1,5 @@
-import { FacilityType, ShipmentStatus } from "@prisma/client";
-import { createCourier, createFacility, createTrackingLog } from "#factory";
+import { FacilityType, ParcelStatus } from "@prisma/client";
+import { createCourier, createFacility } from "#factory";
 import { FastifyInstance } from "fastify";
 import { createSector } from "./sector.factory.js";
 
@@ -21,24 +21,24 @@ export async function createParcel(fastify: FastifyInstance, overrides: any = {}
     localBranchId: destination.id
   })
 
+  // Seed default Barangay for store/recipient foreign keys
+  const region = await fastify.prisma.region.upsert({
+    where: { id: "1300000000" },
+    update: {},
+    create: { id: "1300000000", name: "NCR", code: "NCR" },
+  });
+  const city = await fastify.prisma.city.upsert({
+    where: { id: "1380600000" },
+    update: {},
+    create: { id: "1380600000", name: "Manila", code: "MNL", provinceId: null },
+  });
+  const brgy = await fastify.prisma.barangay.upsert({
+    where: { id: "1380601148" },
+    update: {},
+    create: { id: "1380601148", name: "Barangay 148", code: "NCR-MNL-148", cityId: city.id },
+  });
+
   const { courier } = await createCourier(fastify, { currentFacilityId: origin.id });
-
-  const store = await fastify.prisma.store.create({
-    data: {
-      name: `Store ${randomSuffix}`,
-      contactNumber: "09225325754",
-      address: "Bulacan 123 Main St.",
-    }
-  })
-
-  await fastify.prisma.$executeRaw`
-    UPDATE stores
-    SET location = ST_SetSRID(ST_MakePoint(${14.22}, ${123.423}), 4326)
-    WHERE id = ${store.id}
-  `
-
-  const trackingNumber = `TRK-${Date.now()}-${randomSuffix}`;
-  const externalOrderId = `EXT-${randomSuffix}`;
 
   // Use provided clientId or fallback to creating a "Default Client"
   let targetClientId = overrides.clientId;
@@ -58,7 +58,27 @@ export async function createParcel(fastify: FastifyInstance, overrides: any = {}
     targetClientId = client.id;
   }
 
-  // Always create the tracking pool entry for this specific tracking number
+  // Create Store with mandatory externalFacilityId and barangayId
+  const store = await fastify.prisma.store.create({
+    data: {
+      clientId: targetClientId,
+      externalFacilityId: randomSuffix,
+      name: `Store ${randomSuffix}`,
+      contactNumber: "09225325754",
+      streetAddress: "Bulacan 123 Main St.",
+      barangayId: brgy.id,
+    }
+  });
+
+  await fastify.prisma.$executeRaw`
+    UPDATE stores
+    SET location = ST_SetSRID(ST_MakePoint(${14.22}, ${123.423}), 4326)
+    WHERE id = ${store.id}
+  `;
+
+  const trackingNumber = `TRK-${Date.now()}-${randomSuffix}`;
+  const externalOrderId = `EXT-${randomSuffix}`;
+
   await fastify.prisma.trackingNumber.create({
     data: {
       number: trackingNumber,
@@ -68,8 +88,8 @@ export async function createParcel(fastify: FastifyInstance, overrides: any = {}
     },
   });
 
-  // emove clientId from overrides before creating Parcel (as Parcel doesn't have a clientId field)
-  const { clientId, ...parcelOverrides } = overrides;
+  const { clientId, parcelAmount, ...parcelOverrides } = overrides;
+  const initialStatus = parcelOverrides.status || ParcelStatus.PendingPickup;
 
   const parcel = await fastify.prisma.parcel.create({
     data: {
@@ -91,22 +111,74 @@ export async function createParcel(fastify: FastifyInstance, overrides: any = {}
       sortingCodeCache: `HUB-BUL-SKY-05`,
       routingPipelineCache: `BUL-NL`,
       storeId: store.id,
-      customerName: "Doe John",
-      customerAddress: "Marilao San Pablo 123 St.",
-      customerPhone: "09244562453",
+      recipientName: "Doe John",
+      recipientAddress: "Marilao San Pablo 123 St.",
+      recipientPhone: "09244562453",
+      recipientBarangayId: brgy.id,
       assignedCourierId: courier.id,
-      status: ShipmentStatus.PendingPickup,
+      status: initialStatus,
       ...parcelOverrides,
     },
   });
 
-  await createTrackingLog(fastify, parcel.id, parcel.status)
+  await seedParcelTrackingLogs(fastify, parcel.id, initialStatus);
 
   await fastify.prisma.$executeRaw`
     UPDATE parcels
-    SET customer_location = ST_SetSRID(ST_MakePoint(${14.22}, ${123.423}), 4326)
+    SET recipient_location = ST_SetSRID(ST_MakePoint(${14.22}, ${123.423}), 4326)
     WHERE id = ${parcel.id}
-  `
+  `;
 
-  return parcel
+  return parcel;
+}
+
+/**
+ * Helper to seed tracking log history sequentially based on ParcelStatus progression.
+ */
+async function seedParcelTrackingLogs(fastify: FastifyInstance, parcelId: number, currentStatus: ParcelStatus) {
+  const firstMileSequence: ParcelStatus[] = [
+    ParcelStatus.PendingPickup,
+    ParcelStatus.ReadyForPickup,
+    ParcelStatus.PickedUp,
+    ParcelStatus.ArrivedAtOriginHub,
+    ParcelStatus.DepartedFromOriginHub,
+  ];
+
+  const midMileSequence: ParcelStatus[] = [
+    ParcelStatus.Sorting,
+    ParcelStatus.Bagged,
+    ParcelStatus.DepartedFromHub,
+    ParcelStatus.ArrivedAtHub,
+    ParcelStatus.ArrivedAtDestinationHub,
+  ];
+
+  const lastMileSequence: ParcelStatus[] = [
+    ParcelStatus.OutForDelivery,
+    ParcelStatus.Delivered,
+    ParcelStatus.FailedDelivery,
+    ParcelStatus.Rejected,
+  ];
+
+  const allStatuses = [...firstMileSequence, ...midMileSequence, ...lastMileSequence];
+  const targetIndex = allStatuses.indexOf(currentStatus);
+
+  const statusesToLog = targetIndex !== -1 
+    ? allStatuses.slice(0, targetIndex + 1) 
+    : [ParcelStatus.PendingPickup, currentStatus];
+
+  if (!statusesToLog.includes(ParcelStatus.PendingPickup)) {
+    statusesToLog.unshift(ParcelStatus.PendingPickup);
+  }
+
+  // Stagger timestamps incrementally so `createdAt` sorting is strictly chronological
+  for (const [index, status] of statusesToLog.entries()) {
+    await fastify.prisma.parcelLog.create({
+      data: {
+        parcelId,
+        status,
+        description: `Parcel status updated to ${status}`,
+        createdAt: new Date(Date.now() + index * 1000), // Incremental timestamps
+      },
+    });
+  }
 }

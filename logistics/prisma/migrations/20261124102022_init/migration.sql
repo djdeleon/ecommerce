@@ -1,22 +1,25 @@
 CREATE EXTENSION IF NOT EXISTS postgis;
 
 -- CreateEnum
-CREATE TYPE "facility_type" AS ENUM ('mega_gateway', 'distribution_center', 'local_branch');
+CREATE TYPE "FacilityType" AS ENUM ('mega_gateway', 'distribution_center', 'local_branch');
 
 -- CreateEnum
-CREATE TYPE "courier_status" AS ENUM ('available', 'busy', 'offline');
+CREATE TYPE "CourierStatus" AS ENUM ('available', 'busy', 'offline');
 
 -- CreateEnum
-CREATE TYPE "UserRole" AS ENUM ('admin', 'manager', 'clerk', 'courier');
+CREATE TYPE "UserRole" AS ENUM ('admin', 'manager', 'clerk', 'courier', 'customer');
 
 -- CreateEnum
-CREATE TYPE "shipment_status" AS ENUM ('pending_pickup', 'ready_for_pickup', 'picked_up', 'arrived_at_origin_hub', 'sorting', 'bagged', 'departed_from_hub', 'arrived_at_hub', 'arrived_at_destination_hub', 'out_for_delivery', 'delivered', 'failed_delivery', 'rejected');
+CREATE TYPE "HandoffType" AS ENUM ('courier_pickup', 'sender_dropoff');
 
 -- CreateEnum
-CREATE TYPE "shipping_service_type" AS ENUM ('regular', 'express', 'bulky');
+CREATE TYPE "parcel_status" AS ENUM ('pending_pickup', 'ready_for_pickup', 'picked_up', 'arrived_at_origin_hub', 'departed_from_origin_hub', 'sorting', 'bagged', 'departed_from_hub', 'arrived_at_hub', 'arrived_at_destination_hub', 'out_for_delivery', 'delivered', 'failed_delivery', 'rejected');
 
 -- CreateEnum
-CREATE TYPE "transit_mode" AS ENUM ('land_shuttle', 'highway_linehaul', 'maritime_roro', 'air_freight');
+CREATE TYPE "ShippingServiceType" AS ENUM ('regular', 'express', 'bulky');
+
+-- CreateEnum
+CREATE TYPE "TransitMode" AS ENUM ('land_shuttle', 'highway_linehaul', 'maritime_roro', 'air_freight');
 
 -- CreateEnum
 CREATE TYPE "VehicleType" AS ENUM ('van', 'truck', 'motorcycle');
@@ -31,7 +34,7 @@ CREATE TYPE "MasterBagStatus" AS ENUM ('open', 'full', 'sealed', 'dispatched', '
 CREATE TYPE "SortingBatchStatus" AS ENUM ('scheduled', 'active', 'completed', 'cancelled');
 
 -- CreateEnum
-CREATE TYPE "ManifestStatus" AS ENUM ('scheduled', 'accumulating', 'dispatched', 'completed', 'arrived');
+CREATE TYPE "ManifestStatus" AS ENUM ('scheduled', 'accumulating', 'dispatched', 'completed', 'arrived', 'cancelled');
 
 -- CreateEnum
 CREATE TYPE "DeliveryStatus" AS ENUM ('scheduled', 'loading', 'dispatched', 'completed', 'arrived');
@@ -40,7 +43,7 @@ CREATE TYPE "DeliveryStatus" AS ENUM ('scheduled', 'loading', 'dispatched', 'com
 CREATE TYPE "FleetTransportType" AS ENUM ('accumulation', 'line_haul', 'delivery');
 
 -- CreateEnum
-CREATE TYPE "pipeline_status" AS ENUM ('incoming', 'arrived', 'departed');
+CREATE TYPE "PipelineStatus" AS ENUM ('incoming', 'arrived', 'departed');
 
 -- CreateTable
 CREATE TABLE "regions" (
@@ -76,7 +79,7 @@ CREATE TABLE "sectors" (
     "id" SERIAL NOT NULL,
     "code" VARCHAR(15) NOT NULL,
     "zone" geometry(Polygon, 4326),
-    "local_branch_id" INTEGER NOT NULL,
+    "facility_id" INTEGER NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -101,7 +104,7 @@ CREATE TABLE "facilities" (
     "code" VARCHAR(15) NOT NULL,
     "address" TEXT NOT NULL,
     "location" geometry(Point, 4326),
-    "type" "facility_type" NOT NULL,
+    "type" "FacilityType" NOT NULL,
     "parent_id" INTEGER,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -132,7 +135,7 @@ CREATE TABLE "network_legs" (
     "distance_mtr" INTEGER NOT NULL,
     "vehicle_profile" TEXT NOT NULL,
     "base_transit_duration" INTEGER NOT NULL,
-    "mode" "transit_mode" NOT NULL,
+    "mode" "TransitMode" NOT NULL,
     "cut_off_time" TIME NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -179,7 +182,7 @@ CREATE TABLE "master_bags" (
     "id" SERIAL NOT NULL,
     "code" VARCHAR(50) NOT NULL,
     "sorting_batch_id" INTEGER NOT NULL,
-    "courier_schedule_id" INTEGER,
+    "fleet_transport_id" INTEGER,
     "current_facility_id" INTEGER NOT NULL,
     "next_facility_id" INTEGER NOT NULL,
     "total_weight" INTEGER NOT NULL DEFAULT 0,
@@ -207,7 +210,7 @@ CREATE TABLE "master_bag_logs" (
 CREATE TABLE "deliveries" (
     "id" SERIAL NOT NULL,
     "sector_id" INTEGER NOT NULL,
-    "courier_schedule_id" INTEGER NOT NULL,
+    "fleet_transport_id" INTEGER NOT NULL,
     "code" TEXT NOT NULL,
     "status" "DeliveryStatus" NOT NULL DEFAULT 'scheduled',
     "currentWeightGrams" INTEGER NOT NULL DEFAULT 0,
@@ -250,7 +253,7 @@ CREATE TABLE "couriers" (
     "user_id" INTEGER NOT NULL,
     "phone_number" VARCHAR(20) NOT NULL,
     "vehicle_type" VARCHAR(50) NOT NULL,
-    "status" "courier_status" NOT NULL DEFAULT 'available',
+    "status" "CourierStatus" NOT NULL DEFAULT 'available',
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -261,7 +264,7 @@ CREATE TABLE "couriers" (
 CREATE TABLE "courier_logs" (
     "id" BIGSERIAL NOT NULL,
     "courier_id" INTEGER NOT NULL,
-    "status" "courier_status" NOT NULL DEFAULT 'available',
+    "status" "CourierStatus" NOT NULL DEFAULT 'available',
     "loggedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -287,7 +290,7 @@ CREATE TABLE "clients" (
 CREATE TABLE "tracking_numbers" (
     "id" SERIAL NOT NULL,
     "number" VARCHAR(50) NOT NULL,
-    "client_id" INTEGER NOT NULL,
+    "client_id" INTEGER,
     "is_assigned" BOOLEAN NOT NULL DEFAULT false,
     "assigned_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -297,17 +300,49 @@ CREATE TABLE "tracking_numbers" (
 );
 
 -- CreateTable
+CREATE TABLE "stores" (
+    "id" SERIAL NOT NULL,
+    "client_id" INTEGER NOT NULL,
+    "external_facility_id" INTEGER NOT NULL,
+    "name" TEXT NOT NULL,
+    "contact_number" TEXT NOT NULL,
+    "street_address" TEXT NOT NULL,
+    "barangay_id" TEXT NOT NULL,
+    "location" geometry(Point, 4326),
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "stores_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "customers" (
+    "id" SERIAL NOT NULL,
+    "user_id" INTEGER NOT NULL,
+    "contactNumber" TEXT NOT NULL,
+    "street_address" TEXT NOT NULL,
+    "barangay_id" TEXT NOT NULL,
+    "location" geometry(Point, 4326),
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "customers_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "parcels" (
     "id" SERIAL NOT NULL,
     "tracking_number" VARCHAR(50) NOT NULL,
-    "external_order_id" TEXT NOT NULL,
+    "external_order_id" TEXT,
+    "store_id" INTEGER,
+    "customer_id" INTEGER,
     "weight_grams" INTEGER NOT NULL,
     "length_cm" DOUBLE PRECISION NOT NULL,
     "height_cm" DOUBLE PRECISION NOT NULL,
     "width_cm" DOUBLE PRECISION NOT NULL,
     "calculated_cbm" DOUBLE PRECISION NOT NULL,
     "declared_value" DECIMAL(10,2) NOT NULL,
-    "shipping_service_type" "shipping_service_type" NOT NULL DEFAULT 'regular',
+    "shipping_service_type" "ShippingServiceType" NOT NULL DEFAULT 'regular',
     "origin_sector_id" INTEGER NOT NULL,
     "current_sector_id" INTEGER,
     "destination_sector_id" INTEGER NOT NULL,
@@ -316,13 +351,14 @@ CREATE TABLE "parcels" (
     "current_facility_id" INTEGER,
     "sorting_code_cache" VARCHAR(50) NOT NULL,
     "routing_pipeline_cache" TEXT NOT NULL,
-    "store_id" INTEGER NOT NULL,
-    "customer_name" TEXT NOT NULL,
-    "customer_phone" TEXT NOT NULL,
-    "customer_address" TEXT NOT NULL,
-    "customer_location" geometry(Point, 4326),
+    "recipient_name" TEXT NOT NULL,
+    "recipient_phone" TEXT NOT NULL,
+    "recipient_address" TEXT NOT NULL,
+    "recipient_barangay_id" TEXT NOT NULL,
+    "recipient_location" geometry(Point, 4326),
+    "handoff_type" "HandoffType" NOT NULL DEFAULT 'courier_pickup',
     "assigned_courier_id" INTEGER,
-    "status" "shipment_status" NOT NULL DEFAULT 'pending_pickup',
+    "status" "parcel_status" NOT NULL DEFAULT 'pending_pickup',
     "manifest_id" INTEGER,
     "master_bag_id" INTEGER,
     "sorting_batch_id" INTEGER,
@@ -334,17 +370,17 @@ CREATE TABLE "parcels" (
 );
 
 -- CreateTable
-CREATE TABLE "tracking_logs" (
+CREATE TABLE "parcel_logs" (
     "id" SERIAL NOT NULL,
     "parcel_id" INTEGER NOT NULL,
-    "status" "shipment_status" NOT NULL,
+    "status" "parcel_status" NOT NULL,
     "description" TEXT NOT NULL,
     "facility_id" INTEGER,
     "courier_id" INTEGER,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "tracking_logs_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "parcel_logs_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -368,26 +404,13 @@ CREATE TABLE "parcel_facility_pipelines" (
     "parcel_id" INTEGER NOT NULL,
     "facility_id" INTEGER NOT NULL,
     "sequence_order" INTEGER NOT NULL,
-    "status" "pipeline_status" NOT NULL DEFAULT 'incoming',
+    "status" "PipelineStatus" NOT NULL DEFAULT 'incoming',
     "arrived_at" TIMESTAMP(3),
     "departed_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "parcel_facility_pipelines_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "stores" (
-    "id" SERIAL NOT NULL,
-    "name" TEXT NOT NULL,
-    "contact_number" TEXT NOT NULL,
-    "address" TEXT NOT NULL,
-    "location" geometry(Point, 4326),
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "stores_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -426,7 +449,7 @@ CREATE TABLE "physical_vehicles" (
 CREATE TABLE "manifests" (
     "id" SERIAL NOT NULL,
     "sector_id" INTEGER NOT NULL,
-    "courier_schedule_id" INTEGER NOT NULL,
+    "fleet_transport_id" INTEGER NOT NULL,
     "code" TEXT NOT NULL,
     "status" "ManifestStatus" NOT NULL DEFAULT 'scheduled',
     "currentWeightGrams" INTEGER NOT NULL DEFAULT 0,
@@ -439,7 +462,7 @@ CREATE TABLE "manifests" (
 
 -- CreateTable
 CREATE TABLE "manifest_logs" (
-    "id" BIGSERIAL NOT NULL,
+    "id" SERIAL NOT NULL,
     "manifest_id" INTEGER NOT NULL,
     "status" "ManifestStatus" NOT NULL DEFAULT 'scheduled',
     "recorded_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -468,7 +491,7 @@ CREATE UNIQUE INDEX "facility_schedules_facility_id_key" ON "facility_schedules"
 CREATE UNIQUE INDEX "master_bags_code_key" ON "master_bags"("code");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "deliveries_courier_schedule_id_key" ON "deliveries"("courier_schedule_id");
+CREATE UNIQUE INDEX "deliveries_fleet_transport_id_key" ON "deliveries"("fleet_transport_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "deliveries_code_key" ON "deliveries"("code");
@@ -492,6 +515,12 @@ CREATE UNIQUE INDEX "clients_api_key_key" ON "clients"("api_key");
 CREATE UNIQUE INDEX "tracking_numbers_number_key" ON "tracking_numbers"("number");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "stores_client_id_external_facility_id_key" ON "stores"("client_id", "external_facility_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "customers_user_id_key" ON "customers"("user_id");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "parcels_tracking_number_key" ON "parcels"("tracking_number");
 
 -- CreateIndex
@@ -504,13 +533,10 @@ CREATE UNIQUE INDEX "parcel_audit_logs_parcel_id_key" ON "parcel_audit_logs"("pa
 CREATE UNIQUE INDEX "parcel_facility_pipelines_parcel_id_facility_id_key" ON "parcel_facility_pipelines"("parcel_id", "facility_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "stores_name_key" ON "stores"("name");
-
--- CreateIndex
 CREATE UNIQUE INDEX "physical_vehicles_plate_number_key" ON "physical_vehicles"("plate_number");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "manifests_courier_schedule_id_key" ON "manifests"("courier_schedule_id");
+CREATE UNIQUE INDEX "manifests_fleet_transport_id_key" ON "manifests"("fleet_transport_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "manifests_code_key" ON "manifests"("code");
@@ -522,7 +548,7 @@ ALTER TABLE "provinces" ADD CONSTRAINT "provinces_region_id_fkey" FOREIGN KEY ("
 ALTER TABLE "cities" ADD CONSTRAINT "cities_province_id_fkey" FOREIGN KEY ("province_id") REFERENCES "provinces"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "sectors" ADD CONSTRAINT "sectors_local_branch_id_fkey" FOREIGN KEY ("local_branch_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "sectors" ADD CONSTRAINT "sectors_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "barangays" ADD CONSTRAINT "barangays_city_id_fkey" FOREIGN KEY ("city_id") REFERENCES "cities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -561,7 +587,7 @@ ALTER TABLE "sorting_batches" ADD CONSTRAINT "sorting_batches_facility_id_fkey" 
 ALTER TABLE "master_bags" ADD CONSTRAINT "master_bags_sorting_batch_id_fkey" FOREIGN KEY ("sorting_batch_id") REFERENCES "sorting_batches"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "master_bags" ADD CONSTRAINT "master_bags_courier_schedule_id_fkey" FOREIGN KEY ("courier_schedule_id") REFERENCES "fleet_transports"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "master_bags" ADD CONSTRAINT "master_bags_fleet_transport_id_fkey" FOREIGN KEY ("fleet_transport_id") REFERENCES "fleet_transports"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "master_bags" ADD CONSTRAINT "master_bags_current_facility_id_fkey" FOREIGN KEY ("current_facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -576,7 +602,7 @@ ALTER TABLE "master_bag_logs" ADD CONSTRAINT "master_bag_logs_master_bag_id_fkey
 ALTER TABLE "deliveries" ADD CONSTRAINT "deliveries_sector_id_fkey" FOREIGN KEY ("sector_id") REFERENCES "sectors"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "deliveries" ADD CONSTRAINT "deliveries_courier_schedule_id_fkey" FOREIGN KEY ("courier_schedule_id") REFERENCES "fleet_transports"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "deliveries" ADD CONSTRAINT "deliveries_fleet_transport_id_fkey" FOREIGN KEY ("fleet_transport_id") REFERENCES "fleet_transports"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "delivery_logs" ADD CONSTRAINT "delivery_logs_delivery_id_fkey" FOREIGN KEY ("delivery_id") REFERENCES "deliveries"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -594,7 +620,25 @@ ALTER TABLE "courier_logs" ADD CONSTRAINT "courier_logs_courier_id_fkey" FOREIGN
 ALTER TABLE "tracking_numbers" ADD CONSTRAINT "tracking_numbers_client_id_fkey" FOREIGN KEY ("client_id") REFERENCES "clients"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "stores" ADD CONSTRAINT "stores_client_id_fkey" FOREIGN KEY ("client_id") REFERENCES "clients"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "stores" ADD CONSTRAINT "stores_barangay_id_fkey" FOREIGN KEY ("barangay_id") REFERENCES "barangays"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "customers" ADD CONSTRAINT "customers_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "customers" ADD CONSTRAINT "customers_barangay_id_fkey" FOREIGN KEY ("barangay_id") REFERENCES "barangays"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "parcels" ADD CONSTRAINT "parcels_tracking_number_fkey" FOREIGN KEY ("tracking_number") REFERENCES "tracking_numbers"("number") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "parcels" ADD CONSTRAINT "parcels_store_id_fkey" FOREIGN KEY ("store_id") REFERENCES "stores"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "parcels" ADD CONSTRAINT "parcels_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "customers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "parcels" ADD CONSTRAINT "parcels_origin_sector_id_fkey" FOREIGN KEY ("origin_sector_id") REFERENCES "sectors"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -615,7 +659,7 @@ ALTER TABLE "parcels" ADD CONSTRAINT "parcels_destination_facility_id_fkey" FORE
 ALTER TABLE "parcels" ADD CONSTRAINT "parcels_current_facility_id_fkey" FOREIGN KEY ("current_facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "parcels" ADD CONSTRAINT "parcels_store_id_fkey" FOREIGN KEY ("store_id") REFERENCES "stores"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "parcels" ADD CONSTRAINT "parcels_recipient_barangay_id_fkey" FOREIGN KEY ("recipient_barangay_id") REFERENCES "barangays"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "parcels" ADD CONSTRAINT "parcels_assigned_courier_id_fkey" FOREIGN KEY ("assigned_courier_id") REFERENCES "couriers"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -633,13 +677,13 @@ ALTER TABLE "parcels" ADD CONSTRAINT "parcels_sorting_batch_id_fkey" FOREIGN KEY
 ALTER TABLE "parcels" ADD CONSTRAINT "parcels_delivery_id_fkey" FOREIGN KEY ("delivery_id") REFERENCES "deliveries"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "tracking_logs" ADD CONSTRAINT "tracking_logs_parcel_id_fkey" FOREIGN KEY ("parcel_id") REFERENCES "parcels"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "parcel_logs" ADD CONSTRAINT "parcel_logs_parcel_id_fkey" FOREIGN KEY ("parcel_id") REFERENCES "parcels"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "tracking_logs" ADD CONSTRAINT "tracking_logs_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "parcel_logs" ADD CONSTRAINT "parcel_logs_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "tracking_logs" ADD CONSTRAINT "tracking_logs_courier_id_fkey" FOREIGN KEY ("courier_id") REFERENCES "couriers"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "parcel_logs" ADD CONSTRAINT "parcel_logs_courier_id_fkey" FOREIGN KEY ("courier_id") REFERENCES "couriers"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "parcel_audit_logs" ADD CONSTRAINT "parcel_audit_logs_parcel_id_fkey" FOREIGN KEY ("parcel_id") REFERENCES "parcels"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -660,7 +704,7 @@ ALTER TABLE "physical_vehicles" ADD CONSTRAINT "physical_vehicles_assigned_facil
 ALTER TABLE "manifests" ADD CONSTRAINT "manifests_sector_id_fkey" FOREIGN KEY ("sector_id") REFERENCES "sectors"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "manifests" ADD CONSTRAINT "manifests_courier_schedule_id_fkey" FOREIGN KEY ("courier_schedule_id") REFERENCES "fleet_transports"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "manifests" ADD CONSTRAINT "manifests_fleet_transport_id_fkey" FOREIGN KEY ("fleet_transport_id") REFERENCES "fleet_transports"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "manifest_logs" ADD CONSTRAINT "manifest_logs_manifest_id_fkey" FOREIGN KEY ("manifest_id") REFERENCES "manifests"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

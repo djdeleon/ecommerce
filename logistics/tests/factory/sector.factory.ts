@@ -5,10 +5,10 @@ import { createSector as createSectorService } from "../../src/modules/sectors/s
 export async function createSector(fastify: FastifyInstance, overrides: any = {}) {
   const randomSuffix = Math.floor(Math.random() * 100);
 
-  let localBranchId = overrides.localBranchId;
-  if (!localBranchId) {
+  let facilityId = overrides.facilityId;
+  if (!facilityId) {
     const facility = await createFacility(fastify);
-    localBranchId = facility.id;
+    facilityId = facility.id;
   }
 
   const code = overrides.code ?? `R03-BUL-SJD-${randomSuffix.toString()}`;
@@ -28,7 +28,7 @@ export async function createSector(fastify: FastifyInstance, overrides: any = {}
 
   return await createSectorService(fastify, {
     code,
-    localBranchId,
+    facilityId,
     zone,
     barangayIds: overrides.barangayIds
   })
