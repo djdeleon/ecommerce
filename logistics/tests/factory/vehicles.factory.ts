@@ -1,4 +1,4 @@
-import { VehicleType } from "@prisma/client";
+import { PhysicalVehicleStatus, VehicleType } from "@prisma/client";
 import { FastifyInstance } from "fastify";
 import { createFacility } from "./facility.factory.js";
 import { createVehicleProfile as createVehicleProfileService } from "../../src/modules/vehicles/services/vehicle-profile.service.js";
@@ -44,9 +44,20 @@ export async function createPhysicalVehicle(
 
   const plateNumber = overrides?.plateNumber ?? `ABC-${Math.floor(1000 + Math.random() * 9000)}`;
 
-  return await createPhysicalVehicleService(fastify, {
+  const physicalVehicle = await createPhysicalVehicleService(fastify, {
     vehicleProfileId,
     assignedFacilityId,
     plateNumber
   })
+
+  const status = overrides?.status ?? PhysicalVehicleStatus.Available
+
+  await fastify.prisma.physicalVehicleLog.create({
+    data: {
+      physicalVehicleId: physicalVehicle.id,
+      status
+    }
+  })
+
+  return physicalVehicle
 }

@@ -1,4 +1,4 @@
-import { CourierStatus, FleetTransportType, ManifestStatus, Prisma, ParcelStatus } from "@prisma/client";
+import { CourierStatus, FleetTransportType, ManifestStatus, Prisma, ParcelStatus, PipelineStatus } from "@prisma/client";
 import { FastifyInstance } from "fastify";
 import { assertTransition } from "./state-machine.js";
 import { CreateManifestBody, UpdateManifestBody } from "./schema.js";
@@ -278,6 +278,27 @@ export async function dispatchManifest(fastify: FastifyInstance, code: string) {
       })
     }
 
+    if (manifest.parcels.length > 0) {
+      for (const parcel of manifest.parcels) {
+        const fleetTransport = await fastify.prisma.fleetTransport.findUniqueOrThrow({
+          where: { id: manifest.fleetTransportId }
+        })
+        if (!fleetTransport.facilityId) {
+          throw new Error("Cannot log parcel facility pipeline: No facility assigned to this Fleet Transport.");
+        }
+        const facilityId = fleetTransport.facilityId;
+
+        await fastify.prisma.parcelFacilityPipeline.create({
+          data: {
+            parcelId: parcel.id,
+            facilityId,
+            sequenceOrder: 1,
+            status: PipelineStatus.Incoming,
+          }
+        })
+      }
+    }
+
     return updatedManifest;
   });
 }
@@ -379,6 +400,24 @@ export async function arriveManifest(fastify: FastifyInstance, code: string) {
             description: `Manifest ${manifest.code} has arrived at destination hub.`,
           },
         });
+
+        const fleetTransport = await fastify.prisma.fleetTransport.findUniqueOrThrow({
+          where: { id: manifest.fleetTransportId }
+        })
+        if (!fleetTransport.facilityId) {
+          throw new Error("Cannot log parcel facility pipeline: No facility assigned to this Fleet Transport.");
+        }
+        const facilityId = fleetTransport.facilityId;
+
+        await fastify.prisma.parcelFacilityPipeline.create({
+          data: {
+            parcelId: parcel.id,
+            facilityId,
+            sequenceOrder: 2,
+            status: PipelineStatus.Arrived,
+            arrivedAt: new Date()
+          }
+        })
       }
     }
 

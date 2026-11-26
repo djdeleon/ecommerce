@@ -68,17 +68,17 @@ type TrackingEventPayload =
   | { status: 'PickedUp'; courierName?: string; plateNumber?: string }
   | { status: 'ArrivedAtOriginHub'; hubName?: string; }
   | { status: 'DepartedFromOriginHub'; hubName?: string; }
+  | { status: 'ArrivedAtHub'; hubName?: string; }
   | { status: 'Sorting'; hubName?: string; }
   | { status: 'Bagged'; bagCode?: string; hubName?: string }
   | { status: 'DepartedFromHub'; hubName?: string; }
-  | { status: 'ArrivedAtHub'; hubName?: string; }
   | { status: 'ArrivedAtDestinationHub'; hubName?: string; }
   | { status: 'OutForDelivery'; courierName?: string }
   | { status: 'Delivered', recipientName: string; }
   | { status: 'FailedDelivery'; reason?: string }
   | { status: 'Rejected'; reason?: string }
 
-export function generateEventDescription(payload: TrackingEventPayload) {
+export function generateParcelEventDescription(payload: TrackingEventPayload) {
   switch (payload.status) {
     case ParcelStatus.PendingPickup:
       return 'Parcel order created. Awaiting package preparation by the merchant.';
@@ -95,6 +95,9 @@ export function generateEventDescription(payload: TrackingEventPayload) {
     case ParcelStatus.DepartedFromOriginHub:
       return `Parcel has departed from origin facility (${payload.hubName ?? 'Mega Gateway'}) and is en route to the transit network.`;
 
+    case ParcelStatus.ArrivedAtHub:
+      return `Parcel has arrived and is undergoing processing at transit facility: ${payload.hubName ?? 'FSTFY Facility Hub'}.`;
+
     case ParcelStatus.Sorting:
       return `Parcel has completed sorting operations and departed from ${payload.hubName ?? 'FSTFY Facility Hub'}.`;
 
@@ -103,9 +106,6 @@ export function generateEventDescription(payload: TrackingEventPayload) {
 
     case ParcelStatus.DepartedFromHub:
       return `Parcel has departed from: ${payload.hubName ?? 'FSTFY Facility Hub'}.`;
-
-    case ParcelStatus.ArrivedAtHub:
-      return `Parcel has arrived and is undergoing processing at transit facility: ${payload.hubName ?? 'FSTFY Facility Hub'}.`;
 
     case ParcelStatus.ArrivedAtDestinationHub:
       return `Parcel has arrived at destination branch (${payload.hubName ?? 'FSTFY Facility Hub'}) and is being prepared for last-mile delivery.`;

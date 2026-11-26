@@ -11,6 +11,8 @@ export const physicalVehicles = {
   store: '/api/v1/physical-vehicles',
   show: createPath('/api/v1/physical-vehicles/:id'),
   update: createPath('/api/v1/physical-vehicles/:id'),
+  available: createPath('/api/v1/physical-vehicles/:id/available'),
+  inTransit: createPath('/api/v1/physical-vehicles/:id/in-transit'),
+  maintenance: createPath('/api/v1/physical-vehicles/:id/maintenance'),
   delete: createPath('/api/v1/physical-vehicles/:id'),
-  statuses: '/api/v1/physical-vehicles/statuses',
 } as const;

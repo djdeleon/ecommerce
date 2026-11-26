@@ -1,4 +1,4 @@
-import { FleetTransportType, CourierStatus, FacilityType, UserRole, VehicleStatus } from "@prisma/client";
+import { FleetTransportType, CourierStatus, FacilityType, UserRole, PhysicalVehicleStatus } from "@prisma/client";
 import { FastifyInstance } from "fastify";
 import { facilityTypeMap } from "./facilityTypeMap.js";
 import { AssignCourierData, CreateFacilityData, UpdateFacilityBody } from "./schema.js";
@@ -291,7 +291,7 @@ export async function getFacility(fastify: FastifyInstance, id: number) {
   `;
 
   const vehicles = await fastify.prisma.physicalVehicle.findMany({
-    where: { assignedFacilityId: id, status: VehicleStatus.Available },
+    where: { assignedFacilityId: id, status: PhysicalVehicleStatus.Available },
     include: { vehicleProfile: true }
   });
 

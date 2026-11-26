@@ -63,7 +63,7 @@ export const DeleteVehicleSchema = {
 }
 
 export type VehicleProfile = Static<typeof VehicleProfileSchema>
-export type CreateVehicleProfile = Static<typeof CreateVehicleBodySchema>
+export type CreateVehicleProfileBody = Static<typeof CreateVehicleBodySchema>
 export type UpdateVehicleBody = Static<typeof UpdateVehicleSchema.body>
 export type UpdateVehicleParams = Static<typeof UpdateVehicleSchema.params>
 export type GetVehicleParams = Static<typeof GetVehicleSchema.params>

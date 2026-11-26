@@ -1,6 +1,6 @@
 import { ManifestStatus } from '@prisma/client';
 import { describe, expect, test } from 'vitest';
-import { canTransitionTo, assertTransition } from '../../src/modules/manifests/state-machine.js';
+import { canTransitionTo, assertTransition, generateManifestEventDescription } from '../../../src/modules/manifests/state-machine.js';
 
 describe('Manifest State Machine Matrix', () => {
   describe('canTransitionTo()', () => {
@@ -118,6 +118,84 @@ describe('Manifest State Machine Matrix', () => {
       }).toThrow(
         "Invalid State Transition: Manifest 'MNF-20260331-001' cannot transition from 'Cancelled' to 'Accumulating'."
       );
+    });
+  });
+
+  describe('Manifest Event Description Generator', () => {
+    test('generates correct description for Scheduled with sector and transport code', () => {
+      const desc = generateManifestEventDescription({
+        status: ManifestStatus.Scheduled,
+        sectorCode: 'SEC-01',
+        transportCode: 'TR-100',
+      });
+      expect(desc).toBe('Manifest has been scheduled for sector SEC-01 using transport TR-100.');
+
+      const descMinimal = generateManifestEventDescription({
+        status: ManifestStatus.Scheduled,
+      });
+      expect(descMinimal).toBe('Manifest has been scheduled.');
+    });
+
+    test('generates correct description for Dispatched with transport code and total parcels', () => {
+      const desc = generateManifestEventDescription({
+        status: ManifestStatus.Dispatched,
+        transportCode: 'TR-100',
+        totalParcels: 45,
+      });
+      expect(desc).toBe('Manifest has been dispatched via transport TR-100 containing 45 parcels.');
+
+      const descMinimal = generateManifestEventDescription({
+        status: ManifestStatus.Dispatched,
+      });
+      expect(descMinimal).toBe('Manifest has been dispatched.');
+    });
+
+    test('generates correct description for Accumulating with weight and volume', () => {
+      const desc = generateManifestEventDescription({
+        status: ManifestStatus.Accumulating,
+        totalWeightGrams: 15000,
+        totalVolumeCbm: 1.25,
+      });
+      expect(desc).toBe('Manifest is actively accumulating cargo (15000g, 1.25 cbm).');
+
+      const descMinimal = generateManifestEventDescription({
+        status: ManifestStatus.Accumulating,
+      });
+      expect(descMinimal).toBe('Manifest is actively accumulating cargo.');
+    });
+
+    test('generates correct description for Completed with manifest code', () => {
+      const desc = generateManifestEventDescription({
+        status: ManifestStatus.Completed,
+        manifestCode: 'MNF-2026-001',
+      });
+      expect(desc).toBe('Manifest MNF-2026-001 has completed loading/processing successfully.');
+    });
+
+    test('generates correct description for Arrived with facility name', () => {
+      const desc = generateManifestEventDescription({
+        status: ManifestStatus.Arrived,
+        facilityName: 'Cebu Mega Gateway',
+      });
+      expect(desc).toBe('Manifest transit has arrived at destination facility (Cebu Mega Gateway).');
+    });
+
+    test('generates correct description for Cancelled with reason', () => {
+      const desc = generateManifestEventDescription({
+        status: ManifestStatus.Cancelled,
+        reason: 'Vehicle breakdown',
+      });
+      expect(desc).toBe('Manifest was cancelled. Reason: Vehicle breakdown.');
+
+      const descDefaultReason = generateManifestEventDescription({
+        status: ManifestStatus.Cancelled,
+      });
+      expect(descDefaultReason).toBe('Manifest was cancelled. Reason: Operational update.');
+    });
+
+    test('generates default description for unknown status payload', () => {
+      const desc = generateManifestEventDescription({ status: 'UnknownStatus' as any });
+      expect(desc).toBe('Manifest status updated.');
     });
   });
 });

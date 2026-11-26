@@ -13,19 +13,19 @@ CREATE TYPE "UserRole" AS ENUM ('admin', 'manager', 'clerk', 'courier', 'custome
 CREATE TYPE "HandoffType" AS ENUM ('courier_pickup', 'sender_dropoff');
 
 -- CreateEnum
-CREATE TYPE "parcel_status" AS ENUM ('pending_pickup', 'ready_for_pickup', 'picked_up', 'arrived_at_origin_hub', 'departed_from_origin_hub', 'sorting', 'bagged', 'departed_from_hub', 'arrived_at_hub', 'arrived_at_destination_hub', 'out_for_delivery', 'delivered', 'failed_delivery', 'rejected');
+CREATE TYPE "parcel_status" AS ENUM ('pending_pickup', 'ready_for_pickup', 'picked_up', 'arrived_at_origin_hub', 'departed_from_origin_hub', 'arrived_at_hub', 'sorting', 'bagged', 'departed_from_hub', 'arrived_at_destination_hub', 'out_for_delivery', 'delivered', 'failed_delivery', 'rejected');
 
 -- CreateEnum
 CREATE TYPE "ShippingServiceType" AS ENUM ('regular', 'express', 'bulky');
 
 -- CreateEnum
-CREATE TYPE "TransitMode" AS ENUM ('land_shuttle', 'highway_linehaul', 'maritime_roro', 'air_freight');
+CREATE TYPE "transit_mode" AS ENUM ('land_shuttle', 'highway_linehaul', 'maritime_roro', 'air_freight');
 
 -- CreateEnum
 CREATE TYPE "VehicleType" AS ENUM ('van', 'truck', 'motorcycle');
 
 -- CreateEnum
-CREATE TYPE "VehicleStatus" AS ENUM ('available', 'transit', 'maintenance');
+CREATE TYPE "PhysicalVehicleStatus" AS ENUM ('available', 'in_transit', 'maintenance');
 
 -- CreateEnum
 CREATE TYPE "MasterBagStatus" AS ENUM ('open', 'full', 'sealed', 'dispatched', 'delivered', 'unbagged');
@@ -135,7 +135,7 @@ CREATE TABLE "network_legs" (
     "distance_mtr" INTEGER NOT NULL,
     "vehicle_profile" TEXT NOT NULL,
     "base_transit_duration" INTEGER NOT NULL,
-    "mode" "TransitMode" NOT NULL,
+    "mode" "transit_mode" NOT NULL,
     "cut_off_time" TIME NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -155,6 +155,7 @@ CREATE TABLE "fleet_transports" (
     "route" JSONB,
     "dispatched_at" TIMESTAMP(3),
     "arrived_at" TIMESTAMP(3),
+    "returned_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -403,7 +404,7 @@ CREATE TABLE "parcel_facility_pipelines" (
     "id" SERIAL NOT NULL,
     "parcel_id" INTEGER NOT NULL,
     "facility_id" INTEGER NOT NULL,
-    "sequence_order" INTEGER NOT NULL,
+    "sequence_order" INTEGER NOT NULL DEFAULT 1,
     "status" "PipelineStatus" NOT NULL DEFAULT 'incoming',
     "arrived_at" TIMESTAMP(3),
     "departed_at" TIMESTAMP(3),
@@ -437,12 +438,22 @@ CREATE TABLE "physical_vehicles" (
     "id" SERIAL NOT NULL,
     "vehicle_profile_id" INTEGER NOT NULL,
     "assigned_facility_id" INTEGER,
-    "status" "VehicleStatus" NOT NULL DEFAULT 'available',
+    "status" "PhysicalVehicleStatus" NOT NULL DEFAULT 'available',
     "plate_number" VARCHAR(20) NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "physical_vehicles_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "physical_vehicle_logs" (
+    "id" SERIAL NOT NULL,
+    "physical_vehicle_id" INTEGER NOT NULL,
+    "status" "PhysicalVehicleStatus" NOT NULL DEFAULT 'available',
+    "logged_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "physical_vehicle_logs_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -473,7 +484,7 @@ CREATE TABLE "manifest_logs" (
 
 -- CreateTable
 CREATE TABLE "vehicle_location_logs" (
-    "id" BIGSERIAL NOT NULL,
+    "id" SERIAL NOT NULL,
     "physical_vehicle_id" INTEGER NOT NULL,
     "longitude" DOUBLE PRECISION NOT NULL,
     "latitude" DOUBLE PRECISION NOT NULL,
@@ -530,7 +541,7 @@ CREATE UNIQUE INDEX "parcels_external_order_id_key" ON "parcels"("external_order
 CREATE UNIQUE INDEX "parcel_audit_logs_parcel_id_key" ON "parcel_audit_logs"("parcel_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "parcel_facility_pipelines_parcel_id_facility_id_key" ON "parcel_facility_pipelines"("parcel_id", "facility_id");
+CREATE UNIQUE INDEX "parcel_facility_pipelines_parcel_id_facility_id_status_key" ON "parcel_facility_pipelines"("parcel_id", "facility_id", "status");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "physical_vehicles_plate_number_key" ON "physical_vehicles"("plate_number");
@@ -699,6 +710,9 @@ ALTER TABLE "physical_vehicles" ADD CONSTRAINT "physical_vehicles_vehicle_profil
 
 -- AddForeignKey
 ALTER TABLE "physical_vehicles" ADD CONSTRAINT "physical_vehicles_assigned_facility_id_fkey" FOREIGN KEY ("assigned_facility_id") REFERENCES "facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "physical_vehicle_logs" ADD CONSTRAINT "physical_vehicle_logs_physical_vehicle_id_fkey" FOREIGN KEY ("physical_vehicle_id") REFERENCES "physical_vehicles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "manifests" ADD CONSTRAINT "manifests_sector_id_fkey" FOREIGN KEY ("sector_id") REFERENCES "sectors"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

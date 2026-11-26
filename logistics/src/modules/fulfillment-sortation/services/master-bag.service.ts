@@ -70,7 +70,7 @@ export async function createMasterBag(
   data: CreateMasterBagBody
 ) {
   const {
-    courierScheduleId,
+    fleetTransportId,
     sortingBatchId,
     currentFacilityId,
     nextFacilityId,
@@ -85,7 +85,7 @@ export async function createMasterBag(
   return await fastify.prisma.masterBag.create({
     data: {
       code,
-      courierScheduleId,
+      fleetTransportId,
       sortingBatchId,
       currentFacilityId,
       nextFacilityId,
@@ -150,7 +150,7 @@ export async function updateMasterBag(
 ) {
   const id = parseId(idParam)
   const {
-    courierScheduleId,
+    fleetTransportId,
     sortingBatchId,
     currentFacilityId,
     nextFacilityId,
@@ -163,7 +163,7 @@ export async function updateMasterBag(
   return await fastify.prisma.masterBag.update({
     where: { id },
     data: {
-      ...(courierScheduleId && { courierScheduleId }),
+      ...(fleetTransportId && { fleetTransportId }),
       ...(sortingBatchId && { sortingBatchId }),
       ...(currentFacilityId && { currentFacilityId }),
       ...(nextFacilityId && { nextFacilityId }),

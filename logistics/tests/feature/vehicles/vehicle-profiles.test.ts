@@ -7,18 +7,16 @@ import { createUser } from "../../factory/user.factory.js"
 
 describe('Vehicle Profile Management', () => {
   let app: FastifyInstance
-  let adminToken: string
+  let headers: {}
 
   beforeAll(async () => {
     app = (globalThis as any).app as FastifyInstance
   })
 
   beforeEach(async () => {
-    const admin = await createUser(app, UserRole.Admin)
-    adminToken = admin.token
+    const { token: adminToken} = await createUser(app, UserRole.Admin);
+    headers = { authorization: `Bearer ${adminToken}` };
   })
-
-  const authHeaders = () => ({ authorization: `Bearer ${adminToken}` })
 
   test('vehicle profiles can be listed', async () => {
     await createVehicleProfile(app)
@@ -26,13 +24,13 @@ describe('Vehicle Profile Management', () => {
     const response = await app.inject({
       method: 'GET',
       url: vehicleProfiles.index,
-      headers: authHeaders(),
+      headers,
     })
 
     const body = response.json()
 
     expect(response.statusCode).toBe(200)
-    expect(body.message).toBe('Vehicle profiles retrieved successfully')
+    expect(body.message).toBe('Vehicle Profiles retrieved successfully.')
     expect(Array.isArray(body.data)).toBe(true)
     expect(body.data.length).toBeGreaterThan(0)
     expect(body.data[0]).toMatchObject({
@@ -69,14 +67,14 @@ describe('Vehicle Profile Management', () => {
     const response = await app.inject({
       method: 'POST',
       url: vehicleProfiles.store,
-      headers: authHeaders(),
+      headers,
       body: payload
     })
 
     const body = response.json()
 
     expect(response.statusCode).toBe(201)
-    expect(body.message).toBe('Vehicle profile created successfully')
+    expect(body.message).toBe('Vehicle Profile created successfully.')
     expect(body.data).toMatchObject({
       id: expect.any(Number),
       brand: payload.brand,
@@ -100,13 +98,13 @@ describe('Vehicle Profile Management', () => {
     const response = await app.inject({
       method: 'GET',
       url: vehicleProfiles.show(createdProfile.id),
-      headers: authHeaders(),
+      headers,
     })
 
     const body = response.json()
 
     expect(response.statusCode).toBe(200)
-    expect(body.message).toBe('Vehicle profile retrieved successfully')
+    expect(body.message).toBe('Vehicle Profile retrieved successfully.')
     expect(body.data).toMatchObject({
       id: createdProfile.id,
       brand: createdProfile.brand,
@@ -124,14 +122,14 @@ describe('Vehicle Profile Management', () => {
     const response = await app.inject({
       method: 'PUT',
       url: vehicleProfiles.update(createdProfile.id),
-      headers: authHeaders(),
+      headers,
       body: updatePayload
     })
 
     const body = response.json()
 
     expect(response.statusCode).toBe(200)
-    expect(body.message).toBe('Vehicle profile updated successfully')
+    expect(body.message).toBe('Vehicle Profile updated successfully.')
     expect(body.data).toMatchObject({
       id: createdProfile.id,
       variant: updatePayload.variant,
@@ -145,13 +143,13 @@ describe('Vehicle Profile Management', () => {
     const response = await app.inject({
       method: 'DELETE',
       url: vehicleProfiles.delete(createdProfile.id),
-      headers: authHeaders(),
+      headers,
     })
 
     const body = response.json()
 
     expect(response.statusCode).toBe(200)
-    expect(body.message).toBe('Vehicle profile deleted successfully')
+    expect(body.message).toBe('Vehicle Profile deleted successfully.')
 
     const deletedRecord = await app.prisma.vehicleProfile.findUnique({
       where: { id: createdProfile.id },

@@ -27,6 +27,7 @@ function getLogHistoryForStatus(status: ManifestStatus): ManifestStatus[] {
 
 export async function createManifest(fastify: FastifyInstance, overrides: any = {}) {
   const facility = await fastify.prisma.facility.findFirstOrThrow({
+    where: { id: overrides.facilityId },
     include: {
       sectors: true,
       vehicles: true,
@@ -50,7 +51,6 @@ export async function createManifest(fastify: FastifyInstance, overrides: any = 
         destinationSectorId: sector.id,
         currentFacilityId: facility.id,
         status: ParcelStatus.ReadyForPickup,
-        weightGrams: 300000,
         ...overrides.parcelOverrides,
       });
       parcelIds.push(parcel.id);

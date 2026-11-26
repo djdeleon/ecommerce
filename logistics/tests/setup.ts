@@ -16,6 +16,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   await prisma.$executeRawUnsafe(`
     TRUNCATE TABLE 
+      parcel_facility_pipelines,
       parcel_logs,
       vehicle_location_logs,
       parcels,

@@ -18,7 +18,7 @@ export default async function routes(fastify: FastifyInstance) {
     manifests.index,
     { preHandler: [userAuth, requireFacility] },
     indexManifestHandler
-  );
+  )
 
   fastify.post<{ Body: CreateManifestBody }>(
     manifests.store,
@@ -27,7 +27,7 @@ export default async function routes(fastify: FastifyInstance) {
       preHandler: [userAuth, requireFacility],
     },
     createManifestHandler
-  );
+  )
 
   fastify.get<{ Params: ManifestParams }>(
     manifests.show.url,
@@ -36,7 +36,7 @@ export default async function routes(fastify: FastifyInstance) {
       preHandler: [userAuth, requireFacility],
     },
     showManifestHandler
-  );
+  )
 
   fastify.put<{ Params: ManifestParams; Body: UpdateManifestBody }>(
     manifests.update.url,
@@ -45,7 +45,7 @@ export default async function routes(fastify: FastifyInstance) {
       preHandler: [userAuth, requireFacility],
     },
     updateManifestHandler
-  );
+  )
 
   fastify.patch<{ Params: ManifestParams }>(
     manifests.accumulate.url,
@@ -54,7 +54,7 @@ export default async function routes(fastify: FastifyInstance) {
       schema: ManifestParamsSchema
     },
     accumulateManifestHandler
-  );
+  )
 
   fastify.patch<{ Params: ManifestParams }>(
     manifests.dispatch.url,
@@ -63,7 +63,7 @@ export default async function routes(fastify: FastifyInstance) {
       schema: ManifestParamsSchema
     },
     dispatchManifestHandler
-  );
+  )
 
   fastify.patch<{ Params: ManifestParams }>(
     manifests.complete.url,
@@ -72,7 +72,7 @@ export default async function routes(fastify: FastifyInstance) {
       schema: ManifestParamsSchema
     },
     completeManifestHandler
-  );
+  )
 
   fastify.patch<{ Params: ManifestParams }>(
     manifests.arrive.url,
@@ -81,7 +81,7 @@ export default async function routes(fastify: FastifyInstance) {
       schema: ManifestParamsSchema,
     },
     arriveManifestHandler
-  );
+  )
 
   fastify.patch<{ Params: ManifestParams }>(
     manifests.cancel.url,
@@ -90,7 +90,7 @@ export default async function routes(fastify: FastifyInstance) {
       schema: ManifestParamsSchema,
     },
     cancelManifestHandler
-  );
+  )
 
   fastify.delete<{ Params: ManifestParams }>(
     manifests.delete.url,
@@ -99,5 +99,5 @@ export default async function routes(fastify: FastifyInstance) {
       preHandler: [userAuth, requireFacility],
     },
     deleteManifestHandler
-  );
+  )
 }

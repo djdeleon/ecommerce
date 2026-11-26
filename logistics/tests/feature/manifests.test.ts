@@ -1,6 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { beforeAll, beforeEach, describe, expect, test } from "vitest";
-import { Courier, CourierStatus, FacilityType, FleetTransportType, Manifest, ManifestStatus, ParcelStatus, UserRole, VehicleStatus, VehicleType } from "@prisma/client";
+import { Courier, CourierStatus, FacilityType, FleetTransportType, Manifest, ManifestStatus, ParcelStatus, PipelineStatus, UserRole, PhysicalVehicleStatus, VehicleType } from "@prisma/client";
 import { createParcel } from "../factory/parcel.factory.js";
 import { createUser } from "../factory/user.factory.js";
 import { seedMasterInfrustructure } from "../../prisma/seeders/tests/master-infrastructure-tests.seed.js";
@@ -13,10 +13,10 @@ import { createCourier } from "#factory";
 
 describe('Manifest Domain', async () => {
   let app: FastifyInstance;
-  let adminToken: string;
   let facility: any;
   let sector: any;
   let vehicle: any;
+  let headers: {}
 
   beforeEach(async () => {
     app = (globalThis as any).app as FastifyInstance;
@@ -31,8 +31,8 @@ describe('Manifest Domain', async () => {
       parentId: null
     })
 
-    const { user, token } = await createUser(app, UserRole.Admin, { assignedFacilityId: facility.id });
-    adminToken = token;
+    const { token: adminToken } = await createUser(app, UserRole.Admin, { assignedFacilityId: facility.id });
+    headers = { authorization: `Bearer ${adminToken}` };
 
     // Hierarchical PH Address (Origin)
     // Region
@@ -297,20 +297,18 @@ describe('Manifest Domain', async () => {
       data: {
         vehicleProfileId: vehicleProfile.id,
         assignedFacilityId: facility.id,
-        status: VehicleStatus.Available,
+        status: PhysicalVehicleStatus.Available,
         plateNumber: 'ABC-1234',
       },
     });
   });
 
-  describe.only('Manifest Domain - Module Management', () => {
+  describe('Manifest Domain - Module Management', () => {
     test('GET /manifests (Index): returns sector aggregates, pending parcels, and available vehicles', async () => {
       const response = await app.inject({
         method: 'GET',
         url: manifests.index,
-        headers: {
-          authorization: `Bearer ${adminToken}`,
-        },
+        headers,
       });
 
       const body = response.json();
@@ -366,7 +364,7 @@ describe('Manifest Domain', async () => {
       const response = await app.inject({
         method: 'POST',
         url: manifests.store,
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers,
         body: payload,
       });
 
@@ -423,7 +421,7 @@ describe('Manifest Domain', async () => {
       const response = await app.inject({
         method: 'GET',
         url: manifests.show(manifest.code),
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers,
       });
 
       const body = response.json();
@@ -456,7 +454,7 @@ describe('Manifest Domain', async () => {
       const response = await app.inject({
         method: 'PUT',
         url: manifests.update(manifest.code),
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers,
         body: updatePayload,
       });
 
@@ -488,7 +486,7 @@ describe('Manifest Domain', async () => {
       const response = await app.inject({
         method: 'DELETE',
         url: manifests.delete(manifest.code),
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers,
       });
 
       const body = response.json();
@@ -510,8 +508,8 @@ describe('Manifest Domain', async () => {
     });
   })
 
-  describe.only('Manifest Domain - Lifecycle State Machine Transitions', () => {
-    describe('Manifest Domain - State Transition: Dispatched', () => {
+  describe('Manifest Domain - Lifecycle State Machine Transitions', () => {
+    describe('State Transition: Dispatched', () => {
       test('PATCH /manifests/:code/dispatch: successfully dispatches a Scheduled manifest, updates transport, courier status, and parcels', async () => {
         const { courier } = await createCourier(app, { currentFacilityId: facility.id });
 
@@ -527,7 +525,7 @@ describe('Manifest Domain', async () => {
         const response = await app.inject({
           method: 'PATCH',
           url: manifests.dispatch(manifest.code),
-          headers: { authorization: `Bearer ${adminToken}` },
+          headers,
         });
 
         const body = response.json();
@@ -569,6 +567,12 @@ describe('Manifest Domain', async () => {
           expect(parcel.parcelLogs).toHaveLength(2);
           expect(parcel.parcelLogs[0].status).toBe(ParcelStatus.PendingPickup);
           expect(parcel.parcelLogs[1].status).toBe(ParcelStatus.ReadyForPickup);
+
+          const pipelines = await app.prisma.parcelFacilityPipeline.findMany({
+            where: { parcelId: parcel.id }
+          })
+          expect(pipelines).toHaveLength(1)
+          expect(pipelines[0].status).toBe(PipelineStatus.Incoming)
         }
       });
 
@@ -584,7 +588,7 @@ describe('Manifest Domain', async () => {
         const response = await app.inject({
           method: 'PATCH',
           url: manifests.dispatch(manifest.code),
-          headers: { authorization: `Bearer ${adminToken}` },
+          headers,
         });
 
         expect(response.statusCode).toBeGreaterThanOrEqual(400);
@@ -596,7 +600,7 @@ describe('Manifest Domain', async () => {
       });
     });
 
-    describe('Manifest Domain - State Transition: Accumulating', () => {
+    describe('State Transition: Accumulating', () => {
       test('PATCH /manifests/:code/accumulate: successfully transitions a Dispatched manifest to Accumulating', async () => {
         const { manifest } = await createManifest(app, {
           parcelOverrides: {
@@ -608,7 +612,7 @@ describe('Manifest Domain', async () => {
         const response = await app.inject({
           method: 'PATCH',
           url: manifests.accumulate(manifest.code),
-          headers: { authorization: `Bearer ${adminToken}` },
+          headers,
         });
 
         const body = response.json();
@@ -646,7 +650,7 @@ describe('Manifest Domain', async () => {
         const response = await app.inject({
           method: 'PATCH',
           url: manifests.accumulate(manifest.code),
-          headers: { authorization: `Bearer ${adminToken}` },
+          headers,
         });
 
         expect(response.statusCode).toBeGreaterThanOrEqual(400);
@@ -658,7 +662,7 @@ describe('Manifest Domain', async () => {
       });
     })
 
-    describe('Manifest Domain - State Transition: Completed', () => {
+    describe('State Transition: Completed', () => {
       test('PATCH /manifests/:code/complete: successfully completes an Accumulating manifest when all parcels are picked up', async () => {
         const { manifest, fleetTransport } = await createManifest(app, {
           parcelOverrides: {
@@ -731,7 +735,7 @@ describe('Manifest Domain', async () => {
       });
     });
 
-    describe('Manifest Domain - State Transition: Arrived', () => {
+    describe('State Transition: Arrived', () => {
       test('PATCH /manifests/:code/arrive: successfully marks a Completed manifest as Arrived, updates transport, frees courier, and advances parcels', async () => {
         const { courier } = await createCourier(app, { currentFacilityId: facility.id });
 
@@ -739,6 +743,7 @@ describe('Manifest Domain', async () => {
           parcelOverrides: {
             parcelAmount: 2,
             status: ParcelStatus.PickedUp,
+            pipelineStatus: PipelineStatus.Incoming
           },
           manifestOverrides: { status: ManifestStatus.Completed },
           fleetTransportOverrides: { courierId: courier.id },
@@ -793,13 +798,26 @@ describe('Manifest Domain', async () => {
 
         for (const parcel of dbManifest.parcels) {
           expect(parcel.status).toBe(ParcelStatus.ArrivedAtOriginHub);
-          const latestLog = parcel.parcelLogs[parcel.parcelLogs.length - 1];
-          expect(latestLog.status).toBe(ParcelStatus.ArrivedAtOriginHub);
+          expect(parcel.parcelLogs).toHaveLength(4)
+          expect(parcel.parcelLogs[0].status).toBe(ParcelStatus.PendingPickup)
+          expect(parcel.parcelLogs[1].status).toBe(ParcelStatus.ReadyForPickup)
+          expect(parcel.parcelLogs[2].status).toBe(ParcelStatus.PickedUp)
+          expect(parcel.parcelLogs[3].status).toBe(ParcelStatus.ArrivedAtOriginHub)
+
+          const pipelines = await app.prisma.parcelFacilityPipeline.findMany({
+            where: { parcelId: parcel.id }
+          })
+          expect(pipelines).toHaveLength(2)
+          expect(pipelines[0].status).toBe(PipelineStatus.Incoming)
+          expect(pipelines[0].sequenceOrder).toBe(1)
+          expect(pipelines[1].status).toBe(PipelineStatus.Arrived)
+          expect(pipelines[1].sequenceOrder).toBe(2)
+          expect(pipelines[1].arrivedAt).toBeDefined()
         }
       });
     });
 
-    describe('Manifest Domain - State Transition: Cancelled', () => {
+    describe('State Transition: Cancelled', () => {
       test('PATCH /manifests/:code/cancel: successfully cancels a Scheduled manifest and unlinks attached parcels', async () => {
         const { manifest, fleetTransport, parcelIds } = await createManifest(app, {
           parcelOverrides: {
@@ -887,8 +905,6 @@ describe('Manifest Domain', async () => {
         manifestOverrides: { status: ManifestStatus.Scheduled },
       });
 
-      const headers = { authorization: `Bearer ${adminToken}` };
-
       // --- STEP 1: Scheduled -> Dispatched ---
       const dispatchRes = await app.inject({
         method: 'POST',
@@ -949,8 +965,6 @@ describe('Manifest Domain', async () => {
         },
         manifestOverrides: { status: ManifestStatus.Scheduled },
       });
-
-      const headers = { authorization: `Bearer ${adminToken}` };
 
       // Attempt an illegal jump: Scheduled -> Completed (Should fail/throw error)
       const illegalRes = await app.inject({

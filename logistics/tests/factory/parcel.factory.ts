@@ -1,4 +1,4 @@
-import { FacilityType, ParcelStatus } from "@prisma/client";
+import { FacilityType, ParcelStatus, PipelineStatus } from "@prisma/client";
 import { createCourier, createFacility } from "#factory";
 import { FastifyInstance } from "fastify";
 import { createSector } from "./sector.factory.js";
@@ -6,20 +6,40 @@ import { createSector } from "./sector.factory.js";
 export async function createParcel(fastify: FastifyInstance, overrides: any = {}) {
   const randomSuffix = Math.floor(Math.random() * 1000000);
 
-  // Setup default relations if not provided
-  const origin = await createFacility(fastify, {
-    name: `Origin Mega Hub ${randomSuffix}`
-  })
-  const originSector = await createSector(fastify, {
-    localBranchId: origin.id
-  })
-  const destination = await createFacility(fastify, {
+  let originId = overrides.originFacilityId ?? (await createFacility(fastify, {
+    name: `Origin Mega Hub ${randomSuffix}`,
+  })).id
+
+  let originSectorId = null
+  if (!overrides.originFacilityId) {
+    originSectorId = (await createSector(fastify, {
+      localBranchId: originId
+    })).id
+  } else {
+    const { sectors } = await fastify.prisma.facility.findUniqueOrThrow({
+      where: { id: originId },
+      include: { sectors: true }
+    })
+    originSectorId = sectors[0].id
+  }
+
+  let destinationId = overrides.destinationFacilityId ?? (await createFacility(fastify, {
     name: `Destination Distribution Center ${randomSuffix}`,
     type: FacilityType.DistributionCenter,
-  })
-  const destinationSector = await createSector(fastify, {
-    localBranchId: destination.id
-  })
+  })).id
+
+  let destinationSectorId = null
+  if (!overrides.destinationFacilityId) {
+    destinationSectorId = (await createSector(fastify, {
+      localBranchId: destinationId
+    })).id
+  } else {
+    const { sectors } = await fastify.prisma.facility.findUniqueOrThrow({
+      where: { id: destinationId },
+      include: { sectors: true }
+    })
+    destinationSectorId = sectors[0].id
+  }
 
   // Seed default Barangay for store/recipient foreign keys
   const region = await fastify.prisma.region.upsert({
@@ -38,7 +58,7 @@ export async function createParcel(fastify: FastifyInstance, overrides: any = {}
     create: { id: "1380601148", name: "Barangay 148", code: "NCR-MNL-148", cityId: city.id },
   });
 
-  const { courier } = await createCourier(fastify, { currentFacilityId: origin.id });
+  const { courier } = await createCourier(fastify, { currentFacilityId: originId });
 
   // Use provided clientId or fallback to creating a "Default Client"
   let targetClientId = overrides.clientId;
@@ -88,7 +108,7 @@ export async function createParcel(fastify: FastifyInstance, overrides: any = {}
     },
   });
 
-  const { clientId, parcelAmount, ...parcelOverrides } = overrides;
+  const { clientId, parcelAmount, pipelineStatus, ...parcelOverrides } = overrides;
   const initialStatus = parcelOverrides.status || ParcelStatus.PendingPickup;
 
   const parcel = await fastify.prisma.parcel.create({
@@ -102,12 +122,12 @@ export async function createParcel(fastify: FastifyInstance, overrides: any = {}
       calculatedCbm: 0.003,
       declaredValue: 500.00,
       shippingServiceType: "R",
-      originSectorId: originSector.id,
+      originSectorId: originSectorId,
       currentSectorId: null,
-      destinationSectorId: destinationSector.id,
-      originFacilityId: origin.id,
-      destinationFacilityId: destination.id,
-      currentFacilityId: origin.id,
+      destinationSectorId: destinationSectorId,
+      originFacilityId: originId,
+      destinationFacilityId: destinationId,
+      currentFacilityId: originId,
       sortingCodeCache: `HUB-BUL-SKY-05`,
       routingPipelineCache: `BUL-NL`,
       storeId: store.id,
@@ -123,6 +143,10 @@ export async function createParcel(fastify: FastifyInstance, overrides: any = {}
 
   await seedParcelTrackingLogs(fastify, parcel.id, initialStatus);
 
+  if (pipelineStatus) {
+    await seedParcelPipeline(fastify, parcel.id, originId, pipelineStatus);
+  }
+
   await fastify.prisma.$executeRaw`
     UPDATE parcels
     SET recipient_location = ST_SetSRID(ST_MakePoint(${14.22}, ${123.423}), 4326)
@@ -131,6 +155,40 @@ export async function createParcel(fastify: FastifyInstance, overrides: any = {}
 
   return parcel;
 }
+
+/**
+ * Helper to seed parcel facility pipelines and status history.
+ */
+async function seedParcelPipeline(fastify: FastifyInstance, parcelId: number, facilityId: number, targetPipelineStatus: PipelineStatus) {
+  const pipelineSequence: PipelineStatus[] = [
+    PipelineStatus.Incoming,
+    PipelineStatus.Arrived,
+    PipelineStatus.Departed,
+  ];
+
+  const targetIndex = pipelineSequence.indexOf(targetPipelineStatus);
+  const statusesToSeed = targetIndex !== -1
+    ? pipelineSequence.slice(0, targetIndex + 1)
+    : [PipelineStatus.Incoming, targetPipelineStatus];
+
+  if (!statusesToSeed.includes(PipelineStatus.Incoming)) {
+    statusesToSeed.unshift(PipelineStatus.Incoming);
+  }
+
+  for (const status of statusesToSeed) {
+    await fastify.prisma.parcelFacilityPipeline.create({
+      data: {
+        parcelId,
+        facilityId,
+        sequenceOrder: status === PipelineStatus.Incoming ? 1 : status === PipelineStatus.Arrived ? 2 : 3,
+        status,
+        arrivedAt: status === PipelineStatus.Arrived || status === PipelineStatus.Departed ? new Date() : null,
+        departedAt: status === PipelineStatus.Departed ? new Date() : null,
+      },
+    });
+  }
+}
+
 
 /**
  * Helper to seed tracking log history sequentially based on ParcelStatus progression.
@@ -162,8 +220,8 @@ async function seedParcelTrackingLogs(fastify: FastifyInstance, parcelId: number
   const allStatuses = [...firstMileSequence, ...midMileSequence, ...lastMileSequence];
   const targetIndex = allStatuses.indexOf(currentStatus);
 
-  const statusesToLog = targetIndex !== -1 
-    ? allStatuses.slice(0, targetIndex + 1) 
+  const statusesToLog = targetIndex !== -1
+    ? allStatuses.slice(0, targetIndex + 1)
     : [ParcelStatus.PendingPickup, currentStatus];
 
   if (!statusesToLog.includes(ParcelStatus.PendingPickup)) {
