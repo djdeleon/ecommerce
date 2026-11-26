@@ -1,10 +1,9 @@
 import { FastifyInstance } from "fastify";
-import { AssignBody, AssignParams, AssignSchema, StoreBody, StoreSchema, UpdateFacilityBody, UpdateSchema } from "./schema.js";
+import { AssignBody, AssignParams, AssignSchema, DeleteSchema, StoreBody, StoreSchema, UpdateFacilityBody, UpdateSchema } from "./schema.js";
 import { assignCourierToFacility, createFacility, dashboardData, deleteFacility, getFacilityById, getFacilityCouriers, updateFacility } from "./service.js";
 import parseId from "#commons/utils/id-parser.js";
 import { userAuth } from "#commons/middlewares/user-auth.js";
 import { facilities } from "./paths.js";
-import { DeleteSchema } from "../fleet-transports/schema.js";
 
 export default async function routes(fastify: FastifyInstance) {
   fastify.get(facilities.index, { preHandler: [userAuth] }, async (req, rep) => {

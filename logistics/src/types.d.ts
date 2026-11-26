@@ -5,3 +5,14 @@ declare module 'fastify' {
     prisma: PrismaClient
   }
 }
+
+export type AuthenticatedUser = Prisma.UserGetPayload<{
+  include: { courier: true };
+}>;
+
+declare module '@fastify/jwt' {
+  interface FastifyJWT {
+    payload: { id: number };
+    user: AuthenticatedUser;
+  }
+}

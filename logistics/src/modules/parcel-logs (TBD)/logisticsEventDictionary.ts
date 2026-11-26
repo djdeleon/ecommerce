@@ -1,4 +1,4 @@
-import { ShipmentStatus } from "@prisma/client";
+import { ParcelStatus } from "@prisma/client";
 
 type TrackingEventPayload =
   | { status: 'PendingPickup' }
@@ -17,43 +17,43 @@ type TrackingEventPayload =
 
 export function generateEventDescription(payload: TrackingEventPayload) {
   switch (payload.status) {
-    case ShipmentStatus.PendingPickup:
+    case ParcelStatus.PendingPickup:
       return 'Shipment manifest generated. Awaiting package preparation by the merchant.';
 
-    case ShipmentStatus.ReadyForPickup:
+    case ParcelStatus.ReadyForPickup:
       return 'Parcel has been packed and is ready for courier collection.';
 
-    case ShipmentStatus.PickedUp:
+    case ParcelStatus.PickedUp:
       return `Parcel successfully collected by courier ${payload.courierName} (${payload.plateNumber})`;
 
-    case ShipmentStatus.Bagged:
+    case ParcelStatus.Bagged:
       return `Parcel is bagged and waiting to be departed.`;
 
-    case ShipmentStatus.DepartedFromHub:
+    case ParcelStatus.DepartedFromHub:
       return `Parcel has departed from ${payload.hubName ?? 'hub'}.`;
 
-    case ShipmentStatus.ArrivedAtOriginHub:
+    case ParcelStatus.ArrivedAtOriginHub:
       return `Parcel arrived at ${payload.hubName}.`;
 
-    case ShipmentStatus.InTransit:
+    case ParcelStatus.InTransit:
       return `Parcel has departed from ${payload.originHub} and is in transit to ${payload.destinationHub}.`;
 
-    case ShipmentStatus.ArrivedAtHub:
+    case ParcelStatus.ArrivedAtHub:
       return `Parcel arrived and sorted at fulfillment facility: ${payload.hubName}.`;
       
-    case ShipmentStatus.ArrivedAtDestinationHub:
+    case ParcelStatus.ArrivedAtDestinationHub:
       return `Parcel arrived at ${payload.hubName}.`;
 
-    case ShipmentStatus.OutForDelivery:
+    case ParcelStatus.OutForDelivery:
       return `Parcel is out for delivery. Courier ${payload.courierName} will attempt drop-off today.`;
 
-    case ShipmentStatus.Delivered:
+    case ParcelStatus.Delivered:
       return 'Parcel delivered successfully.';
 
-    case ShipmentStatus.FailedDelivery:
+    case ParcelStatus.FailedDelivery:
       return `Delivery attempt unsuccessful. Reason: ${payload.reason}. A retry will be scheduled.`;
 
-    case ShipmentStatus.Rejected:
+    case ParcelStatus.Rejected:
       return `Shipment rejected by facility/courier. Reason: ${payload.reason}. Order returning to merchant.`;
 
     default:

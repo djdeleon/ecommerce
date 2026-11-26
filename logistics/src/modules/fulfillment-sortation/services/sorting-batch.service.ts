@@ -1,9 +1,9 @@
 import { FastifyInstance } from "fastify";
 import { CreateSortationBatchBody, UpdateSortationBatchBody } from "../schemas/sorting-batch.schema.js";
 import parseId from "#commons/utils/id-parser.js";
-import { MasterBag, MasterBagStatus, ShipmentStatus, SortingBatchStatus } from "@prisma/client";
+import { MasterBag, MasterBagStatus, ParcelStatus, SortingBatchStatus } from "@prisma/client";
 import { generateMasterBagCode, getOrCreateActiveMasterBag } from "./master-bag.service.js";
-import { generateEventDescription } from "../../tracking-logs/logisticsEventDictionary.js";
+import { generateEventDescription } from "../../parcel-logs (TBD)/logisticsEventDictionary.js";
 
 // [FACILITY_CODE]-[YYYYMMDD]-[SHIFT_CODE]-[SEQUENCE]
 export async function generateBatchCode(
@@ -189,15 +189,15 @@ export async function simulateScannerTunnelPass(fastify: FastifyInstance, tracki
     await fastify.prisma.parcel.updateMany({
       where: { id: { in: parcelIds } },
       data: {
-        status: ShipmentStatus.Bagged
+        status: ParcelStatus.Bagged
       }
     })
     for (const id of parcelIds) {
-      await fastify.prisma.trackingLog.create({
+      await fastify.prisma.parcelLog.create({
         data: {
           parcelId: id,
-          status: ShipmentStatus.Bagged,
-          description: generateEventDescription({ status: ShipmentStatus.Bagged })
+          status: ParcelStatus.Bagged,
+          description: generateEventDescription({ status: ParcelStatus.Bagged })
         }
       })
     }
@@ -251,13 +251,13 @@ export async function simulateScannerTunnelPass(fastify: FastifyInstance, tracki
 
     await tx.parcel.update({
       where: { id: parcel.id },
-      data: { status: ShipmentStatus.Sorting }
+      data: { status: ParcelStatus.Sorting }
     });
 
-    await tx.trackingLog.create({
+    await tx.parcelLog.create({
       data: {
         parcelId: parcel.id,
-        status: ShipmentStatus.Sorting,
+        status: ParcelStatus.Sorting,
         description: `Automated scanner tunnel audit: Measured Weight ${simulatedWeightGrams}g (Declared: ${parcel.weightGrams}g), Dims ${lengthCm}x${widthCm}x${heightCm}cm.`
       }
     });

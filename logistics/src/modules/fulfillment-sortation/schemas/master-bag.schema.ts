@@ -12,7 +12,7 @@ export const MasterBagStatusEnum = Type.Union([
 export const MasterBagSchema = Type.Object({
   id: Type.Integer({ minimum: 1 }),
   code: Type.String(),
-  courierScheduleId: Type.Optional(Type.Integer({ minimum: 1 })),
+  fleetTransportId: Type.Optional(Type.Integer({ minimum: 1 })),
   sortingBatchId: Type.Integer({ minimum: 1 }),
   currentFacilityId: Type.Integer({ minimum: 1 }),
   nextFacilityId: Type.Integer({ minimum: 1 }),

@@ -1,53 +1,68 @@
 import { prisma } from "#commons/database/prisma.js";
-import { PrismaClient } from "@prisma/client/extension";
+import { Prisma } from "@prisma/client";
 import crypto from "crypto"
 import { FastifyInstance } from "fastify";
 
 interface GenerateTrackingNumberData {
-  apiKey: string;
+  apiKey?: string;
   size: number;
 }
 
-export async function generateTrackingNumbers(data: GenerateTrackingNumberData) {
-  const { id: clientId } = await prisma.client.findUniqueOrThrow({
-    where: { apiKey: data.apiKey },
-    select: { id: true }
-  })
-  const trackingNumbers = [];
+export async function generateTrackingNumbers(
+  db: Prisma.TransactionClient | typeof prisma = prisma,
+  data: GenerateTrackingNumberData,
+) {
+  let clientId: number | undefined = undefined;
+
+  if (data.apiKey) {
+    const client = await db.client.findUnique({
+      where: { apiKey: data.apiKey },
+      select: { id: true }
+    });
+
+    if (client) {
+      clientId = client.id;
+    }
+  }
+
+  const trackingNumbers: { number: string; clientId?: number }[] = [];
+  const generatedNumbers: string[] = [];
   const CHUNK_SIZE = 1000;
 
   for (let i = 0; i < data.size; i++) {
-    const prefix = 'FSTFY'
-    const body = crypto.randomBytes(5).toString('hex').toUpperCase()
-    const suffix = 'PH'
-    const trackingNumber = `${prefix}${body}${suffix}`
+    const prefix = 'FSTFY';
+    const body = crypto.randomBytes(5).toString('hex').toUpperCase();
+    const suffix = 'PH';
+    const trackingNumber = `${prefix}${body}${suffix}`;
 
-    trackingNumbers.push({
-      clientId,
-      number: trackingNumber
-    })
+    const row: { number: string; clientId?: number } = {
+      number: trackingNumber,
+    };
 
-    if (trackingNumbers.length > CHUNK_SIZE) {
-      await prisma.trackingNumber.createMany({
+    if (clientId !== undefined) {
+      row.clientId = clientId;
+    }
+
+    trackingNumbers.push(row);
+    generatedNumbers.push(trackingNumber);
+
+    if (trackingNumbers.length >= CHUNK_SIZE) {
+      await db.trackingNumber.createMany({
         data: trackingNumbers,
         skipDuplicates: true
-      })
-
-      trackingNumbers.length = 0
+      });
+      trackingNumbers.length = 0;
     }
   }
 
   if (trackingNumbers.length > 0) {
-    await prisma.trackingNumber.createMany({
+    await db.trackingNumber.createMany({
       data: trackingNumbers,
       skipDuplicates: true
-    })
+    });
   }
 
-  return await prisma.trackingNumber.findMany({
-    where: { clientId },
-    select: { number: true }
-  })
+  return generatedNumbers.map(number => ({ number }));
 }
 
 export async function activateTrackingNumber(fastify: FastifyInstance, clientId: number, trackingNumber: string) {

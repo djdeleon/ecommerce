@@ -88,6 +88,7 @@ async function seedSectors(fastify: FastifyInstance, facilityId: number, facilit
         ...sector,
         localBranchId: facilityId
       }
+      console.log({facilitySector})
 
       const sectorData = await createSector(fastify, facilitySector)
       // const sectorBarangays = await fastify.prisma.sector.findUniqueOrThrow({

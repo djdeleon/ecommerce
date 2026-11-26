@@ -57,12 +57,23 @@ export const StoreSchema = {
   }
 }
 
+const IdParamSchema = Type.Object({
+  id: Type.String({
+    pattern: "^[0-9]+$",
+    description: "Numeric ID of the facility"
+  }),
+});
+
 export const IndexSchema = {
 }
 
 export const UpdateSchema = {
   body: Type.Partial(StoreSchema.body)
 }
+
+export const DeleteSchema = {
+  params: IdParamSchema,
+};
 
 
 export const AssignSchema = {
@@ -105,4 +116,5 @@ export type StoreBody = Static<typeof StoreSchema.body>
 export type UpdateFacilityBody = Static<typeof UpdateSchema.body>
 export type AssignBody = Static<typeof AssignSchema.body>
 export type AssignParams = Static<typeof AssignSchema.params>
+export type DeleteFacilityParams = Static<typeof IdParamSchema>
 export type CreateFacilityData = Static<typeof CreateFacilityDataSchema>

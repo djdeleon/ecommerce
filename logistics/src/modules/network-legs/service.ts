@@ -1,6 +1,5 @@
 import { FastifyInstance } from "fastify";
 import { CreateNetworkLegBody, UpdateNetworkLegBody } from "./schema.js";
-import parseId from "#commons/utils/id-parser.js";
 import { TransitMode } from "@prisma/client";
 import { transitModeMap } from "./transitModeMap.js";
 

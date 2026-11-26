@@ -1,6 +1,5 @@
 import { FastifyInstance } from "fastify";
 import { CreateSectorBody, UpdateSectorBody } from "./schema.js";
-import parseId from "#commons/utils/id-parser.js";
 
 
 export async function getSectors(fastify: FastifyInstance) {
@@ -17,13 +16,13 @@ export async function createSector(
   fastify: FastifyInstance,
   data: CreateSectorBody
 ) {
-  const { code, localBranchId, zone, barangayIds } = data
+  const { code, facilityId, zone, barangayIds } = data
 
   const [sector] = await fastify.prisma.$queryRaw<any[]>`
-    INSERT INTO "sectors" ("code", "local_branch_id", "zone", "created_at", "updated_at")
+    INSERT INTO "sectors" ("code", "facility_id", "zone", "created_at", "updated_at")
     VALUES (
       ${code}, 
-      ${localBranchId}, 
+      ${facilityId}, 
       ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(zone)}), 4326),
       NOW(),
       NOW()
@@ -31,7 +30,7 @@ export async function createSector(
     RETURNING 
       id, 
       code, 
-      "local_branch_id" AS "localBranchId", 
+      "facility_id" AS "facilityId", 
       "created_at" AS "createdAt", 
       "updated_at" AS "updatedAt"
   `
@@ -67,14 +66,14 @@ export async function updateSector(
   id: number,
   data: UpdateSectorBody
 ) {
-  const { code, localBranchId, zone, barangayIds } = data
+  const { code, facilityId, zone, barangayIds } = data
 
   if (zone) {
     await fastify.prisma.$executeRaw`
       UPDATE "sectors"
       SET 
         code = COALESCE(${code ?? null}, code),
-        local_branch_id = COALESCE(${localBranchId ?? null}, local_branch_id),
+        local_branch_id = COALESCE(${facilityId ?? null}, local_branch_id),
         zone = ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(zone)}), 4326),
         updated_at = NOW()
       WHERE id = ${id}
@@ -84,7 +83,7 @@ export async function updateSector(
       where: { id },
       data: {
         ...(code && { code }),
-        ...(localBranchId && { localBranchId }),
+        ...(facilityId && { facilityId }),
       },
     })
   }
@@ -93,7 +92,7 @@ export async function updateSector(
     SELECT 
       id, 
       code, 
-      "local_branch_id" AS "localBranchId", 
+      "local_branch_id" AS "facilityId", 
       "created_at" AS "createdAt", 
       "updated_at" AS "updatedAt"
     FROM "sectors"

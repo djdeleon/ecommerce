@@ -4,7 +4,11 @@ export const StatusEnum = Type.Union([
   Type.Literal('Accumulation'),
   Type.Literal('LineHaul'),
   Type.Literal('Delivery'),
-])
+]);
+
+const IdParamSchema = Type.Object({
+  id: Type.String(),
+});
 
 export const Schema = Type.Object({
   id: Type.Integer({ minimum: 1 }),
@@ -16,34 +20,27 @@ export const Schema = Type.Object({
   masterBagIds: Type.Optional(Type.Array(Type.Number())),
   createdAt: Type.String({ format: 'date-time' }),
   updatedAt: Type.String({ format: 'date-time' }),
-})
+});
 
-export const CreateBodySchema = Type.Omit(Schema, [
-  'id',
-  'createdAt',
-  'updatedAt',
-])
+export const CreateBodySchema = Type.Omit(Schema, ['id', 'createdAt', 'updatedAt']);
+export const UpdateBodySchema = Type.Partial(CreateBodySchema);
 
-export const UpdateBodySchema = Type.Partial(CreateBodySchema)
+export const TelemetryBodySchema = Type.Object({
+  longitude: Type.Number(),
+  latitude: Type.Number(),
+  speed: Type.Optional(Type.Number()),
+  heading: Type.Optional(Type.Number()),
+});
 
-export const CreateSchema = {
-  body: CreateBodySchema,
-}
+// Route-level Fastify schemas
+export const CreateFleetTransportSchema = { body: CreateBodySchema };
+export const UpdateFleetTransportSchema = { body: UpdateBodySchema, params: IdParamSchema };
+export const DeleteFleetTransportSchema = { params: IdParamSchema };
+export const TelemetryFleetTransportSchema = { params: IdParamSchema, body: TelemetryBodySchema };
 
-export const UpdateSchema = {
-  body: UpdateBodySchema,
-  params: Type.Object({
-    id: Type.String(),
-  }),
-}
-
-export const DeleteSchema = {
-  params: Type.Object({
-    id: Type.String(),
-  }),
-}
-
-export type CreateBody = Static<typeof CreateBodySchema>
-export type UpdateBody = Static<typeof UpdateSchema.body>
-export type UpdateParams = Static<typeof UpdateSchema.params>
-export type DeleteParams = Static<typeof DeleteSchema.params>
+// Inferred TypeScript types
+export type CreateFleetTransportBody = Static<typeof CreateBodySchema>;
+export type UpdateFleetTransportBody = Static<typeof UpdateBodySchema>;
+export type FleetTransportParams = Static<typeof IdParamSchema>;
+export type TelemetryFleetTransportBody = Static<typeof TelemetryBodySchema>;
+export type TelemetryFleetTransportParams = Static<typeof IdParamSchema>;

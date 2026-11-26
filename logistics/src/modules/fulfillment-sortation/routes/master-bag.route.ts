@@ -1,8 +1,8 @@
 import { userAuth } from "#commons/middlewares/user-auth.js";
-import { MasterBagStatus, ShipmentStatus } from "@prisma/client";
+import { MasterBagStatus, ParcelStatus } from "@prisma/client";
 import { FastifyInstance } from "fastify";
 import JsBarcode from "jsbarcode";
-import { generateEventDescription } from "../../tracking-logs/logisticsEventDictionary.js";
+import { generateEventDescription } from "../../parcel-logs (TBD)/logisticsEventDictionary.js";
 import { CreateMasterBagBody, CreateMasterBagSchema, UpdateMasterBagBody, UpdateMasterBagParams, UpdateMasterBagSchema, DeleteMasterBagParams, DeleteMasterBagSchema, ShowMasterBagParams, ShowMasterBagSchema } from "../schemas/master-bag.schema.js";
 import { createMasterBag, updateMasterBag, deleteMasterBag, getMasterBagById, getDashboardData } from "../services/master-bag.service.js";
 import { masterBags } from "../paths/master-bag.path.js";
@@ -180,15 +180,15 @@ export async function masterBagRoutes(fastify: FastifyInstance) {
       if (parcelIds.length > 0) {
         await tx.parcel.updateMany({
           where: { id: { in: parcelIds } },
-          data: { status: ShipmentStatus.Bagged }
+          data: { status: ParcelStatus.Bagged }
         })
 
         for (const parcelId of parcelIds) {
-          await tx.trackingLog.create({
+          await tx.parcelLog.create({
             data: {
               parcelId,
-              status: ShipmentStatus.Bagged,
-              description: generateEventDescription({ status: ShipmentStatus.Bagged })
+              status: ParcelStatus.Bagged,
+              description: generateEventDescription({ status: ParcelStatus.Bagged })
             }
           })
         }
@@ -228,15 +228,15 @@ export async function masterBagRoutes(fastify: FastifyInstance) {
       if (parcelIds.length > 0) {
         await tx.parcel.updateMany({
           where: { id: { in: parcelIds } },
-          data: { status: ShipmentStatus.DepartedFromHub }
+          data: { status: ParcelStatus.DepartedFromHub }
         })
 
         for (const parcelId of parcelIds) {
-          await tx.trackingLog.create({
+          await tx.parcelLog.create({
             data: {
               parcelId,
-              status: ShipmentStatus.DepartedFromHub,
-              description: generateEventDescription({ status: ShipmentStatus.DepartedFromHub })
+              status: ParcelStatus.DepartedFromHub,
+              description: generateEventDescription({ status: ParcelStatus.DepartedFromHub })
             }
           })
         }
@@ -279,7 +279,7 @@ export async function masterBagRoutes(fastify: FastifyInstance) {
       if (parcelIds.length > 0) {
         for (const parcel of masterBag.parcels) {
           const isFinalDestination = parcel.destinationFacilityId === masterBag.nextFacilityId;
-          const targetStatus = isFinalDestination ? ShipmentStatus.ArrivedAtDestinationHub : ShipmentStatus.ArrivedAtHub;
+          const targetStatus = isFinalDestination ? ParcelStatus.ArrivedAtDestinationHub : ParcelStatus.ArrivedAtHub;
 
           await tx.parcel.update({
             where: { id: parcel.id },
@@ -289,7 +289,7 @@ export async function masterBagRoutes(fastify: FastifyInstance) {
             }
           })
 
-          await tx.trackingLog.create({
+          await tx.parcelLog.create({
             data: {
               parcelId: parcel.id,
               status: targetStatus,

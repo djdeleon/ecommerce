@@ -1,5 +1,5 @@
 import { ShipmentStatus } from "@prisma/client"
-import { generateEventDescription } from "../../src/modules/tracking-logs/logisticsEventDictionary.js"
+import { generateEventDescription } from "../../src/modules/parcel-logs (TBD)/logisticsEventDictionary.js"
 import { FastifyInstance } from "fastify"
 
 export async function createTrackingLog(fastify: FastifyInstance, parcelId: number, status: ShipmentStatus = ShipmentStatus.PendingPickup) {

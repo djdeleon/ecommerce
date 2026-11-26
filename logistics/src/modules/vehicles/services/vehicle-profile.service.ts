@@ -1,54 +1,29 @@
-import { VehicleType } from "@prisma/client";
 import { FastifyInstance } from "fastify";
-import { CreateVehicleProfile, UpdateVehicleBody } from "../schemas/vehicle-profile.schema.js";
-import parseId from "#commons/utils/id-parser.js";
+import { CreateVehicleProfileBody, UpdateVehicleBody } from "../schemas/vehicle-profile.schema.js";
 
-export async function getVehicleProfiles(fastify: FastifyInstance) {
+export async function indexVehicleProfile(fastify: FastifyInstance) {
   return await fastify.prisma.vehicleProfile.findMany({
     orderBy: { createdAt: 'desc' },
   })
 }
 
-export async function getVehicleProfileById(fastify: FastifyInstance, idParam: string) {
-  const id = parseId(idParam)
-
+export async function showVehicleProfile(fastify: FastifyInstance, id: number) {
   return await fastify.prisma.vehicleProfile.findUniqueOrThrow({
-    where: { id },
+    where: { id }
   })
 }
 
-export async function createVehicleProfile(fastify: FastifyInstance, data: CreateVehicleProfile) {
-  return await fastify.prisma.vehicleProfile.create({
-    data: {
-      ...data,
-      type: data.type as unknown as VehicleType,
-    },
-  })
+export async function createVehicleProfile(fastify: FastifyInstance, data: CreateVehicleProfileBody) {
+  return await fastify.prisma.vehicleProfile.create({ data })
 }
 
-export async function updateVehicleProfile(
-  fastify: FastifyInstance,
-  idParam: string,
-  data: UpdateVehicleBody
-) {
-  const id = parseId(idParam)
-
+export async function updateVehicleProfile(fastify: FastifyInstance, id: number, data: UpdateVehicleBody) {
   return await fastify.prisma.vehicleProfile.update({
     where: { id },
-    data: {
-      ...data,
-      ...(data.type && { type: data.type as unknown as VehicleType }),
-    },
+    data
   })
 }
 
-export async function deleteVehicleProfile(
-  fastify: FastifyInstance,
-  idParam: string
-) {
-  const id = parseId(idParam)
-
-  return await fastify.prisma.vehicleProfile.delete({
-    where: { id },
-  })
+export async function deleteVehicleProfile(fastify: FastifyInstance, id: number) {
+  return await fastify.prisma.vehicleProfile.delete({ where: { id } })
 }

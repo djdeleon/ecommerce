@@ -3,12 +3,12 @@ import { physicalVehicles } from "../../../src/modules/vehicles/paths/physical-v
 import { createVehicleProfile, createPhysicalVehicle } from "../../factory/vehicles.factory.js"
 import { FastifyInstance } from "fastify"
 import { createUser } from "../../factory/user.factory.js"
-import { UserRole } from "@prisma/client"
+import { PhysicalVehicleStatus, UserRole } from "@prisma/client"
 
 describe('Physical Vehicle Management', () => {
   let app: FastifyInstance
-  let adminToken: string
   let defaultFacilityId: number
+  let headers: {}
 
   beforeAll(async () => {
     app = (globalThis as any).app as FastifyInstance
@@ -19,11 +19,9 @@ describe('Physical Vehicle Management', () => {
     if (!admin.user.assignedFacilityId) {
       throw new Error("User doesn't have a facility.")
     }
-    adminToken = admin.token
-    defaultFacilityId = admin.user.assignedFacilityId
+    defaultFacilityId = admin.user.assignedFacilityId;
+    headers = { authorization: `Bearer ${admin.token}` };
   })
-
-  const authHeaders = () => ({ authorization: `Bearer ${adminToken}` })
 
   test('physical vehicles can be listed', async () => {
     await createPhysicalVehicle(app)
@@ -31,16 +29,18 @@ describe('Physical Vehicle Management', () => {
     const response = await app.inject({
       method: 'GET',
       url: physicalVehicles.index,
-      headers: authHeaders(),
+      headers
     })
 
     const body = response.json()
+    const physicalVehicleData = body.data.physicalVehicles
+    const vehicleStatusData = body.data.vehicleStatuses
 
     expect(response.statusCode).toBe(200)
-    expect(body.message).toBe('Physical vehicles retrieved successfully.')
-    expect(Array.isArray(body.data)).toBe(true)
-    expect(body.data.length).toBeGreaterThan(0)
-    expect(body.data[0]).toMatchObject({
+    expect(body.message).toBe('Physical Vehicles retrieved successfully.')
+    expect(Array.isArray(physicalVehicleData)).toBe(true)
+    expect(physicalVehicleData.length).toBeGreaterThan(0)
+    expect(physicalVehicleData[0]).toMatchObject({
       id: expect.any(Number),
       vehicleProfileId: expect.any(Number),
       assignedFacilityId: expect.any(Number),
@@ -48,6 +48,8 @@ describe('Physical Vehicle Management', () => {
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
     })
+
+    expect(vehicleStatusData.length).toBeGreaterThan(0)
   })
 
   test('a physical vehicle can be created', async () => {
@@ -61,14 +63,14 @@ describe('Physical Vehicle Management', () => {
     const response = await app.inject({
       method: 'POST',
       url: physicalVehicles.store,
-      headers: authHeaders(),
+      headers,
       body: payload,
     })
 
     const body = response.json()
 
     expect(response.statusCode).toBe(201)
-    expect(body.message).toBe('Physical vehicle created successfully.')
+    expect(body.message).toBe('Physical Vehicle created successfully.')
     expect(body.data).toMatchObject({
       id: expect.any(Number),
       vehicleProfileId: payload.vehicleProfileId,
@@ -85,13 +87,13 @@ describe('Physical Vehicle Management', () => {
     const response = await app.inject({
       method: 'GET',
       url: physicalVehicles.show(createdVehicle.id),
-      headers: authHeaders(),
+      headers
     })
 
     const body = response.json()
 
     expect(response.statusCode).toBe(200)
-    expect(body.message).toBe('Physical vehicle retrieved successfully.')
+    expect(body.message).toBe('Physical Vehicle retrieved successfully.')
     expect(body.data).toMatchObject({
       id: createdVehicle.id,
       plateNumber: createdVehicle.plateNumber,
@@ -107,18 +109,92 @@ describe('Physical Vehicle Management', () => {
     const response = await app.inject({
       method: 'PUT',
       url: physicalVehicles.update(createdVehicle.id),
-      headers: authHeaders(),
+      headers,
       body: updatePayload,
     })
 
     const body = response.json()
 
     expect(response.statusCode).toBe(200)
-    expect(body.message).toBe('Physical vehicle updated successfully.')
+    expect(body.message).toBe('Physical Vehicle updated successfully.')
     expect(body.data).toMatchObject({
       id: createdVehicle.id,
       plateNumber: updatePayload.plateNumber,
     })
+  })
+
+  test('a physical vehicle can be marked as Available', async () => {
+    const physicalVehicle = await createPhysicalVehicle(app, {
+      status: PhysicalVehicleStatus.Maintenance
+    })
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: physicalVehicles.available(physicalVehicle.id),
+      headers
+    })
+
+    const body = response.json()
+
+    expect(body.message).toBe('Physical Vehicle marked as available successfully.')
+    expect(body.data.status).toBe(PhysicalVehicleStatus.Available)
+
+    const dbPhysicalVehicle = await app.prisma.physicalVehicle.findUniqueOrThrow({
+      where: { id: physicalVehicle.id },
+      include: { logs: true }
+    })
+
+    expect(dbPhysicalVehicle.logs).toHaveLength(2)
+    expect(dbPhysicalVehicle.logs[0].status).toBe(PhysicalVehicleStatus.Maintenance)
+    expect(dbPhysicalVehicle.logs[1].status).toBe(PhysicalVehicleStatus.Available)
+  })
+
+  test('a physical vehicle can be marked as InTransit', async () => {
+    const physicalVehicle = await createPhysicalVehicle(app)
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: physicalVehicles.inTransit(physicalVehicle.id),
+      headers
+    })
+
+    const body = response.json()
+
+    expect(body.message).toBe('Physical Vehicle marked as In Transit successfully.')
+    expect(body.data.status).toBe(PhysicalVehicleStatus.InTransit)
+
+    const dbPhysicalVehicle = await app.prisma.physicalVehicle.findUniqueOrThrow({
+      where: { id: physicalVehicle.id },
+      include: { logs: true }
+    })
+
+    expect(dbPhysicalVehicle.logs).toHaveLength(2)
+    expect(dbPhysicalVehicle.logs[0].status).toBe(PhysicalVehicleStatus.Available)
+    expect(dbPhysicalVehicle.logs[1].status).toBe(PhysicalVehicleStatus.InTransit)
+  })
+
+  test('a physical vehicle can be marked as Maintenance', async () => {
+    const physicalVehicle = await createPhysicalVehicle(app)
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: physicalVehicles.maintenance(physicalVehicle.id),
+      headers
+    })
+
+    const body = response.json()
+
+    expect(body.message).toBe('Physical Vehicle marked as Maintenance successfully.')
+    expect(body.data.status).toBe(PhysicalVehicleStatus.Maintenance)
+
+    const dbPhysicalVehicle = await app.prisma.physicalVehicle.findUniqueOrThrow({
+      where: { id: physicalVehicle.id },
+      include: { logs: true }
+    })
+
+    expect(dbPhysicalVehicle.logs).toHaveLength(2)
+    expect(dbPhysicalVehicle.logs[0].status).toBe(PhysicalVehicleStatus.Available)
+    expect(dbPhysicalVehicle.logs[1].status).toBe(PhysicalVehicleStatus.Maintenance)
   })
 
   test('a physical vehicle can be deleted', async () => {
@@ -126,14 +202,14 @@ describe('Physical Vehicle Management', () => {
 
     const response = await app.inject({
       method: 'DELETE',
-      headers: authHeaders(),
+      headers,
       url: physicalVehicles.delete(createdVehicle.id),
     })
 
     const body = response.json()
 
     expect(response.statusCode).toBe(200)
-    expect(body.message).toBe('Physical vehicle deleted successfully.')
+    expect(body.message).toBe('Physical Vehicle deleted successfully.')
 
     const deletedRecord = await app.prisma.physicalVehicle.findUnique({
       where: { id: createdVehicle.id },

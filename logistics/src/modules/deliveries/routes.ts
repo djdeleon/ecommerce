@@ -3,10 +3,10 @@ import {
   CreateDeliveryBody,
   CreateDeliverySchema,
 } from "./schema.js";
-import { FleetTransportType, CourierStatus, DeliveryStatus, ShipmentStatus } from "@prisma/client";
+import { FleetTransportType, CourierStatus, DeliveryStatus, ParcelStatus } from "@prisma/client";
 import { userAuth } from "#commons/middlewares/user-auth.js";
 import { generateDeliveryCode } from "./service.js";
-import { generateEventDescription } from "../tracking-logs/logisticsEventDictionary.js";
+import { generateEventDescription } from "../parcel-logs (TBD)/logisticsEventDictionary.js";
 import { deliveries } from "./paths.js";
 
 export default async function routes(fastify: FastifyInstance) {
@@ -141,7 +141,7 @@ export default async function routes(fastify: FastifyInstance) {
       const delivery = await tx.delivery.create({
         data: {
           sectorId,
-          courierScheduleId: fleetTransport.id,
+          fleetTransportId: fleetTransport.id,
           code,
           currentWeightGrams,
           currentVolumeCbm,
@@ -171,7 +171,7 @@ export default async function routes(fastify: FastifyInstance) {
       data: {
         deliveryId: result.delivery.id,
         code: result.delivery.code,
-        courierScheduleId: result.fleetTransport.id,
+        fleetTransportId: result.fleetTransport.id,
         fleetTransport: result.fleetTransport,
         totalParcels: result.updatedParcels.length,
         currentWeightGrams: result.delivery.currentWeightGrams,
@@ -189,7 +189,7 @@ export default async function routes(fastify: FastifyInstance) {
     });
 
     const fleetTransport = await fastify.prisma.fleetTransport.findUniqueOrThrow({
-      where: { id: delivery.courierScheduleId }
+      where: { id: delivery.fleetTransportId }
     })
     if (!fleetTransport.courierId) {
       throw new Error("Cannot dispatch delivery: No courier assigned to this schedule.");
@@ -236,15 +236,15 @@ export default async function routes(fastify: FastifyInstance) {
       await tx.parcel.updateMany({
         where: { id: { in: parcelIds } },
         data: {
-          status: ShipmentStatus.OutForDelivery
+          status: ParcelStatus.OutForDelivery
         }
       })
 
-      await tx.trackingLog.createManyAndReturn({
+      await tx.parcelLog.createManyAndReturn({
         data: parcelIds.map((id) => ({
           parcelId: id,
-          status: ShipmentStatus.OutForDelivery,
-          description: generateEventDescription({ status: ShipmentStatus.OutForDelivery, courierName }),
+          status: ParcelStatus.OutForDelivery,
+          description: generateEventDescription({ status: ParcelStatus.OutForDelivery, courierName }),
           facilityId: sector.localBranchId,
           courierId: assignedCourierId
         }))
@@ -270,7 +270,7 @@ export default async function routes(fastify: FastifyInstance) {
       _count: { id: true }
     })
     const totalPickedUpParcels = await fastify.prisma.parcel.aggregate({
-      where: { deliveryId: delivery.id, status: ShipmentStatus.Delivered },
+      where: { deliveryId: delivery.id, status: ParcelStatus.Delivered },
       _count: { id: true }
     })
     const remainingParcels = totalParcels._count.id - totalPickedUpParcels._count.id
@@ -311,7 +311,7 @@ export default async function routes(fastify: FastifyInstance) {
     }
 
     const fleetTransport = await fastify.prisma.fleetTransport.findUniqueOrThrow({
-      where: { id: delivery.courierScheduleId }
+      where: { id: delivery.fleetTransportId }
     })
     if (!fleetTransport.courierId) {
       throw new Error("Cannot dispatch delivery: No courier assigned to this schedule.");
@@ -347,7 +347,7 @@ export default async function routes(fastify: FastifyInstance) {
 
       const updatedParcels = await tx.parcel.updateManyAndReturn({
         where: { deliveryId: updatedDelivery.id },
-        data: { status: ShipmentStatus.ArrivedAtOriginHub }
+        data: { status: ParcelStatus.ArrivedAtOriginHub }
       })
 
 

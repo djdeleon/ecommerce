@@ -1,5 +1,3 @@
-
-
 import { compilePath } from "#commons/utils/path-compiler.js";
 
 const createPath = (path: string) => {
@@ -18,7 +16,8 @@ export const fleetTransports = {
   update: createPath('/api/v1/fleet-transports/:id'),
   delete: createPath('/api/v1/fleet-transports/:id'),
   depart: createPath('/api/v1/fleet-transports/:id/depart'),
-  telemetry: createPath('/api/v1/fleet-transports/:id/telemetry'),
   dispatch: createPath('/api/v1/fleet-transports/:id/dispatch'),
   arrive: createPath('/api/v1/fleet-transports/:id/arrive'),
+  return: createPath('/api/v1/fleet-transports/:id/return'),
+  telemetry: createPath('/api/v1/fleet-transports/:id/telemetry'),
 } as const;
